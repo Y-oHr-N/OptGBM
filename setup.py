@@ -1,4 +1,4 @@
-"""Setup awesome package."""
+"""Setup OptGBM package."""
 
 from setuptools import setup
 

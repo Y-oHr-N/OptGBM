@@ -1,3 +1,15 @@
-# python-package-template
+# OptGBM
 
-A template for Python packages
+Optuna + LightGBM = OptGBM
+
+## Installation
+
+```
+pip install optgbm
+```
+
+## Testing
+
+```
+pytest
+```
