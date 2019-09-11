@@ -25,5 +25,5 @@ pip install optgbm
 ## Testing
 
 ```
-pytest
+python setup.py test
 ```
