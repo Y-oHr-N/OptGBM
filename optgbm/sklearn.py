@@ -1,5 +1,6 @@
 """scikit-learn compatible models."""
 
+from typing import Optional
 from typing import Union
 
 import numpy as np
@@ -10,7 +11,7 @@ from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
 
 DATA_TYPE = Union[np.ndarray, pd.DataFrame]
-RANDOM_STATE_TYPE = Union[int, np.random.RandomState]
+RANDOM_STATE_TYPE = Optional[Union[int, np.random.RandomState]]
 TARGET_TYPE = Union[np.ndarray, pd.Series]
 
 
