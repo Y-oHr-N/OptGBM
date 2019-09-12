@@ -15,9 +15,9 @@ from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
 
-DATA_TYPE = Union[np.ndarray, pd.DataFrame]
 RANDOM_STATE_TYPE = Optional[Union[int, np.random.RandomState]]
-TARGET_TYPE = Union[np.ndarray, pd.Series]
+ONE_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.Series]
+TWO_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.DataFrame]
 
 
 class LightGBMCallbackEnv(NamedTuple):
@@ -50,7 +50,12 @@ class BaseOGBMModel(BaseEstimator):
     def __init__(self, random_state: RANDOM_STATE_TYPE = None) -> None:
         self.random_state = random_state
 
-    def fit(self, X: DATA_TYPE, y: TARGET_TYPE) -> 'BaseOGBMModel':
+    def fit(
+        self,
+        X: TWO_DIM_ARRAYLIKE_TYPE,
+        y: ONE_DIM_ARRAYLIKE_TYPE,
+        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
+    ) -> 'BaseOGBMModel':
         """Fit the model according to the given training data.
 
         Parameters
