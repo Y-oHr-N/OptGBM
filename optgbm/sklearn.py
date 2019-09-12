@@ -1,6 +1,7 @@
 """scikit-learn compatible models."""
 
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import NamedTuple
@@ -9,11 +10,13 @@ from typing import Union
 
 import lightgbm as lgb
 import numpy as np
+import optuna
 import pandas as pd
 
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
+from sklearn.model_selection import BaseCrossValidator
 
 RANDOM_STATE_TYPE = Optional[Union[int, np.random.RandomState]]
 ONE_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.Series]
@@ -42,6 +45,97 @@ class ExtractionCallback(object):
     def __call__(self, env: LightGBMCallbackEnv) -> None:
         """Extract a callback environment."""
         self._env = env
+
+
+class Objective(object):
+    """Objective function."""
+
+    def __init__(
+        self,
+        params: Dict[str, Any],
+        param_distributions: Dict[str, optuna.distributions.BaseDistribution],
+        X: TWO_DIM_ARRAYLIKE_TYPE,
+        y: ONE_DIM_ARRAYLIKE_TYPE,
+        categorical_feature: Union[List[Union[int, str]], str] = 'auto',
+        cv: Optional[BaseCrossValidator] = None,
+        early_stopping_rounds: Optional[int] = None,
+        enable_pruning: bool = False,
+        n_estimators: int = 100,
+        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None
+    ) -> None:
+        self.categorical_feature = categorical_feature
+        self.cv = cv
+        self.early_stopping_rounds = early_stopping_rounds
+        self.enable_pruning = enable_pruning
+        self.n_estimators = n_estimators
+        self.params = params
+        self.param_distributions = param_distributions
+        self.sample_weight = sample_weight
+        self.X = X
+        self.y = y
+
+    def __call__(self, trial: optuna.trial.Trial) -> float:
+        """Return the CV score for a trial."""
+        params: Dict[str, Any] = self._get_params(trial)
+        callbacks: List[Callable] = self._get_callbacks(trial)
+        dataset: lgb.Dataset = lgb.Dataset(
+            self.X,
+            label=self.y,
+            weight=self.sample_weight
+        )
+        eval_hist: Dict[str, List[float]] = lgb.cv(
+            params,
+            dataset,
+            callbacks=callbacks,
+            categorical_feature=self.categorical_feature,
+            early_stopping_rounds=self.early_stopping_rounds,
+            folds=self.cv,
+            num_boost_round=self.n_estimators
+        )
+        value: float = eval_hist[f'{self.params["metric"]}-mean'][-1]
+
+        if self._is_best_trial(trial, value):
+            boosters: List[lgb.Booster] = \
+                callbacks[0].boosters_  # type: ignore
+
+            for b in boosters:
+                b.free_dataset()
+
+            trial.study.set_user_attr('boosters', boosters)
+
+        return value
+
+    def _get_callbacks(self, trial: optuna.trial.Trial) -> List[Callable]:
+        extraction_callback: ExtractionCallback = ExtractionCallback()
+        callbacks: List[Callable] = [extraction_callback]
+
+        if self.enable_pruning:
+            pruning_callback: optuna.integration.LightGBMPruningCallback = \
+                optuna.integration.LightGBMPruningCallback(
+                    trial,
+                    self.params['metric']
+                )
+
+            callbacks.append(pruning_callback)
+
+        return callbacks
+
+    def _get_params(self, trial: optuna.trial.Trial) -> Dict[str, Any]:
+        params: Dict[str, Any] = {
+            name: trial._suggest(
+                name, distribution
+            ) for name, distribution in self.param_distributions.items()
+        }
+
+        params.update(self.params)
+
+        return params
+
+    def _is_best_trial(self, trial: optuna.trial.Trial, value: float) -> bool:
+        try:
+            return value < trial.study.best_value
+        except ValueError:
+            return True
 
 
 class BaseOGBMModel(BaseEstimator):
