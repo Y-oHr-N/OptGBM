@@ -1,8 +1,13 @@
 """scikit-learn compatible models."""
 
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import NamedTuple
 from typing import Optional
 from typing import Union
 
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
@@ -13,6 +18,30 @@ from sklearn.base import RegressorMixin
 DATA_TYPE = Union[np.ndarray, pd.DataFrame]
 RANDOM_STATE_TYPE = Optional[Union[int, np.random.RandomState]]
 TARGET_TYPE = Union[np.ndarray, pd.Series]
+
+
+class LightGBMCallbackEnv(NamedTuple):
+    """Callback environment used by callbacks."""
+
+    model: lgb.engine._CVBooster
+    params: Dict[str, Any]
+    iteration: int
+    begin_iteration: int
+    end_iteration: int
+    evaluation_result_list: List
+
+
+class ExtractionCallback(object):
+    """Callback that extracts trained boosters."""
+
+    @property
+    def boosters_(self) -> List[lgb.Booster]:
+        """Trained boosters."""
+        return self._env.model.boosters
+
+    def __call__(self, env: LightGBMCallbackEnv) -> None:
+        """Extract a callback environment."""
+        self._env = env
 
 
 class BaseOGBMModel(BaseEstimator):
