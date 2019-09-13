@@ -22,6 +22,25 @@ RANDOM_STATE_TYPE = Optional[Union[int, np.random.RandomState]]
 ONE_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.Series]
 TWO_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.DataFrame]
 
+PARAM_DISTRIBUTIONS = {
+    'colsample_bytree':
+        optuna.distributions.DiscreteUniformDistribution(0.5, 0.9, 0.05),
+    'min_child_samples':
+        optuna.distributions.IntUniformDistribution(1, 100),
+    'min_child_weight':
+        optuna.distributions.LogUniformDistribution(1e-03, 10.0),
+    'num_leaves':
+        optuna.distributions.IntUniformDistribution(2, 127),
+    'reg_alpha':
+        optuna.distributions.LogUniformDistribution(1e-06, 10.0),
+    'reg_lambda':
+        optuna.distributions.LogUniformDistribution(1e-6, 10.0),
+    'subsample':
+        optuna.distributions.DiscreteUniformDistribution(0.5, 0.9, 0.05),
+    'subsample_freq':
+        optuna.distributions.IntUniformDistribution(1, 10)
+}
+
 
 class LightGBMCallbackEnv(NamedTuple):
     """Callback environment used by callbacks."""
