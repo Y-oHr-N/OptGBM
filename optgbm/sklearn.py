@@ -201,11 +201,13 @@ class BaseOGBMModel(BaseEstimator):
 
     def __init__(
         self,
+        categorical_features: Union[List[Union[int, str]], str] = 'auto',
         class_weight: Optional[Union[str, Dict[str, float]]] = None,
         cv: Union[BaseCrossValidator, int] = 5,
         enable_pruning: bool = True,
         learning_rate: float = 0.1,
-        n_estimators: int = 100,
+        max_iter: int = 100,
+        n_iter_no_change: Optional[int] = None,
         n_jobs: int = 1,
         n_trials: int = 10,
         objective: Optional[str] = None,
@@ -215,11 +217,13 @@ class BaseOGBMModel(BaseEstimator):
         study: optuna.study.Study = None,
         timeout: float = None,
     ) -> None:
+        self.categorical_features = categorical_features
         self.class_weight = class_weight
         self.cv = cv
         self.enable_pruning = enable_pruning
         self.learning_rate = learning_rate
-        self.n_estimators = n_estimators
+        self.max_iter = max_iter
+        self.n_iter_no_change = n_iter_no_change
         self.n_jobs = n_jobs
         self.n_trials = n_trials
         self.objective = objective
@@ -232,8 +236,6 @@ class BaseOGBMModel(BaseEstimator):
         self,
         X: TWO_DIM_ARRAYLIKE_TYPE,
         y: ONE_DIM_ARRAYLIKE_TYPE,
-        categorical_feature: Union[List[Union[int, str]], str] = 'auto',
-        early_stopping_rounds: Optional[int] = None,
         sample_weight: ONE_DIM_ARRAYLIKE_TYPE = None
     ) -> 'BaseOGBMModel':
         """Fit the model according to the given training data.
@@ -320,11 +322,11 @@ class BaseOGBMModel(BaseEstimator):
             param_distributions,
             X,
             y,
-            categorical_feature=categorical_feature,
+            categorical_feature=self.categorical_features,
             cv=cv,
-            early_stopping_rounds=early_stopping_rounds,
+            early_stopping_rounds=self.n_iter_no_change,
             enable_pruning=self.enable_pruning,
-            n_estimators=self.n_estimators,
+            n_estimators=self.max_iter,
             sample_weight=sample_weight,
         )
 
