@@ -20,6 +20,7 @@ from sklearn.model_selection import BaseCrossValidator
 from sklearn.model_selection import check_cv
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
+from sklearn.utils import check_X_y
 from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.utils.validation import _num_samples
 
@@ -253,6 +254,16 @@ class BaseOGBMModel(BaseEstimator):
         self
             Return self.
         """
+        if not isinstance(X, pd.DataFrame):
+            X, y = check_X_y(
+                X,
+                y,
+                accept_sparse=True,
+                ensure_min_samples=2,
+                estimator=self,
+                force_all_finite=False
+            )
+
         is_classifier = self._estimator_type == 'classifier'
         cv = check_cv(self.cv, y, is_classifier)
         random_state = check_random_state(self.random_state)
