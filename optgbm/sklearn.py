@@ -17,10 +17,48 @@ from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
 from sklearn.model_selection import BaseCrossValidator
+from sklearn.model_selection import check_cv
+from sklearn.preprocessing import LabelEncoder
+from sklearn.utils import check_random_state
+from sklearn.utils.class_weight import compute_sample_weight
+from sklearn.utils.validation import _num_samples
 
 RANDOM_STATE_TYPE = Optional[Union[int, np.random.RandomState]]
 ONE_DIM_ARRAYLIKE_TYPE = Optional[Union[np.ndarray, pd.Series]]
 TWO_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.DataFrame]
+
+MAX_INT = np.iinfo(np.int32).max
+
+CLASSIFICATION_METRICS = {
+    'binary': 'binary_logloss',
+    'multiclass': 'multi_logloss',
+    'softmax': 'multi_logloss',
+    'multiclassova': 'multi_logloss',
+    'multiclass_ova': 'multi_logloss',
+    'ova': 'multi_logloss',
+    'ovr': 'multi_logloss'
+}
+REGRESSION_METRICS = {
+    'mean_absoluter_error': 'l1',
+    'mae': 'l1',
+    'regression_l1': 'l1',
+    'l2_root': 'l2',
+    'mean_squared_error': 'l2',
+    'mse': 'l2',
+    'regression': 'l2',
+    'regression_l2': 'l2',
+    'root_mean_squared_error': 'l2',
+    'rmse': 'l2',
+    'huber': 'huber',
+    'fair': 'fair',
+    'poisson': 'poisson',
+    'quantile': 'quantile',
+    'mean_absolute_percentage_error': 'mape',
+    'mape': 'mape',
+    'gamma': 'gamma',
+    'tweedie': 'tweedie'
+}
+METRICS = {**CLASSIFICATION_METRICS, **REGRESSION_METRICS}
 
 PARAM_DISTRIBUTIONS = {
     'colsample_bytree':
@@ -160,14 +198,42 @@ class Objective(object):
 class BaseOGBMModel(BaseEstimator):
     """Base class for models in OptGBM."""
 
-    def __init__(self, random_state: RANDOM_STATE_TYPE = None) -> None:
+    def __init__(
+        self,
+        class_weight: Optional[Union[str, Dict[str, float]]] = None,
+        cv: Union[BaseCrossValidator, int] = 5,
+        enable_pruning: bool = True,
+        learning_rate: float = 0.1,
+        n_estimators: int = 100,
+        n_jobs: int = 1,
+        n_trials: int = 10,
+        objective: Optional[str] = None,
+        param_distributions:
+            Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
+        random_state: RANDOM_STATE_TYPE = None,
+        study: optuna.study.Study = None,
+        timeout: float = None,
+    ) -> None:
+        self.class_weight = class_weight
+        self.cv = cv
+        self.enable_pruning = enable_pruning
+        self.learning_rate = learning_rate
+        self.n_estimators = n_estimators
+        self.n_jobs = n_jobs
+        self.n_trials = n_trials
+        self.objective = objective
+        self.param_distributions = param_distributions
         self.random_state = random_state
+        self.study = study
+        self.timeout = timeout
 
     def fit(
         self,
         X: TWO_DIM_ARRAYLIKE_TYPE,
         y: ONE_DIM_ARRAYLIKE_TYPE,
-        sample_weight: ONE_DIM_ARRAYLIKE_TYPE = None,
+        categorical_feature: Union[List[Union[int, str]], str] = 'auto',
+        early_stopping_rounds: Optional[int] = None,
+        sample_weight: ONE_DIM_ARRAYLIKE_TYPE = None
     ) -> 'BaseOGBMModel':
         """Fit the model according to the given training data.
 
@@ -179,11 +245,89 @@ class BaseOGBMModel(BaseEstimator):
         y
             Target.
 
+        sample_weight
+            Weights of training data.
+
         Returns
         -------
         self
             Return self.
         """
+        is_classifier = self._estimator_type == 'classifier'
+        cv = check_cv(self.cv, y, is_classifier)
+        random_state = check_random_state(self.random_state)
+        seed = random_state.randint(0, MAX_INT)
+        params = {
+            'learning_rate': self.learning_rate,
+            'n_jobs': 1,
+            'seed': seed,
+            'verbose': -1
+        }
+
+        if is_classifier:
+            self.encoder_ = LabelEncoder()
+
+            y = self.encoder_.fit_transform(y)
+            n_classes = len(self.encoder_.classes_)
+
+            if n_classes > 2:
+                params['num_classes'] = n_classes
+                params['objective'] = 'multiclass'
+            else:
+                params['objective'] = 'binary'
+
+        else:
+            params['objective'] = 'regression'
+
+        if self.objective is not None:
+            params['objective'] = self.objective
+
+        params['metric'] = METRICS[params['objective']]
+
+        if self.param_distributions is None:
+            param_distributions = PARAM_DISTRIBUTIONS
+        else:
+            param_distributions = self.param_distributions
+
+        if sample_weight is None:
+            n_samples = _num_samples(X)
+            sample_weight = np.ones(n_samples)
+
+        if self.class_weight is not None:
+            sample_weight *= compute_sample_weight(self.class_weight, y)
+
+        if self.study is None:
+            sampler = optuna.samplers.TPESampler(seed=seed)
+
+            self.study_ = optuna.create_study(sampler=sampler)
+
+        else:
+            self.study_ = self.study
+
+        objective = Objective(
+            params,
+            param_distributions,
+            X,
+            y,
+            categorical_feature=categorical_feature,
+            cv=cv,
+            early_stopping_rounds=early_stopping_rounds,
+            enable_pruning=self.enable_pruning,
+            n_estimators=self.n_estimators,
+            sample_weight=sample_weight,
+        )
+
+        self.weights_ = np.array([
+            np.sum(sample_weight[train]) for train, _ in cv.split(X, y)
+        ])
+
+        self.study_.optimize(
+            objective,
+            n_jobs=self.n_jobs,
+            n_trials=self.n_trials,
+            timeout=self.timeout
+        )
+
         return self
 
 
