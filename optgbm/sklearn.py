@@ -19,7 +19,7 @@ from sklearn.base import RegressorMixin
 from sklearn.model_selection import BaseCrossValidator
 
 RANDOM_STATE_TYPE = Optional[Union[int, np.random.RandomState]]
-ONE_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.Series]
+ONE_DIM_ARRAYLIKE_TYPE = Optional[Union[np.ndarray, pd.Series]]
 TWO_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.DataFrame]
 
 PARAM_DISTRIBUTIONS = {
@@ -80,7 +80,7 @@ class Objective(object):
         early_stopping_rounds: Optional[int] = None,
         enable_pruning: bool = False,
         n_estimators: int = 100,
-        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None
+        sample_weight: ONE_DIM_ARRAYLIKE_TYPE = None
     ) -> None:
         self.categorical_feature = categorical_feature
         self.cv = cv
@@ -167,7 +167,7 @@ class BaseOGBMModel(BaseEstimator):
         self,
         X: TWO_DIM_ARRAYLIKE_TYPE,
         y: ONE_DIM_ARRAYLIKE_TYPE,
-        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
+        sample_weight: ONE_DIM_ARRAYLIKE_TYPE = None,
     ) -> 'BaseOGBMModel':
         """Fit the model according to the given training data.
 
