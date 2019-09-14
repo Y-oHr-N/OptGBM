@@ -105,9 +105,7 @@ class ExtractionCallback(object):
         self._env = env
 
 
-class Objective(object):
-    """Objective function."""
-
+class _Objective(object):
     def __init__(
         self,
         params: Dict[str, Any],
@@ -133,7 +131,6 @@ class Objective(object):
         self.y = y
 
     def __call__(self, trial: optuna.trial.Trial) -> float:
-        """Return the CV score for a trial."""
         params: Dict[str, Any] = self._get_params(trial)
         callbacks: List[Callable] = self._get_callbacks(trial)
         dataset: lgb.Dataset = lgb.Dataset(
@@ -317,7 +314,7 @@ class BaseOGBMModel(BaseEstimator):
         else:
             self.study_ = self.study
 
-        objective = Objective(
+        objective = _Objective(
             params,
             param_distributions,
             X,
