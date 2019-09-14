@@ -90,16 +90,12 @@ class _LightGBMCallbackEnv(NamedTuple):
     evaluation_result_list: List
 
 
-class ExtractionCallback(object):
-    """Callback that extracts trained boosters."""
-
+class _ExtractionCallback(object):
     @property
     def boosters_(self) -> List[lgb.Booster]:
-        """Trained boosters."""
         return self._env.model.boosters
 
     def __call__(self, env: _LightGBMCallbackEnv) -> None:
-        """Extract a callback environment."""
         self._env = env
 
 
@@ -159,7 +155,7 @@ class _Objective(object):
         return value
 
     def _get_callbacks(self, trial: optuna.trial.Trial) -> List[Callable]:
-        extraction_callback: ExtractionCallback = ExtractionCallback()
+        extraction_callback: _ExtractionCallback = _ExtractionCallback()
         callbacks: List[Callable] = [extraction_callback]
 
         if self.enable_pruning:
