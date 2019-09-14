@@ -81,9 +81,7 @@ PARAM_DISTRIBUTIONS = {
 }
 
 
-class LightGBMCallbackEnv(NamedTuple):
-    """Callback environment used by callbacks."""
-
+class _LightGBMCallbackEnv(NamedTuple):
     model: lgb.engine._CVBooster
     params: Dict[str, Any]
     iteration: int
@@ -100,7 +98,7 @@ class ExtractionCallback(object):
         """Trained boosters."""
         return self._env.model.boosters
 
-    def __call__(self, env: LightGBMCallbackEnv) -> None:
+    def __call__(self, env: _LightGBMCallbackEnv) -> None:
         """Extract a callback environment."""
         self._env = env
 
