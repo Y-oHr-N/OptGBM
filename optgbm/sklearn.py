@@ -90,13 +90,12 @@ class _LightGBMCallbackEnv(NamedTuple):
     evaluation_result_list: List
 
 
-class _ExtractionCallback(object):
-    @property
-    def boosters_(self) -> List[lgb.Booster]:
-        return self._env.model.boosters
+class _ModelExtractionCallback(object):
+    def __init__(self) -> None:
+        self._model: Optional[lgb.engine._CVBooster] = None
 
     def __call__(self, env: _LightGBMCallbackEnv) -> None:
-        self._env = env
+        self._model = env.model
 
 
 class _Objective(object):
@@ -124,6 +123,8 @@ class _Objective(object):
         self.X = X
         self.y = y
 
+        self._model: Optional[lgb.engine._CVBooster] = None
+
     def __call__(self, trial: optuna.trial.Trial) -> float:
         params: Dict[str, Any] = self._get_params(trial)
         callbacks: List[Callable] = self._get_callbacks(trial)
@@ -143,19 +144,14 @@ class _Objective(object):
         )
         value: float = eval_hist[f'{self.params["metric"]}-mean'][-1]
 
-        if self._is_best_trial(trial, value):
-            boosters: List[lgb.Booster] = \
-                callbacks[0].boosters_  # type: ignore
-
-            for b in boosters:
-                b.free_dataset()
-
-            trial.study.set_user_attr('boosters', boosters)
+        if self._model is None or value < trial.study.best_value:
+            self._model = callbacks[0]._model  # type: ignore
 
         return value
 
     def _get_callbacks(self, trial: optuna.trial.Trial) -> List[Callable]:
-        extraction_callback: _ExtractionCallback = _ExtractionCallback()
+        extraction_callback: _ModelExtractionCallback = \
+            _ModelExtractionCallback()
         callbacks: List[Callable] = [extraction_callback]
 
         if self.enable_pruning:
@@ -179,12 +175,6 @@ class _Objective(object):
         params.update(self.params)
 
         return params
-
-    def _is_best_trial(self, trial: optuna.trial.Trial, value: float) -> bool:
-        try:
-            return value < trial.study.best_value
-        except ValueError:
-            return True
 
 
 class BaseOGBMModel(BaseEstimator):
@@ -331,6 +321,10 @@ class BaseOGBMModel(BaseEstimator):
             n_trials=self.n_trials,
             timeout=self.timeout
         )
+
+        self.model_: lgb.engine._CVBooster = objective._model
+
+        self.model_.free_dataset()
 
         return self
 
