@@ -372,6 +372,13 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     0.9...
     """
 
+    @property
+    def classes_(self) -> np.ndarray:
+        """Class labels."""
+        self._check_is_fitted()
+
+        return self.encoder_.classes_
+
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
         """Predict using the Fitted model.
 
