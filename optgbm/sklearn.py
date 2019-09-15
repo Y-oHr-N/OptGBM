@@ -177,9 +177,7 @@ class _Objective(object):
         return params
 
 
-class BaseOGBMModel(BaseEstimator):
-    """Base class for models in OptGBM."""
-
+class _BaseOGBMModel(BaseEstimator):
     def __init__(
         self,
         categorical_features: Union[List[Union[int, str]], str] = 'auto',
@@ -218,7 +216,7 @@ class BaseOGBMModel(BaseEstimator):
         X: TWO_DIM_ARRAYLIKE_TYPE,
         y: ONE_DIM_ARRAYLIKE_TYPE,
         sample_weight: ONE_DIM_ARRAYLIKE_TYPE = None
-    ) -> 'BaseOGBMModel':
+    ) -> '_BaseOGBMModel':
         """Fit the model according to the given training data.
 
         Parameters
@@ -329,7 +327,7 @@ class BaseOGBMModel(BaseEstimator):
         return self
 
 
-class OGBMClassifier(BaseOGBMModel, ClassifierMixin):
+class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     """OptGBM classifier.
 
     Examples
@@ -343,7 +341,7 @@ class OGBMClassifier(BaseOGBMModel, ClassifierMixin):
     """
 
 
-class OGBMRegressor(BaseOGBMModel, RegressorMixin):
+class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     """OptGBM regressor.
 
     Examples
