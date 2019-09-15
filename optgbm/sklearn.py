@@ -179,6 +179,14 @@ class _Objective(object):
 
 
 class _BaseOGBMModel(BaseEstimator):
+    @property
+    def feature_importances_(self) -> np.ndarray:
+        self._check_is_fitted()
+
+        results = self.model_.feature_importance()
+
+        return np.average(results, axis=0, weights=self.weights_)
+
     def __init__(
         self,
         categorical_features: Union[List[Union[int, str]], str] = 'auto',
