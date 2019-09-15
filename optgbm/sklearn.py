@@ -238,7 +238,7 @@ class _BaseOGBMModel(BaseEstimator):
         self.timeout = timeout
 
     def _check_is_fitted(self) -> None:
-        check_is_fitted(self, ['boosters_', 'study_', 'weights_'])
+        check_is_fitted(self, 'n_features_')
 
     def _check_X_y(
         self,
