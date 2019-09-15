@@ -23,6 +23,7 @@ from sklearn.utils import check_random_state
 from sklearn.utils import check_X_y
 from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.utils.validation import _num_samples
+from sklearn.utils.validation import check_is_fitted
 
 RANDOM_STATE_TYPE = Optional[Union[int, np.random.RandomState]]
 ONE_DIM_ARRAYLIKE_TYPE = Optional[Union[np.ndarray, pd.Series]]
@@ -211,6 +212,9 @@ class _BaseOGBMModel(BaseEstimator):
         self.study = study
         self.timeout = timeout
 
+    def _check_is_fitted(self) -> None:
+        check_is_fitted(self, ['model_', 'study_', 'weights_'])
+
     def fit(
         self,
         X: TWO_DIM_ARRAYLIKE_TYPE,
@@ -376,6 +380,8 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         p
             Class probabilities of data.
         """
+        self._check_is_fitted()
+
         results = self.model_.predict(X)
         result = np.average(results, axis=0, weights=self.weights_)
         n_classes = len(self.encoder_.classes_)
@@ -417,6 +423,8 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         y_pred
             Predicted values.
         """
+        self._check_is_fitted()
+
         results = self.model_.predict(X)
 
         return np.average(results, axis=0, weights=self.weights_)
