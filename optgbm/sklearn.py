@@ -6,6 +6,7 @@ from typing import Dict
 from typing import List
 from typing import NamedTuple
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 import lightgbm as lgb
@@ -26,6 +27,7 @@ from sklearn.utils import check_array
 from sklearn.utils import check_random_state
 from sklearn.utils import check_X_y
 from sklearn.utils.class_weight import compute_sample_weight
+from sklearn.utils.multiclass import check_classification_targets
 from sklearn.utils.validation import _num_samples
 from sklearn.utils.validation import check_is_fitted
 
@@ -234,6 +236,39 @@ class _BaseOGBMModel(BaseEstimator):
     def _check_is_fitted(self) -> None:
         check_is_fitted(self, ['boosters_', 'study_', 'weights_'])
 
+    def _check_X_y(
+        self,
+        X: TWO_DIM_ARRAYLIKE_TYPE,
+        y: ONE_DIM_ARRAYLIKE_TYPE = None
+    ) -> Tuple[TWO_DIM_ARRAYLIKE_TYPE, ONE_DIM_ARRAYLIKE_TYPE]:
+        if y is None:
+            if not isinstance(X, pd.DataFrame):
+                X = check_array(
+                    X,
+                    accept_sparse=True,
+                    estimator=self,
+                    force_all_finite=False
+                )
+        else:
+            if not isinstance(X, pd.DataFrame):
+                X, y = check_X_y(
+                    X,
+                    y,
+                    accept_sparse=True,
+                    estimator=self,
+                    force_all_finite=False
+                )
+
+            if self._estimator_type == 'classifier':
+                check_classification_targets(y)
+
+        _, n_features = X.shape
+
+        if n_features != getattr(self, 'n_features_', n_features):
+            raise ValueError(f'Invalid data: X.shape={X.shape}.')
+
+        return X, y
+
     def _more_tags(self) -> Dict[str, Any]:
         return {'allow_nan': True}
 
@@ -261,14 +296,9 @@ class _BaseOGBMModel(BaseEstimator):
         self
             Return self.
         """
-        if not isinstance(X, pd.DataFrame):
-            X, y = check_X_y(
-                X,
-                y,
-                accept_sparse=True,
-                estimator=self,
-                force_all_finite=False
-            )
+        X, y = self._check_X_y(X, y)
+
+        _, self.n_features_ = X.shape
 
         is_classifier = self._estimator_type == 'classifier'
         cv = check_cv(self.cv, y, is_classifier)
@@ -415,14 +445,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         """
         self._check_is_fitted()
 
-        if not isinstance(X, pd.DataFrame):
-            X = check_array(
-                X,
-                accept_sparse=True,
-                estimator=self,
-                force_all_finite=False
-            )
-
+        X, _ = self._check_X_y(X)
         n_jobs = effective_n_jobs(self.n_jobs)
         parallel = Parallel(n_jobs=n_jobs)
         func = delayed(lgb.Booster.predict)
@@ -469,14 +492,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         """
         self._check_is_fitted()
 
-        if not isinstance(X, pd.DataFrame):
-            X = check_array(
-                X,
-                accept_sparse=True,
-                estimator=self,
-                force_all_finite=False
-            )
-
+        X, _ = self._check_X_y(X)
         n_jobs = effective_n_jobs(self.n_jobs)
         parallel = Parallel(n_jobs=n_jobs)
         func = delayed(lgb.Booster.predict)
