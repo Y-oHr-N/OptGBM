@@ -196,7 +196,9 @@ class _BaseOGBMModel(BaseEstimator):
         n_jobs = effective_n_jobs(self.n_jobs)
         parallel = Parallel(n_jobs=n_jobs)
         func = delayed(lgb.Booster.feature_importance)
-        results = parallel(func(b) for b in self.boosters_)
+        results = parallel(
+            func(b, self.importance_type) for b in self.boosters_
+        )
 
         return np.average(results, axis=0, weights=self.weights_)
 
@@ -206,6 +208,7 @@ class _BaseOGBMModel(BaseEstimator):
         class_weight: Optional[Union[str, Dict[str, float]]] = None,
         cv: Union[BaseCrossValidator, int] = 5,
         enable_pruning: bool = True,
+        importance_type: str = 'split',
         learning_rate: float = 0.1,
         max_iter: int = 100,
         n_iter_no_change: Optional[int] = None,
@@ -222,6 +225,7 @@ class _BaseOGBMModel(BaseEstimator):
         self.class_weight = class_weight
         self.cv = cv
         self.enable_pruning = enable_pruning
+        self.importance_type = importance_type
         self.learning_rate = learning_rate
         self.max_iter = max_iter
         self.n_iter_no_change = n_iter_no_change
