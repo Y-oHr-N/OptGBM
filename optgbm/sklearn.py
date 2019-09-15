@@ -338,7 +338,55 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     >>> X, y = load_iris(return_X_y=True)
     >>> clf.fit(X, y)
     OGBMClassifier(...)
+    >>> clf.score(X, y)
+    0.9...
     """
+
+    def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
+        """Predict using the Fitted model.
+
+        Parameters
+        ----------
+        X
+            Data.
+
+        Returns
+        -------
+        y_pred
+            Predicted values.
+        """
+        probas = self.predict_proba(X)
+        class_index = np.argmax(probas, axis=1)
+
+        return self.encoder_.inverse_transform(class_index)
+
+    def predict_proba(
+        self,
+        X: TWO_DIM_ARRAYLIKE_TYPE
+    ) -> TWO_DIM_ARRAYLIKE_TYPE:
+        """Predict class probabilities for data.
+
+        Parameters
+        ----------
+        X
+            Data.
+
+        Returns
+        -------
+        p
+            Class probabilities of data.
+        """
+        results = self.model_.predict(X)
+        result = np.average(results, axis=0, weights=self.weights_)
+        n_classes = len(self.encoder_.classes_)
+
+        if n_classes > 2:
+            return result
+
+        else:
+            result = result.reshape(-1, 1)
+
+            return np.concatenate([1.0 - result, result], axis=1)
 
 
 class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
@@ -352,4 +400,23 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     >>> X, y = load_boston(return_X_y=True)
     >>> reg.fit(X, y)
     OGBMRegressor(...)
+    >>> reg.score(X, y)
+    0.9...
     """
+
+    def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
+        """Predict using the Fitted model.
+
+        Parameters
+        ----------
+        X
+            Data.
+
+        Returns
+        -------
+        y_pred
+            Predicted values.
+        """
+        results = self.model_.predict(X)
+
+        return np.average(results, axis=0, weights=self.weights_)
