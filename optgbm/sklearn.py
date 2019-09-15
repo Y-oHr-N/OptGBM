@@ -13,12 +13,16 @@ import numpy as np
 import optuna
 import pandas as pd
 
+from joblib import delayed
+from joblib import effective_n_jobs
+from joblib import Parallel
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
 from sklearn.model_selection import BaseCrossValidator
 from sklearn.model_selection import check_cv
 from sklearn.preprocessing import LabelEncoder
+from sklearn.utils import check_array
 from sklearn.utils import check_random_state
 from sklearn.utils import check_X_y
 from sklearn.utils.class_weight import compute_sample_weight
@@ -93,9 +97,11 @@ class _LightGBMCallbackEnv(NamedTuple):
 
 class _ModelExtractionCallback(object):
     def __init__(self) -> None:
+        self._best_iteration: Optional[int] = None
         self._model: Optional[lgb.engine._CVBooster] = None
 
     def __call__(self, env: _LightGBMCallbackEnv) -> None:
+        self._best_iteration = env.iteration + 1
         self._model = env.model
 
 
@@ -124,6 +130,7 @@ class _Objective(object):
         self.X = X
         self.y = y
 
+        self._best_iteration: Optional[int] = None
         self._model: Optional[lgb.engine._CVBooster] = None
 
     def __call__(self, trial: optuna.trial.Trial) -> float:
@@ -146,6 +153,7 @@ class _Objective(object):
         value: float = eval_hist[f'{self.params["metric"]}-mean'][-1]
 
         if self._model is None or value < trial.study.best_value:
+            self._best_iteration = callbacks[0]._best_iteration  # type: ignore
             self._model = callbacks[0]._model  # type: ignore
 
         return value
@@ -183,7 +191,10 @@ class _BaseOGBMModel(BaseEstimator):
     def feature_importances_(self) -> np.ndarray:
         self._check_is_fitted()
 
-        results = self.model_.feature_importance()
+        n_jobs = effective_n_jobs(self.n_jobs)
+        parallel = Parallel(n_jobs=n_jobs)
+        func = delayed(lgb.Booster.feature_importance)
+        results = parallel(func(b) for b in self.boosters_)
 
         return np.average(results, axis=0, weights=self.weights_)
 
@@ -221,7 +232,10 @@ class _BaseOGBMModel(BaseEstimator):
         self.timeout = timeout
 
     def _check_is_fitted(self) -> None:
-        check_is_fitted(self, ['model_', 'study_', 'weights_'])
+        check_is_fitted(self, ['boosters_', 'study_', 'weights_'])
+
+    def _more_tags(self) -> Dict[str, Any]:
+        return {'allow_nan': True}
 
     def fit(
         self,
@@ -252,7 +266,6 @@ class _BaseOGBMModel(BaseEstimator):
                 X,
                 y,
                 accept_sparse=True,
-                ensure_min_samples=2,
                 estimator=self,
                 force_all_finite=False
             )
@@ -296,6 +309,8 @@ class _BaseOGBMModel(BaseEstimator):
         if sample_weight is None:
             n_samples = _num_samples(X)
             sample_weight = np.ones(n_samples)
+        else:
+            sample_weight = np.asarray(sample_weight)
 
         if self.class_weight is not None:
             sample_weight *= compute_sample_weight(self.class_weight, y)
@@ -332,9 +347,12 @@ class _BaseOGBMModel(BaseEstimator):
             timeout=self.timeout
         )
 
-        self.model_: lgb.engine._CVBooster = objective._model
+        model: lgb.engine._CVBooster = objective._model
 
-        self.model_.free_dataset()
+        model.free_dataset()
+
+        self.boosters_ = model.boosters
+        self.n_iter_ = objective._best_iteration
 
         return self
 
@@ -390,7 +408,18 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         """
         self._check_is_fitted()
 
-        results = self.model_.predict(X)
+        if not isinstance(X, pd.DataFrame):
+            X = check_array(
+                X,
+                accept_sparse=True,
+                estimator=self,
+                force_all_finite=False
+            )
+
+        n_jobs = effective_n_jobs(self.n_jobs)
+        parallel = Parallel(n_jobs=n_jobs)
+        func = delayed(lgb.Booster.predict)
+        results = parallel(func(b, X) for b in self.boosters_)
         result = np.average(results, axis=0, weights=self.weights_)
         n_classes = len(self.encoder_.classes_)
 
@@ -433,6 +462,17 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         """
         self._check_is_fitted()
 
-        results = self.model_.predict(X)
+        if not isinstance(X, pd.DataFrame):
+            X = check_array(
+                X,
+                accept_sparse=True,
+                estimator=self,
+                force_all_finite=False
+            )
+
+        n_jobs = effective_n_jobs(self.n_jobs)
+        parallel = Parallel(n_jobs=n_jobs)
+        func = delayed(lgb.Booster.predict)
+        results = parallel(func(b, X) for b in self.boosters_)
 
         return np.average(results, axis=0, weights=self.weights_)
