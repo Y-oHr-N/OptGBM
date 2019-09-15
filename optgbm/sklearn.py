@@ -274,7 +274,7 @@ class _BaseOGBMModel(BaseEstimator):
         return X, y
 
     def _more_tags(self) -> Dict[str, Any]:
-        return {'allow_nan': True}
+        return {'allow_nan': True, 'non_deterministic': True}
 
     def fit(
         self,
