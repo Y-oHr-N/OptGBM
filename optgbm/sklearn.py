@@ -394,6 +394,75 @@ class _BaseOGBMModel(BaseEstimator):
 class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     """OptGBM classifier.
 
+    Parameters
+    ----------
+    categorical_features
+        Categorical features.
+
+    class_weight
+        Weights associated with classes.
+
+    cv
+        Cross-validation strategy.
+
+    enable_pruning
+        Used to activate pruning.
+
+    importance_type
+        Type of feature importances.
+
+    learning_rate
+        Learning rate.
+
+    max_iter
+        Maximum number of iterations of the boosting process. a.k.a.
+        `num_boosting_round`.
+
+    n_iter_no_change
+        Used to activate early stopping. a.k.a. `early_stopping_rounds`.
+
+    n_jobs
+        Number of parallel jobs.
+
+    n_trials
+        Number of trials.
+
+    objective
+        Learning objective.
+
+    param_distributions
+        Dictionary where keys are parameters and values are distributions.
+
+    random_state
+        Seed of the pseudo random number generator.
+
+    study
+        Study that corresponds to the optimization task.
+
+    timeout
+        Time limit in seconds for the search of appropriate models.
+
+    Attributes
+    ----------
+    boosters_
+        Trained boosters of CV.
+
+    encoder_
+        Label encoder.
+
+    n_features_
+        Number of features of fitted model.
+
+    n_iter_
+        Number of iterations as selected by early stopping. a.k.a.
+        `best_iteration_`.
+
+    study_
+        Actual study.
+
+    weights_
+        Weights to weight the occurrences of predicted values before averaging.
+
     Examples
     --------
     >>> from optgbm import OGBMClassifier
@@ -468,6 +537,72 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
 class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     """OptGBM regressor.
+
+    Parameters
+    ----------
+    categorical_features
+        Categorical features.
+
+    class_weight
+        Weights associated with classes.
+
+    cv
+        Cross-validation strategy.
+
+    enable_pruning
+        Used to activate pruning.
+
+    importance_type
+        Type of feature importances.
+
+    learning_rate
+        Learning rate.
+
+    max_iter
+        Maximum number of iterations of the boosting process. a.k.a.
+        `num_boosting_round`.
+
+    n_iter_no_change
+        Used to activate early stopping. a.k.a. `early_stopping_rounds`.
+
+    n_jobs
+        Number of parallel jobs.
+
+    n_trials
+        Number of trials.
+
+    objective
+        Learning objective.
+
+    param_distributions
+        Dictionary where keys are parameters and values are distributions.
+
+    random_state
+        Seed of the pseudo random number generator.
+
+    study
+        Study that corresponds to the optimization task.
+
+    timeout
+        Time limit in seconds for the search of appropriate models.
+
+    Attributes
+    ----------
+    boosters_
+        Trained boosters of CV.
+
+    n_features_
+        Number of features of fitted model.
+
+    n_iter_
+        Number of iterations as selected by early stopping. a.k.a.
+        `best_iteration_`.
+
+    study_
+        Actual study.
+
+    weights_
+        Weights to weight the occurrences of predicted values before averaging.
 
     Examples
     --------
