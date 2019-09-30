@@ -33,6 +33,12 @@ from sklearn.utils.validation import _num_samples
 from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.validation import column_or_1d
 
+try:
+    from lightgbm.engine import CVBooster as _CVBooster
+except ImportError:
+    from lightgbm.engine import _CVBooster
+
+
 RANDOM_STATE_TYPE = Optional[Union[int, np.random.RandomState]]
 ONE_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.Series]
 TWO_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.DataFrame]
@@ -91,7 +97,7 @@ DEFAULT_PARAM_DISTRIBUTIONS = {
 
 
 class _LightGBMCallbackEnv(NamedTuple):
-    model: lgb.engine._CVBooster
+    model: _CVBooster
     params: Dict[str, Any]
     iteration: int
     begin_iteration: int
@@ -102,7 +108,7 @@ class _LightGBMCallbackEnv(NamedTuple):
 class _ModelExtractionCallback(object):
     def __init__(self) -> None:
         self._best_iteration: Optional[int] = None
-        self._model: Optional[lgb.engine._CVBooster] = None
+        self._model: Optional[_CVBooster] = None
 
     def __call__(self, env: _LightGBMCallbackEnv) -> None:
         self._best_iteration = env.iteration + 1
@@ -135,7 +141,7 @@ class _Objective(object):
         self.y = y
 
         self._best_iteration: Optional[int] = None
-        self._model: Optional[lgb.engine._CVBooster] = None
+        self._model: Optional[_CVBooster] = None
 
     def __call__(self, trial: optuna.trial.Trial) -> float:
         params: Dict[str, Any] = self._get_params(trial)
@@ -389,7 +395,7 @@ class _BaseOGBMModel(BaseEstimator):
             timeout=self.timeout
         )
 
-        model: lgb.engine._CVBooster = objective._model
+        model: _CVBooster = objective._model
 
         model.free_dataset()
 
