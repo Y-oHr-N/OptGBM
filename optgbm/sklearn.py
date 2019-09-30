@@ -70,7 +70,7 @@ METRICS = {**CLASSIFICATION_METRICS, **REGRESSION_METRICS}
 
 PARAM_DISTRIBUTIONS = {
     'colsample_bytree':
-        optuna.distributions.DiscreteUniformDistribution(0.5, 0.9, 0.05),
+        optuna.distributions.DiscreteUniformDistribution(0.5, 1.0, 0.05),
     'min_child_samples':
         optuna.distributions.IntUniformDistribution(1, 100),
     'min_child_weight':
@@ -80,9 +80,9 @@ PARAM_DISTRIBUTIONS = {
     'reg_alpha':
         optuna.distributions.LogUniformDistribution(1e-06, 10.0),
     'reg_lambda':
-        optuna.distributions.LogUniformDistribution(1e-6, 10.0),
+        optuna.distributions.LogUniformDistribution(1e-06, 10.0),
     'subsample':
-        optuna.distributions.DiscreteUniformDistribution(0.5, 0.9, 0.05),
+        optuna.distributions.DiscreteUniformDistribution(0.5, 1.0, 0.05),
     'subsample_freq':
         optuna.distributions.IntUniformDistribution(1, 10)
 }
