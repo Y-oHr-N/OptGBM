@@ -68,7 +68,7 @@ REGRESSION_METRICS = {
 }
 METRICS = {**CLASSIFICATION_METRICS, **REGRESSION_METRICS}
 
-PARAM_DISTRIBUTIONS = {
+DEFAULT_PARAM_DISTRIBUTIONS = {
     'colsample_bytree':
         optuna.distributions.DiscreteUniformDistribution(0.5, 1.0, 0.05),
     'min_child_samples':
@@ -336,7 +336,7 @@ class _BaseOGBMModel(BaseEstimator):
         params['metric'] = METRICS[params['objective']]
 
         if self.param_distributions is None:
-            param_distributions = PARAM_DISTRIBUTIONS
+            param_distributions = DEFAULT_PARAM_DISTRIBUTIONS
         else:
             param_distributions = self.param_distributions
 
