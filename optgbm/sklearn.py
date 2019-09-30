@@ -218,8 +218,8 @@ class _BaseOGBMModel(BaseEstimator):
         param_distributions:
             Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
         random_state: RANDOM_STATE_TYPE = None,
-        study: optuna.study.Study = None,
-        timeout: float = None,
+        study: Optional[optuna.study.Study] = None,
+        timeout: Optional[float] = None
     ) -> None:
         self.categorical_features = categorical_features
         self.class_weight = class_weight
