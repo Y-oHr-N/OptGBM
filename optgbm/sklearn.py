@@ -557,9 +557,6 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     categorical_features
         Categorical features.
 
-    class_weight
-        Weights associated with classes.
-
     cv
         Cross-validation strategy.
 
@@ -629,6 +626,41 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     >>> reg.score(X, y)
     0.9...
     """
+
+    def __init__(
+        self,
+        categorical_features: Union[List[Union[int, str]], str] = 'auto',
+        cv: Union[BaseCrossValidator, int] = 5,
+        enable_pruning: bool = True,
+        importance_type: str = 'split',
+        learning_rate: float = 0.1,
+        max_iter: int = 1_000,
+        n_iter_no_change: Optional[int] = 10,
+        n_jobs: int = 1,
+        n_trials: int = 10,
+        objective: Optional[str] = None,
+        param_distributions:
+            Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
+        random_state: RANDOM_STATE_TYPE = None,
+        study: Optional[optuna.study.Study] = None,
+        timeout: Optional[float] = None
+    ) -> None:
+        super().__init__(
+            categorical_features=categorical_features,
+            cv=cv,
+            enable_pruning=enable_pruning,
+            importance_type=importance_type,
+            learning_rate=learning_rate,
+            max_iter=max_iter,
+            n_iter_no_change=n_iter_no_change,
+            n_jobs=n_jobs,
+            n_trials=n_trials,
+            objective=objective,
+            param_distributions=param_distributions,
+            random_state=random_state,
+            study=study,
+            timeout=timeout
+        )
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
         """Predict using the Fitted model.
