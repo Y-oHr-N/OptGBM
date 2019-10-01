@@ -167,7 +167,8 @@ class _Objective(object):
 
         if is_best:
             best_iteration: int = callbacks[0]._best_iteration  # type: ignore
-            boosters: List[lgb.Booster] = callbacks[0]._boosters  # type: ignore
+            boosters: List[lgb.Booster] = \
+                callbacks[0]._boosters  # type: ignore
             representations: List[str] = []
 
             for b in boosters:
