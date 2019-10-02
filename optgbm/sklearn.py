@@ -105,14 +105,14 @@ class _LightGBMCallbackEnv(NamedTuple):
     evaluation_result_list: List
 
 
-class _ModelExtractionCallback(object):
+class _LightGBMExtractionCallback(object):
     def __init__(self) -> None:
         self._best_iteration: Optional[int] = None
-        self._model: Optional[_CVBooster] = None
+        self._boosters: Optional[List[lgb.Booster]] = None
 
     def __call__(self, env: _LightGBMCallbackEnv) -> None:
         self._best_iteration = env.iteration + 1
-        self._model = env.model
+        self._boosters = env.model.boosters
 
 
 class _Objective(object):
@@ -140,9 +140,6 @@ class _Objective(object):
         self.X = X
         self.y = y
 
-        self._best_iteration: Optional[int] = None
-        self._model: Optional[_CVBooster] = None
-
     def __call__(self, trial: optuna.trial.Trial) -> float:
         params: Dict[str, Any] = self._get_params(trial)
         callbacks: List[Callable] = self._get_callbacks(trial)
@@ -160,17 +157,32 @@ class _Objective(object):
             folds=self.cv,
             num_boost_round=self.n_estimators
         )
+        is_best: bool = True
         value: float = eval_hist[f'{self.params["metric"]}-mean'][-1]
 
-        if self._model is None or value < trial.study.best_value:
-            self._best_iteration = callbacks[0]._best_iteration  # type: ignore
-            self._model = callbacks[0]._model  # type: ignore
+        try:
+            is_best = value < trial.study.best_value
+        except ValueError:
+            pass
+
+        if is_best:
+            best_iteration: int = callbacks[0]._best_iteration  # type: ignore
+            boosters: List[lgb.Booster] = \
+                callbacks[0]._boosters  # type: ignore
+            representations: List[str] = []
+
+            for b in boosters:
+                b.free_dataset()
+                representations.append(b.model_to_string())
+
+            trial.study.set_user_attr('best_iteration', best_iteration)
+            trial.study.set_user_attr('representations', representations)
 
         return value
 
     def _get_callbacks(self, trial: optuna.trial.Trial) -> List[Callable]:
-        extraction_callback: _ModelExtractionCallback = \
-            _ModelExtractionCallback()
+        extraction_callback: _LightGBMExtractionCallback = \
+            _LightGBMExtractionCallback()
         callbacks: List[Callable] = [extraction_callback]
 
         if self.enable_pruning:
@@ -395,12 +407,13 @@ class _BaseOGBMModel(BaseEstimator):
             timeout=self.timeout
         )
 
-        model: _CVBooster = objective._model
-
-        model.free_dataset()
-
-        self.boosters_ = model.boosters
-        self.n_iter_ = objective._best_iteration
+        self.boosters_ = [
+            lgb.Booster(
+                model_str=model_str,
+                silent=True
+            ) for model_str in self.study_.user_attrs['representations']
+        ]
+        self.n_iter_ = self.study_.user_attrs['best_iteration']
 
         return self
 
@@ -557,9 +570,6 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     categorical_features
         Categorical features.
 
-    class_weight
-        Weights associated with classes.
-
     cv
         Cross-validation strategy.
 
@@ -629,6 +639,41 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     >>> reg.score(X, y)
     0.9...
     """
+
+    def __init__(
+        self,
+        categorical_features: Union[List[Union[int, str]], str] = 'auto',
+        cv: Union[BaseCrossValidator, int] = 5,
+        enable_pruning: bool = True,
+        importance_type: str = 'split',
+        learning_rate: float = 0.1,
+        max_iter: int = 1_000,
+        n_iter_no_change: Optional[int] = 10,
+        n_jobs: int = 1,
+        n_trials: int = 10,
+        objective: Optional[str] = None,
+        param_distributions:
+            Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
+        random_state: RANDOM_STATE_TYPE = None,
+        study: Optional[optuna.study.Study] = None,
+        timeout: Optional[float] = None
+    ) -> None:
+        super().__init__(
+            categorical_features=categorical_features,
+            cv=cv,
+            enable_pruning=enable_pruning,
+            importance_type=importance_type,
+            learning_rate=learning_rate,
+            max_iter=max_iter,
+            n_iter_no_change=n_iter_no_change,
+            n_jobs=n_jobs,
+            n_trials=n_trials,
+            objective=objective,
+            param_distributions=param_distributions,
+            random_state=random_state,
+            study=study,
+            timeout=timeout
+        )
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
         """Predict using the Fitted model.
