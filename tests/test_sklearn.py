@@ -1,5 +1,6 @@
 from typing import Optional
 
+import numpy as np
 import optuna
 import pytest
 
@@ -27,3 +28,13 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
     reg.fit(X, y)
 
     assert len(reg.study_.trials) == 2 * n_trials
+
+
+@pytest.mark.parametrize('n_jobs', [-1, 1])
+def test_feature_importances(n_jobs: int) -> None:
+    X, y = load_boston(return_X_y=True)
+    reg = OGBMRegressor(n_jobs=n_jobs)
+
+    reg.fit(X, y)
+
+    assert isinstance(reg.feature_importances_, np.ndarray)
