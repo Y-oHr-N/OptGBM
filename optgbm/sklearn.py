@@ -211,6 +211,7 @@ class _Objective(object):
 class _BaseOGBMModel(BaseEstimator):
     @property
     def feature_importances_(self) -> np.ndarray:
+        """Feature importances."""
         self._check_is_fitted()
 
         n_jobs = effective_n_jobs(self.n_jobs)
@@ -443,7 +444,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     max_iter
         Maximum number of iterations of the boosting process. a.k.a.
-        `num_boosting_round`.
+        `num_boost_round`.
 
     n_iter_no_change
         Used to activate early stopping. a.k.a. `early_stopping_rounds`.
@@ -584,7 +585,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     max_iter
         Maximum number of iterations of the boosting process. a.k.a.
-        `num_boosting_round`.
+        `num_boost_round`.
 
     n_iter_no_change
         Used to activate early stopping. a.k.a. `early_stopping_rounds`.
