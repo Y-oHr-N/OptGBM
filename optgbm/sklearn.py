@@ -408,12 +408,20 @@ class _BaseOGBMModel(BaseEstimator):
             timeout=self.timeout
         )
 
-        self.boosters_ = [
-            lgb.Booster(
-                model_str=model_str,
-                silent=True
-            ) for model_str in self.study_.user_attrs['representations']
-        ]
+        try:  # lightgbm<=2.2.3
+            self.boosters_ = [
+                lgb.Booster(
+                    params={'model_str': model_str}
+                ) for model_str in self.study_.user_attrs['representations']
+            ]
+        except TypeError:
+            self.boosters_ = [
+                lgb.Booster(
+                    model_str=model_str,
+                    silent=True
+                ) for model_str in self.study_.user_attrs['representations']
+            ]
+
         self.n_iter_ = self.study_.user_attrs['best_iteration']
 
         return self
