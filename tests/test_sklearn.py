@@ -23,11 +23,11 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
 
     reg.fit(X, y)
 
-    assert len(reg.study_.trials) == n_trials
+    assert len(study.trials) == n_trials
 
     reg.fit(X, y)
 
-    assert len(reg.study_.trials) == 2 * n_trials
+    assert len(study.trials) == 2 * n_trials
 
 
 @pytest.mark.parametrize('n_jobs', [-1, 1])

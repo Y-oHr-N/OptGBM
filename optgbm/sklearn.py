@@ -33,11 +33,10 @@ from sklearn.utils.validation import _num_samples
 from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.validation import column_or_1d
 
-try:
+try:  # lightgbm<=2.2.1
     from lightgbm.engine import CVBooster as _CVBooster
 except ImportError:
     from lightgbm.engine import _CVBooster
-
 
 RANDOM_STATE_TYPE = Optional[Union[int, np.random.RandomState]]
 ONE_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.Series]
