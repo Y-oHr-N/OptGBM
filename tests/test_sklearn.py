@@ -7,7 +7,12 @@ import pytest
 from sklearn.datasets import load_boston
 from sklearn.utils.estimator_checks import check_estimator
 
+from optgbm import OGBMClassifier
 from optgbm import OGBMRegressor
+
+
+def test_ogbm_classifier() -> None:
+    check_estimator(OGBMClassifier)
 
 
 def test_ogbm_regressor() -> None:
