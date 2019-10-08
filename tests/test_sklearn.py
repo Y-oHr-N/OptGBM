@@ -1,10 +1,12 @@
 from typing import Optional
 
+import lightgbm as lgb
 import numpy as np
 import optuna
 import pytest
 
 from sklearn.datasets import load_boston
+from sklearn.model_selection import train_test_split
 from sklearn.utils.estimator_checks import check_estimator
 
 from optgbm import OGBMClassifier
@@ -33,6 +35,22 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
     reg.fit(X, y)
 
     assert len(study.trials) == 2 * n_trials
+
+
+def test_score() -> None:
+    X, y = load_boston(return_X_y=True)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+    reg = lgb.LGBMRegressor(random_state=0)
+
+    reg.fit(X_train, y_train)
+
+    score = reg.score(X_test, y_test)
+
+    reg = OGBMRegressor(enable_pruning=False, n_trials=100, random_state=0)
+
+    reg.fit(X_train, y_train)
+
+    assert score < reg.score(X_test, y_test)
 
 
 @pytest.mark.parametrize('n_jobs', [-1, 1])
