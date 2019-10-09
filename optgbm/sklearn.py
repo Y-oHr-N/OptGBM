@@ -287,17 +287,31 @@ class _BaseOGBMModel(BaseEstimator):
 
         return y
 
-    def _check_X_y(
+    def _check_fit_params(
         self,
         X: TWO_DIM_ARRAYLIKE_TYPE,
-        y: ONE_DIM_ARRAYLIKE_TYPE
-    ) -> Tuple[TWO_DIM_ARRAYLIKE_TYPE, ONE_DIM_ARRAYLIKE_TYPE]:
+        y: ONE_DIM_ARRAYLIKE_TYPE,
+        sample_weight: ONE_DIM_ARRAYLIKE_TYPE = None
+    ) -> Tuple[
+        TWO_DIM_ARRAYLIKE_TYPE,
+        ONE_DIM_ARRAYLIKE_TYPE,
+        ONE_DIM_ARRAYLIKE_TYPE
+    ]:
         X = self._check_X(X)
         y = self._check_y(y)
 
-        check_consistent_length(X, y)
+        if sample_weight is None:
+            n_samples = _num_samples(X)
+            sample_weight = np.ones(n_samples)
 
-        return X, y
+        sample_weight = np.asarray(sample_weight)
+
+        if self.class_weight is not None:
+            sample_weight *= compute_sample_weight(self.class_weight, y)
+
+        check_consistent_length(X, y, sample_weight)
+
+        return X, y, sample_weight
 
     def _more_tags(self) -> Dict[str, Any]:
         return {'allow_nan': True, 'non_deterministic': True}
@@ -326,7 +340,7 @@ class _BaseOGBMModel(BaseEstimator):
         self
             Return self.
         """
-        X, y = self._check_X_y(X, y)
+        X, y, sample_weight = self._check_fit_params(X, y, sample_weight)
 
         _, self.n_features_ = X.shape
 
@@ -365,15 +379,6 @@ class _BaseOGBMModel(BaseEstimator):
             param_distributions = DEFAULT_PARAM_DISTRIBUTIONS
         else:
             param_distributions = self.param_distributions
-
-        if sample_weight is None:
-            n_samples = _num_samples(X)
-            sample_weight = np.ones(n_samples)
-        else:
-            sample_weight = np.asarray(sample_weight)
-
-        if self.class_weight is not None:
-            sample_weight *= compute_sample_weight(self.class_weight, y)
 
         if self.study is None:
             sampler = optuna.samplers.TPESampler(seed=seed)
