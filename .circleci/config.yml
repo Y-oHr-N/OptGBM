@@ -16,3 +16,4 @@ jobs:
           command: |
             . venv/bin/activate
             python setup.py test
+          no_output_timeout: 1h
