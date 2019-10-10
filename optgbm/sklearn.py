@@ -346,9 +346,14 @@ class _BaseOGBMModel(BaseEstimator):
 
         is_classifier = self._estimator_type == 'classifier'
         cv = check_cv(self.cv, y, is_classifier)
-        random_state = check_random_state(self.random_state)
-        seed = random_state.randint(0, MAX_INT)
-        params = {
+
+        if isinstance(self.random_state, int):
+            seed = self.random_state
+        else:
+            random_state = check_random_state(self.random_state)
+            seed = random_state.randint(0, MAX_INT)
+
+        params: Dict[str, Any] = {
             'learning_rate': self.learning_rate,
             'n_jobs': 1,
             'seed': seed,
