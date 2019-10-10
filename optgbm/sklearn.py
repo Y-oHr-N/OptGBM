@@ -6,7 +6,6 @@ from typing import Dict
 from typing import List
 from typing import NamedTuple
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import lightgbm as lgb
@@ -23,20 +22,16 @@ from sklearn.base import RegressorMixin
 from sklearn.model_selection import BaseCrossValidator
 from sklearn.model_selection import check_cv
 from sklearn.preprocessing import LabelEncoder
-from sklearn.utils import check_array
-from sklearn.utils import check_consistent_length
 from sklearn.utils import check_random_state
-from sklearn.utils.class_weight import compute_sample_weight
-from sklearn.utils.multiclass import check_classification_targets
-from sklearn.utils.validation import _assert_all_finite
-from sklearn.utils.validation import _num_samples
 from sklearn.utils.validation import check_is_fitted
-from sklearn.utils.validation import column_or_1d
 
 try:  # lightgbm<=2.2.1
     from lightgbm.engine import CVBooster as _CVBooster
 except ImportError:
     from lightgbm.engine import _CVBooster
+
+from .utils import check_fit_params
+from .utils import check_X
 
 RANDOM_STATE_TYPE = Optional[Union[int, np.random.RandomState]]
 ONE_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.Series]
@@ -260,59 +255,6 @@ class _BaseOGBMModel(BaseEstimator):
     def _check_is_fitted(self) -> None:
         check_is_fitted(self, 'n_features_')
 
-    def _check_X(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> TWO_DIM_ARRAYLIKE_TYPE:
-        if not isinstance(X, pd.DataFrame):
-            X = check_array(
-                X,
-                accept_sparse=True,
-                estimator=self,
-                force_all_finite=False
-            )
-
-        _, n_features = X.shape
-
-        if n_features != getattr(self, 'n_features_', n_features):
-            raise ValueError(f'Invalid data: X.shape={X.shape}.')
-
-        return X
-
-    def _check_y(self, y: ONE_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
-        if not isinstance(y, pd.Series):
-            y = column_or_1d(y, warn=True)
-
-        _assert_all_finite(y)
-
-        if self._estimator_type == 'classifier':
-            check_classification_targets(y)
-
-        return y
-
-    def _check_fit_params(
-        self,
-        X: TWO_DIM_ARRAYLIKE_TYPE,
-        y: ONE_DIM_ARRAYLIKE_TYPE,
-        sample_weight: ONE_DIM_ARRAYLIKE_TYPE = None
-    ) -> Tuple[
-        TWO_DIM_ARRAYLIKE_TYPE,
-        ONE_DIM_ARRAYLIKE_TYPE,
-        ONE_DIM_ARRAYLIKE_TYPE
-    ]:
-        X = self._check_X(X)
-        y = self._check_y(y)
-
-        if sample_weight is None:
-            n_samples = _num_samples(X)
-            sample_weight = np.ones(n_samples)
-
-        sample_weight = np.asarray(sample_weight)
-
-        if self.class_weight is not None:
-            sample_weight *= compute_sample_weight(self.class_weight, y)
-
-        check_consistent_length(X, y, sample_weight)
-
-        return X, y, sample_weight
-
     def _more_tags(self) -> Dict[str, Any]:
         return {'allow_nan': True, 'non_deterministic': True}
 
@@ -340,7 +282,14 @@ class _BaseOGBMModel(BaseEstimator):
         self
             Return self.
         """
-        X, y, sample_weight = self._check_fit_params(X, y, sample_weight)
+        X, y, sample_weight = check_fit_params(
+            X,
+            y,
+            sample_weight=sample_weight,
+            accept_sparse=True,
+            estimator=self,
+            force_all_finite=False
+        )
 
         _, self.n_features_ = X.shape
 
@@ -563,7 +512,12 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         """
         self._check_is_fitted()
 
-        X = self._check_X(X)
+        X = check_X(
+            X,
+            accept_sparse=True,
+            estimator=self,
+            force_all_finite=False
+        )
         n_jobs = effective_n_jobs(self.n_jobs)
         parallel = Parallel(n_jobs=n_jobs)
         func = delayed(lgb.Booster.predict)
@@ -708,7 +662,12 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         """
         self._check_is_fitted()
 
-        X = self._check_X(X)
+        X = check_X(
+            X,
+            accept_sparse=True,
+            estimator=self,
+            force_all_finite=False
+        )
         n_jobs = effective_n_jobs(self.n_jobs)
         parallel = Parallel(n_jobs=n_jobs)
         func = delayed(lgb.Booster.predict)
