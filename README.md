@@ -7,7 +7,7 @@ Optuna + LightGBM = OptGBM
 ## Examples
 
 ```python
-from optgbm import OGBMClassifier
+from optgbm.skelarn import OGBMClassifier
 from sklearn.datasets import load_iris
 
 clf = OGBMClassifier(random_state=0)

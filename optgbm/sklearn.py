@@ -459,7 +459,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     Examples
     --------
-    >>> from optgbm import OGBMClassifier
+    >>> from optgbm.sklearn import OGBMClassifier
     >>> from sklearn.datasets import load_iris
     >>> clf = OGBMClassifier(random_state=0)
     >>> X, y = load_iris(return_X_y=True)
@@ -602,7 +602,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     Examples
     --------
-    >>> from optgbm import OGBMRegressor
+    >>> from optgbm.sklearn import OGBMRegressor
     >>> from sklearn.datasets import load_boston
     >>> reg = OGBMRegressor(random_state=0)
     >>> X, y = load_boston(return_X_y=True)

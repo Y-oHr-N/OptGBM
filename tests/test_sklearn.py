@@ -9,8 +9,8 @@ from sklearn.datasets import load_boston
 from sklearn.model_selection import train_test_split
 from sklearn.utils.estimator_checks import check_estimator
 
-from optgbm import OGBMClassifier
-from optgbm import OGBMRegressor
+from optgbm.sklearn import OGBMClassifier
+from optgbm.sklearn import OGBMRegressor
 
 
 def test_ogbm_classifier() -> None:
