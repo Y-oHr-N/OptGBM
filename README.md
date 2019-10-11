@@ -1,11 +1,11 @@
 # OptGBM
 
-![CircleCI](https://img.shields.io/circleci/build/github/Y-oHr-N/OptGBM)
-![PyPI](https://img.shields.io/pypi/v/OptGBM)
-![PyPI - License](https://img.shields.io/pypi/l/OptGBM)
+[![CircleCI](https://img.shields.io/circleci/build/github/Y-oHr-N/OptGBM)](https://circleci.com/gh/Y-oHr-N/OptGBM)
+[![PyPI](https://img.shields.io/pypi/v/OptGBM)](https://pypi.org/project/OptGBM/)
+[![PyPI - License](https://img.shields.io/pypi/l/OptGBM)](https://pypi.org/project/OptGBM/)
 [![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/Y-oHr-N/OptGBM/master)
 
-Optuna + LightGBM = OptGBM
+OptGBM (= Optuna + LightGBM) provides a scikit-learn compatible estimator that tunes hyperparameters in LightGBM with Optuna.
 
 ## Examples
 
