@@ -27,7 +27,24 @@ def check_X(
     estimator: BaseEstimator = None,
     **kwargs: Any
 ) -> TWO_DIM_ARRAYLIKE_TYPE:
-    """Check `X`."""
+    """Check `X`.
+
+    Parameters
+    ----------
+    X
+        Data.
+
+    estimator
+        Object to use to fit the data.
+
+    **kwargs
+        Other keywords passed to `sklearn.utils.check_array`.
+
+    Returns
+    -------
+    X
+        Converted and validated data.
+    """
     if not isinstance(X, pd.DataFrame):
         X = check_array(X, **kwargs)
 
@@ -56,7 +73,36 @@ def check_fit_params(
     ONE_DIM_ARRAYLIKE_TYPE,
     ONE_DIM_ARRAYLIKE_TYPE
 ]:
-    """Check `X`, `y` and `sample_weight`."""
+    """Check `X`, `y` and `sample_weight`.
+
+    Parameters
+    ----------
+    X
+        Data.
+
+    y
+        Target.
+
+    sample_weight
+        Weights of data.
+
+    estimator
+        Object to use to fit the data.
+
+    **kwargs
+        Other keywords passed to `sklearn.utils.check_array`.
+
+    Returns
+    -------
+    X
+        Converted and validated data.
+
+    y
+        Converted and validated target.
+
+    sample_weight
+        Converted and validated weights of data.
+    """
     X = check_X(X, estimator=estimator, **kwargs)
 
     if not isinstance(y, pd.Series):
