@@ -9,5 +9,6 @@ try:
 except DistributionNotFound:
     pass
 
+from . import cli  # noqa
 from . import sklearn  # noqa
 from . import utils  # noqa
