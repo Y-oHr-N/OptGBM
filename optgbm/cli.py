@@ -1,37 +1,28 @@
 """CLI."""
 
+import importlib
+
 import pandas as pd
 import yaml
 
 from joblib import dump
-
-from .sklearn import OGBMClassifier
-from .sklearn import OGBMRegressor
 
 
 class Trainer(object):
     """Trainer."""
 
     def train(self, recipe_path: str) -> None:
-        """Train the model."""
+        """Train the model with a recipe."""
         with open(recipe_path, 'r') as f:
-            recipe = yaml.load(f)
+            content = yaml.load(f)
 
-        if recipe['model_name'].lower() == 'ogbmclassifier':
-            model = OGBMClassifier()
-        elif recipe['model_name'].lower() == 'ogbmregressor':
-            model = OGBMRegressor()
-        else:
-            raise ValueError(
-                'Unknown `model_name`: {}.'.format(recipe['model_name'])
-            )
+        data = pd.read_csv(content['data_path'], dtype=content['dtype'])
+        label = data.pop(content['label_column'])
 
-        if recipe['params'] is not None:
-            model.set_params(**recipe['params'])
+        module = importlib.import_module('..sklearn', __name__)
+        klass = getattr(module, content['model_name'])
+        model = klass(**content['params'])
 
-        data = pd.read_csv(recipe['data_path'], dtype=recipe['dtype'])
-        target = pd.read_csv(recipe['target_path'], squeeze=True)
+        model.fit(data, label, **content['fit_params'])
 
-        model.fit(data, target)
-
-        dump(model, recipe['model_path'])
+        dump(model, content['model_path'])
