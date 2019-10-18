@@ -2,10 +2,25 @@
 
 import importlib
 
+import click
 import pandas as pd
 import yaml
 
 from joblib import dump
+
+
+@click.group()
+def optgbm() -> None:
+    pass
+
+
+@optgbm.command()
+@click.argument('recipe_path')
+def train(recipe_path: str) -> None:
+    """Train the model with a recipe."""
+    trainer = Trainer()
+
+    trainer.train(recipe_path)
 
 
 class Trainer(object):
