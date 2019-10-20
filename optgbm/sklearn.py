@@ -20,7 +20,6 @@ from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
 from sklearn.model_selection import BaseCrossValidator
-from sklearn.model_selection import check_cv
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 from sklearn.utils.validation import check_is_fitted
@@ -30,6 +29,7 @@ try:  # lightgbm<=2.2.1
 except ImportError:
     from lightgbm.engine import _CVBooster
 
+from .utils import check_cv
 from .utils import check_fit_params
 from .utils import check_X
 
@@ -228,7 +228,7 @@ class _BaseOGBMModel(BaseEstimator):
         max_iter: int = 1_000,
         n_iter_no_change: Optional[int] = 10,
         n_jobs: int = 1,
-        n_trials: int = 100,
+        n_trials: int = 25,
         objective: Optional[str] = None,
         param_distributions:
             Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
@@ -622,7 +622,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         max_iter: int = 1_000,
         n_iter_no_change: Optional[int] = 10,
         n_jobs: int = 1,
-        n_trials: int = 100,
+        n_trials: int = 25,
         objective: Optional[str] = None,
         param_distributions:
             Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
