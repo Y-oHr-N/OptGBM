@@ -228,7 +228,7 @@ class _BaseOGBMModel(BaseEstimator):
         max_iter: int = 1_000,
         n_iter_no_change: Optional[int] = 10,
         n_jobs: int = 1,
-        n_trials: int = 100,
+        n_trials: int = 25,
         objective: Optional[str] = None,
         param_distributions:
             Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
@@ -622,7 +622,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         max_iter: int = 1_000,
         n_iter_no_change: Optional[int] = 10,
         n_jobs: int = 1,
-        n_trials: int = 100,
+        n_trials: int = 25,
         objective: Optional[str] = None,
         param_distributions:
             Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,

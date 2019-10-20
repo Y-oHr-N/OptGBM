@@ -46,7 +46,7 @@ def test_score() -> None:
 
     score = reg.score(X_test, y_test)
 
-    reg = OGBMRegressor(random_state=0)
+    reg = OGBMRegressor(n_trials=100, random_state=0)
 
     reg.fit(X_train, y_train)
 
