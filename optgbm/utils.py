@@ -20,13 +20,14 @@ from sklearn.utils.validation import _assert_all_finite
 from sklearn.utils.validation import _num_samples
 from sklearn.utils.validation import column_or_1d
 
+RANDOM_STATE_TYPE = Union[int, np.random.RandomState]
 ONE_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.Series]
 TWO_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.DataFrame]
 
 
 def check_cv(
     cv: Union[BaseCrossValidator, int] = 5,
-    y: ONE_DIM_ARRAYLIKE_TYPE = None,
+    y: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
     classifier: bool = False
 ) -> BaseCrossValidator:
     """Check `cv`.
@@ -56,7 +57,7 @@ def check_cv(
 
 def check_X(
     X: TWO_DIM_ARRAYLIKE_TYPE,
-    estimator: BaseEstimator = None,
+    estimator: Optional[BaseEstimator] = None,
     **kwargs: Any
 ) -> TWO_DIM_ARRAYLIKE_TYPE:
     """Check `X`.
@@ -97,7 +98,7 @@ def check_X(
 def check_fit_params(
     X: TWO_DIM_ARRAYLIKE_TYPE,
     y: ONE_DIM_ARRAYLIKE_TYPE,
-    sample_weight: ONE_DIM_ARRAYLIKE_TYPE = None,
+    sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
     estimator: Optional[BaseEstimator] = None,
     **kwargs: Any
 ) -> Tuple[

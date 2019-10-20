@@ -11,7 +11,6 @@ from typing import Union
 import lightgbm as lgb
 import numpy as np
 import optuna
-import pandas as pd
 
 from joblib import delayed
 from joblib import effective_n_jobs
@@ -32,10 +31,9 @@ except ImportError:
 from .utils import check_cv
 from .utils import check_fit_params
 from .utils import check_X
-
-RANDOM_STATE_TYPE = Optional[Union[int, np.random.RandomState]]
-ONE_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.Series]
-TWO_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.DataFrame]
+from .utils import ONE_DIM_ARRAYLIKE_TYPE
+from .utils import RANDOM_STATE_TYPE
+from .utils import TWO_DIM_ARRAYLIKE_TYPE
 
 MAX_INT = np.iinfo(np.int32).max
 
@@ -121,7 +119,7 @@ class _Objective(object):
         early_stopping_rounds: Optional[int] = None,
         enable_pruning: bool = False,
         n_estimators: int = 100,
-        sample_weight: ONE_DIM_ARRAYLIKE_TYPE = None
+        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None
     ) -> None:
         self.categorical_feature = categorical_feature
         self.cv = cv
@@ -232,7 +230,7 @@ class _BaseOGBMModel(BaseEstimator):
         objective: Optional[str] = None,
         param_distributions:
             Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
-        random_state: RANDOM_STATE_TYPE = None,
+        random_state: Optional[RANDOM_STATE_TYPE] = None,
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None
     ) -> None:
@@ -262,7 +260,7 @@ class _BaseOGBMModel(BaseEstimator):
         self,
         X: TWO_DIM_ARRAYLIKE_TYPE,
         y: ONE_DIM_ARRAYLIKE_TYPE,
-        sample_weight: ONE_DIM_ARRAYLIKE_TYPE = None
+        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None
     ) -> '_BaseOGBMModel':
         """Fit the model according to the given training data.
 
@@ -626,7 +624,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         objective: Optional[str] = None,
         param_distributions:
             Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
-        random_state: RANDOM_STATE_TYPE = None,
+        random_state: Optional[RANDOM_STATE_TYPE] = None,
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None
     ) -> None:
