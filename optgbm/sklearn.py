@@ -1,5 +1,7 @@
 """scikit-learn compatible models."""
 
+import copy
+
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -97,40 +99,29 @@ class _Objective(object):
     def __init__(
         self,
         params: Dict[str, Any],
+        dataset: lgb.Dataset,
         param_distributions: Dict[str, optuna.distributions.BaseDistribution],
-        X: TWO_DIM_ARRAYLIKE_TYPE,
-        y: ONE_DIM_ARRAYLIKE_TYPE,
-        categorical_feature: Union[List[Union[int, str]], str] = 'auto',
         cv: Optional[BaseCrossValidator] = None,
         early_stopping_rounds: Optional[int] = None,
         enable_pruning: bool = False,
-        n_estimators: int = 100,
-        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None
+        n_estimators: int = 100
     ) -> None:
-        self.categorical_feature = categorical_feature
         self.cv = cv
+        self.dataset = dataset
         self.early_stopping_rounds = early_stopping_rounds
         self.enable_pruning = enable_pruning
         self.n_estimators = n_estimators
         self.params = params
         self.param_distributions = param_distributions
-        self.sample_weight = sample_weight
-        self.X = X
-        self.y = y
 
     def __call__(self, trial: optuna.trial.Trial) -> float:
         params: Dict[str, Any] = self._get_params(trial)
+        dataset = copy.copy(self.dataset)
         callbacks: List[Callable] = self._get_callbacks(trial)
-        dataset: lgb.Dataset = lgb.Dataset(
-            self.X,
-            label=self.y,
-            weight=self.sample_weight
-        )
         eval_hist: Dict[str, List[float]] = lgb.cv(
             params,
             dataset,
             callbacks=callbacks,
-            categorical_feature=self.categorical_feature,
             early_stopping_rounds=self.early_stopping_rounds,
             folds=self.cv,
             num_boost_round=self.n_estimators
@@ -326,17 +317,21 @@ class _BaseOGBMModel(BaseEstimator):
         else:
             self.study_ = self.study
 
+        dataset = lgb.Dataset(
+            X,
+            categorical_feature=self.categorical_features,
+            label=y,
+            weight=sample_weight
+        )
+
         objective = _Objective(
             params,
+            dataset,
             param_distributions,
-            X,
-            y,
-            categorical_feature=self.categorical_features,
             cv=cv,
             early_stopping_rounds=self.n_iter_no_change,
             enable_pruning=self.enable_pruning,
-            n_estimators=self.max_iter,
-            sample_weight=sample_weight,
+            n_estimators=self.max_iter
         )
 
         self.weights_ = np.array([
