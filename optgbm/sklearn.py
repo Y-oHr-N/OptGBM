@@ -208,6 +208,7 @@ class _BaseOGBMModel(BaseEstimator):
         param_distributions:
             Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
         random_state: Optional[RANDOM_STATE_TYPE] = None,
+        refit: bool = False,
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None
     ) -> None:
@@ -224,6 +225,7 @@ class _BaseOGBMModel(BaseEstimator):
         self.objective = objective
         self.param_distributions = param_distributions
         self.random_state = random_state
+        self.refit = refit
         self.study = study
         self.timeout = timeout
 
@@ -345,21 +347,33 @@ class _BaseOGBMModel(BaseEstimator):
             timeout=self.timeout
         )
 
-        try:  # lightgbm<=2.2.3
-            self.boosters_ = [
-                lgb.Booster(
-                    params={'model_str': model_str}
-                ) for model_str in self.study_.user_attrs['representations']
-            ]
-        except TypeError:
-            self.boosters_ = [
-                lgb.Booster(
-                    model_str=model_str,
-                    silent=True
-                ) for model_str in self.study_.user_attrs['representations']
-            ]
-
         self.n_iter_ = self.study_.user_attrs['best_iteration']
+
+        if self.refit:
+            params.update(self.study_.best_params)
+
+            booster = lgb.train(params, dataset, num_boost_round=self.n_iter_)
+
+            booster.free_dataset()
+
+            self.boosters_ = [booster]
+
+        else:
+            try:  # lightgbm<=2.2.3
+                self.boosters_ = [
+                    lgb.Booster(
+                        params={'model_str': model_str}
+                    ) for model_str
+                    in self.study_.user_attrs['representations']
+                ]
+            except TypeError:
+                self.boosters_ = [
+                    lgb.Booster(
+                        model_str=model_str,
+                        silent=True
+                    ) for model_str
+                    in self.study_.user_attrs['representations']
+                ]
 
         return self
 
@@ -408,6 +422,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     random_state
         Seed of the pseudo random number generator.
+
+    refit
+        If True, refit the estimator with the best found hyperparameters.
 
     study
         Study that corresponds to the optimization task.
@@ -555,6 +572,9 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     random_state
         Seed of the pseudo random number generator.
 
+    refit
+        If True, refit the estimator with the best found hyperparameters.
+
     study
         Study that corresponds to the optimization task.
 
@@ -606,6 +626,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         param_distributions:
             Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
         random_state: Optional[RANDOM_STATE_TYPE] = None,
+        refit: bool = False,
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None
     ) -> None:
@@ -622,6 +643,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             objective=objective,
             param_distributions=param_distributions,
             random_state=random_state,
+            refit=refit,
             study=study,
             timeout=timeout
         )
