@@ -1,6 +1,9 @@
 """Utilities."""
 
 from typing import Any
+from typing import Dict
+from typing import List
+from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -19,6 +22,11 @@ from sklearn.utils.multiclass import check_classification_targets
 from sklearn.utils.validation import _assert_all_finite
 from sklearn.utils.validation import _num_samples
 from sklearn.utils.validation import column_or_1d
+
+try:  # lightgbm<=2.2.1
+    from lightgbm.engine import CVBooster as _CVBooster
+except ImportError:
+    from lightgbm.engine import _CVBooster
 
 RANDOM_STATE_TYPE = Union[int, np.random.RandomState]
 ONE_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.Series]
@@ -160,3 +168,14 @@ def check_fit_params(
     check_consistent_length(X, y, sample_weight)
 
     return X, y, sample_weight
+
+
+class LightGBMCallbackEnv(NamedTuple):
+    """Callback environment used by callbacks."""
+
+    model: _CVBooster
+    params: Dict[str, Any]
+    iteration: int
+    begin_iteration: int
+    end_iteration: int
+    evaluation_result_list: List

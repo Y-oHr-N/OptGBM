@@ -4,7 +4,6 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import List
-from typing import NamedTuple
 from typing import Optional
 from typing import Union
 
@@ -23,14 +22,10 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 from sklearn.utils.validation import check_is_fitted
 
-try:  # lightgbm<=2.2.1
-    from lightgbm.engine import CVBooster as _CVBooster
-except ImportError:
-    from lightgbm.engine import _CVBooster
-
 from .utils import check_cv
 from .utils import check_fit_params
 from .utils import check_X
+from .utils import LightGBMCallbackEnv
 from .utils import ONE_DIM_ARRAYLIKE_TYPE
 from .utils import RANDOM_STATE_TYPE
 from .utils import TWO_DIM_ARRAYLIKE_TYPE
@@ -88,21 +83,12 @@ DEFAULT_PARAM_DISTRIBUTIONS = {
 }
 
 
-class _LightGBMCallbackEnv(NamedTuple):
-    model: _CVBooster
-    params: Dict[str, Any]
-    iteration: int
-    begin_iteration: int
-    end_iteration: int
-    evaluation_result_list: List
-
-
 class _LightGBMExtractionCallback(object):
     def __init__(self) -> None:
         self._best_iteration: Optional[int] = None
         self._boosters: Optional[List[lgb.Booster]] = None
 
-    def __call__(self, env: _LightGBMCallbackEnv) -> None:
+    def __call__(self, env: LightGBMCallbackEnv) -> None:
         self._best_iteration = env.iteration + 1
         self._boosters = env.model.boosters
 
