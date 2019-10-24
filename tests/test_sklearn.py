@@ -37,10 +37,11 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
     assert len(study.trials) == 2 * n_trials
 
 
-def test_score() -> None:
+@pytest.mark.parametrize('refit', [False, True])
+def test_score(refit: bool) -> None:
     X, y = load_boston(return_X_y=True)
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
-    reg = lgb.LGBMRegressor(random_state=0)
+    reg = lgb.LGBMRegressor(random_state=0, refit=refit)
 
     reg.fit(X_train, y_train)
 

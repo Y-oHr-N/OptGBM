@@ -1,5 +1,7 @@
 """scikit-learn compatible models."""
 
+import copy
+
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -100,40 +102,29 @@ class _Objective(object):
     def __init__(
         self,
         params: Dict[str, Any],
+        dataset: lgb.Dataset,
         param_distributions: Dict[str, optuna.distributions.BaseDistribution],
-        X: TWO_DIM_ARRAYLIKE_TYPE,
-        y: ONE_DIM_ARRAYLIKE_TYPE,
-        categorical_feature: Union[List[Union[int, str]], str] = 'auto',
         cv: Optional[BaseCrossValidator] = None,
         early_stopping_rounds: Optional[int] = None,
         enable_pruning: bool = False,
-        n_estimators: int = 100,
-        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None
+        n_estimators: int = 100
     ) -> None:
-        self.categorical_feature = categorical_feature
         self.cv = cv
+        self.dataset = dataset
         self.early_stopping_rounds = early_stopping_rounds
         self.enable_pruning = enable_pruning
         self.n_estimators = n_estimators
         self.params = params
         self.param_distributions = param_distributions
-        self.sample_weight = sample_weight
-        self.X = X
-        self.y = y
 
     def __call__(self, trial: optuna.trial.Trial) -> float:
         params: Dict[str, Any] = self._get_params(trial)
+        dataset = copy.copy(self.dataset)
         callbacks: List[Callable] = self._get_callbacks(trial)
-        dataset: lgb.Dataset = lgb.Dataset(
-            self.X,
-            label=self.y,
-            weight=self.sample_weight
-        )
         eval_hist: Dict[str, List[float]] = lgb.cv(
             params,
             dataset,
             callbacks=callbacks,
-            categorical_feature=self.categorical_feature,
             early_stopping_rounds=self.early_stopping_rounds,
             folds=self.cv,
             num_boost_round=self.n_estimators
@@ -201,6 +192,15 @@ class _BaseOGBMModel(BaseEstimator):
         return self.param_distributions
 
     @property
+    def _random_state(self) -> Optional[int]:
+        if self.random_state is None or isinstance(self.random_state, int):
+            return self.random_state
+
+        random_state = check_random_state(self.random_state)
+
+        return random_state.randint(0, MAX_INT)
+
+    @property
     def feature_importances_(self) -> np.ndarray:
         """Feature importances."""
         self._check_is_fitted()
@@ -230,6 +230,7 @@ class _BaseOGBMModel(BaseEstimator):
         param_distributions:
             Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
         random_state: Optional[RANDOM_STATE_TYPE] = None,
+        refit: bool = False,
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None
     ) -> None:
@@ -246,6 +247,7 @@ class _BaseOGBMModel(BaseEstimator):
         self.objective = objective
         self.param_distributions = param_distributions
         self.random_state = random_state
+        self.refit = refit
         self.study = study
         self.timeout = timeout
 
@@ -297,11 +299,7 @@ class _BaseOGBMModel(BaseEstimator):
         is_classifier = self._estimator_type == 'classifier'
         cv = check_cv(self.cv, y, is_classifier)
 
-        if isinstance(self.random_state, int):
-            seed = self.random_state
-        else:
-            random_state = check_random_state(self.random_state)
-            seed = random_state.randint(0, MAX_INT)
+        seed = self._random_state
 
         params: Dict[str, Any] = {
             'learning_rate': self.learning_rate,
@@ -349,17 +347,21 @@ class _BaseOGBMModel(BaseEstimator):
         else:
             self.study_ = self.study
 
+        dataset = lgb.Dataset(
+            X,
+            categorical_feature=self.categorical_features,
+            label=y,
+            weight=sample_weight
+        )
+
         objective = _Objective(
             params,
+            dataset,
             self._param_distributions,
-            X,
-            y,
-            categorical_feature=self.categorical_features,
             cv=cv,
             early_stopping_rounds=self.n_iter_no_change,
             enable_pruning=self.enable_pruning,
-            n_estimators=self.max_iter,
-            sample_weight=sample_weight,
+            n_estimators=self.max_iter
         )
 
         self.weights_ = np.array([
@@ -373,21 +375,33 @@ class _BaseOGBMModel(BaseEstimator):
             timeout=self.timeout
         )
 
-        try:  # lightgbm<=2.2.3
-            self.boosters_ = [
-                lgb.Booster(
-                    params={'model_str': model_str}
-                ) for model_str in self.study_.user_attrs['representations']
-            ]
-        except TypeError:
-            self.boosters_ = [
-                lgb.Booster(
-                    model_str=model_str,
-                    silent=True
-                ) for model_str in self.study_.user_attrs['representations']
-            ]
-
         self.n_iter_ = self.study_.user_attrs['best_iteration']
+
+        if self.refit:
+            params.update(self.study_.best_params)
+
+            booster = lgb.train(params, dataset, num_boost_round=self.n_iter_)
+
+            booster.free_dataset()
+
+            self.boosters_ = [booster]
+
+        else:
+            try:  # lightgbm<=2.2.3
+                self.boosters_ = [
+                    lgb.Booster(
+                        params={'model_str': model_str}
+                    ) for model_str
+                    in self.study_.user_attrs['representations']
+                ]
+            except TypeError:
+                self.boosters_ = [
+                    lgb.Booster(
+                        model_str=model_str,
+                        silent=True
+                    ) for model_str
+                    in self.study_.user_attrs['representations']
+                ]
 
         return self
 
@@ -436,6 +450,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     random_state
         Seed of the pseudo random number generator.
+
+    refit
+        If True, refit the estimator with the best found hyperparameters.
 
     study
         Study that corresponds to the optimization task.
@@ -583,6 +600,9 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     random_state
         Seed of the pseudo random number generator.
 
+    refit
+        If True, refit the estimator with the best found hyperparameters.
+
     study
         Study that corresponds to the optimization task.
 
@@ -634,6 +654,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         param_distributions:
             Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
         random_state: Optional[RANDOM_STATE_TYPE] = None,
+        refit: bool = False,
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None
     ) -> None:
@@ -650,6 +671,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             objective=objective,
             param_distributions=param_distributions,
             random_state=random_state,
+            refit=refit,
             study=study,
             timeout=timeout
         )
