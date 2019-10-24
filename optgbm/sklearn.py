@@ -83,6 +83,11 @@ DEFAULT_PARAM_DISTRIBUTIONS = {
 }
 
 
+def is_higher_better(metric: str) -> bool:
+    """Is eval result higher better."""
+    return metric in ['auc']
+
+
 class _LightGBMExtractionCallback(object):
     def __init__(self) -> None:
         self._best_iteration: Optional[int] = None
@@ -135,15 +140,16 @@ class _Objective(object):
             folds=self.cv,
             num_boost_round=self.n_estimators
         )
-        is_best: bool = True
         value: float = eval_hist[f'{self.params["metric"]}-mean'][-1]
+        is_best_value: bool = True
 
         try:
-            is_best = value < trial.study.best_value
+            is_best_value = (value < trial.study.best_value) \
+                ^ is_higher_better(self.params['metric'])
         except ValueError:
             pass
 
-        if is_best:
+        if is_best_value:
             best_iteration: int = callbacks[0]._best_iteration  # type: ignore
             boosters: List[lgb.Booster] = \
                 callbacks[0]._boosters  # type: ignore
@@ -210,6 +216,7 @@ class _BaseOGBMModel(BaseEstimator):
         importance_type: str = 'split',
         learning_rate: float = 0.1,
         max_iter: int = 1_000,
+        metric: Optional[str] = None,
         n_iter_no_change: Optional[int] = 10,
         n_jobs: int = 1,
         n_trials: int = 25,
@@ -227,6 +234,7 @@ class _BaseOGBMModel(BaseEstimator):
         self.importance_type = importance_type
         self.learning_rate = learning_rate
         self.max_iter = max_iter
+        self.metric = metric
         self.n_iter_no_change = n_iter_no_change
         self.n_jobs = n_jobs
         self.n_trials = n_trials
@@ -311,7 +319,15 @@ class _BaseOGBMModel(BaseEstimator):
         if self.objective is not None:
             params['objective'] = self.objective
 
-        params['metric'] = METRICS[params['objective']]
+        if self.metric is None:
+            params['metric'] = METRICS[params['objective']]
+        else:
+            params['metric'] = self.metric
+
+        if is_higher_better(params['metric']):
+            direction = 'maximize'
+        else:
+            direction = 'minimize'
 
         if self.param_distributions is None:
             param_distributions = DEFAULT_PARAM_DISTRIBUTIONS
@@ -321,7 +337,10 @@ class _BaseOGBMModel(BaseEstimator):
         if self.study is None:
             sampler = optuna.samplers.TPESampler(seed=seed)
 
-            self.study_ = optuna.create_study(sampler=sampler)
+            self.study_ = optuna.create_study(
+                direction=direction,
+                sampler=sampler
+            )
 
         else:
             self.study_ = self.study
