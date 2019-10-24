@@ -41,13 +41,13 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
 def test_score(refit: bool) -> None:
     X, y = load_boston(return_X_y=True)
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
-    reg = lgb.LGBMRegressor(random_state=0, refit=refit)
+    reg = lgb.LGBMRegressor(random_state=0)
 
     reg.fit(X_train, y_train)
 
     score = reg.score(X_test, y_test)
 
-    reg = OGBMRegressor(n_trials=100, random_state=0)
+    reg = OGBMRegressor(n_trials=100, random_state=0, refit=refit)
 
     reg.fit(X_train, y_train)
 
