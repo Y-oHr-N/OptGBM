@@ -294,6 +294,7 @@ class _BaseOGBMModel(BaseEstimator):
             y,
             sample_weight=sample_weight,
             accept_sparse=True,
+            ensure_min_samples=2,
             estimator=self,
             force_all_finite=False
         )
@@ -368,10 +369,6 @@ class _BaseOGBMModel(BaseEstimator):
             n_estimators=self.n_estimators
         )
 
-        self.weights_ = np.array([
-            np.sum(sample_weight[train]) for train, _ in cv.split(X, y)
-        ])
-
         self.study_.optimize(
             objective,
             n_jobs=self.n_jobs,
@@ -389,6 +386,7 @@ class _BaseOGBMModel(BaseEstimator):
             booster.free_dataset()
 
             self.boosters_ = [booster]
+            self.weights_ = np.ones(1)
 
         else:
             try:  # lightgbm<=2.2.3
@@ -406,6 +404,10 @@ class _BaseOGBMModel(BaseEstimator):
                     ) for model_str
                     in self.study_.user_attrs['representations']
                 ]
+
+            self.weights_ = np.array([
+                np.sum(sample_weight[train]) for train, _ in cv.split(X, y)
+            ])
 
         return self
 
