@@ -32,16 +32,16 @@ from .utils import TWO_DIM_ARRAYLIKE_TYPE
 
 MAX_INT = np.iinfo(np.int32).max
 
-CLASSIFICATION_METRICS = {
+OBJECTIVE2METRIC = {
+    # classification
     'binary': 'binary_logloss',
     'multiclass': 'multi_logloss',
     'softmax': 'multi_logloss',
     'multiclassova': 'multi_logloss',
     'multiclass_ova': 'multi_logloss',
     'ova': 'multi_logloss',
-    'ovr': 'multi_logloss'
-}
-REGRESSION_METRICS = {
+    'ovr': 'multi_logloss',
+    # regression
     'mean_absoluter_error': 'l1',
     'mae': 'l1',
     'regression_l1': 'l1',
@@ -61,7 +61,6 @@ REGRESSION_METRICS = {
     'gamma': 'gamma',
     'tweedie': 'tweedie'
 }
-METRICS = {**CLASSIFICATION_METRICS, **REGRESSION_METRICS}
 
 DEFAULT_PARAM_DISTRIBUTIONS = {
     'colsample_bytree':
@@ -81,6 +80,10 @@ DEFAULT_PARAM_DISTRIBUTIONS = {
     'subsample_freq':
         optuna.distributions.IntUniformDistribution(1, 10)
 }
+
+
+def _is_higher_better(metric: str) -> bool:
+    return metric in ['auc']
 
 
 class _LightGBMExtractionCallback(object):
@@ -135,15 +138,16 @@ class _Objective(object):
             folds=self.cv,
             num_boost_round=self.n_estimators
         )
-        is_best: bool = True
-        value: float = eval_hist[f'{self.params["metric"]}-mean'][-1]
+        value: float = eval_hist[f'{params["metric"]}-mean'][-1]
+        is_best_trial: bool = True
 
         try:
-            is_best = value < trial.study.best_value
+            is_best_trial = (value < trial.study.best_value) \
+                ^ _is_higher_better(params['metric'])
         except ValueError:
             pass
 
-        if is_best:
+        if is_best_trial:
             best_iteration: int = callbacks[0]._best_iteration  # type: ignore
             boosters: List[lgb.Booster] = \
                 callbacks[0]._boosters  # type: ignore
@@ -187,6 +191,15 @@ class _Objective(object):
 
 
 class _BaseOGBMModel(BaseEstimator):
+    @property
+    def _param_distributions(
+        self
+    ) -> Dict[str, optuna.distributions.BaseDistribution]:
+        if self.param_distributions is None:
+            return DEFAULT_PARAM_DISTRIBUTIONS
+
+        return self.param_distributions
+
     @property
     def feature_importances_(self) -> np.ndarray:
         """Feature importances."""
@@ -246,7 +259,8 @@ class _BaseOGBMModel(BaseEstimator):
         self,
         X: TWO_DIM_ARRAYLIKE_TYPE,
         y: ONE_DIM_ARRAYLIKE_TYPE,
-        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None
+        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
+        eval_metric: Optional[str] = None
     ) -> '_BaseOGBMModel':
         """Fit the model according to the given training data.
 
@@ -260,6 +274,9 @@ class _BaseOGBMModel(BaseEstimator):
 
         sample_weight
             Weights of training data.
+
+        eval_metric
+            Evaluation metric.
 
         Returns
         -------
@@ -311,24 +328,30 @@ class _BaseOGBMModel(BaseEstimator):
         if self.objective is not None:
             params['objective'] = self.objective
 
-        params['metric'] = METRICS[params['objective']]
-
-        if self.param_distributions is None:
-            param_distributions = DEFAULT_PARAM_DISTRIBUTIONS
+        if eval_metric is None:
+            params['metric'] = OBJECTIVE2METRIC[params['objective']]
         else:
-            param_distributions = self.param_distributions
+            params['metric'] = eval_metric
+
+        if _is_higher_better(params['metric']):
+            direction = 'maximize'
+        else:
+            direction = 'minimize'
 
         if self.study is None:
             sampler = optuna.samplers.TPESampler(seed=seed)
 
-            self.study_ = optuna.create_study(sampler=sampler)
+            self.study_ = optuna.create_study(
+                direction=direction,
+                sampler=sampler
+            )
 
         else:
             self.study_ = self.study
 
         objective = _Objective(
             params,
-            param_distributions,
+            self._param_distributions,
             X,
             y,
             categorical_feature=self.categorical_features,
