@@ -32,16 +32,16 @@ from .utils import TWO_DIM_ARRAYLIKE_TYPE
 
 MAX_INT = np.iinfo(np.int32).max
 
-CLASSIFICATION_METRICS = {
+OBJECTIVE2METRIC = {
+    # classification
     'binary': 'binary_logloss',
     'multiclass': 'multi_logloss',
     'softmax': 'multi_logloss',
     'multiclassova': 'multi_logloss',
     'multiclass_ova': 'multi_logloss',
     'ova': 'multi_logloss',
-    'ovr': 'multi_logloss'
-}
-REGRESSION_METRICS = {
+    'ovr': 'multi_logloss',
+    # regression
     'mean_absoluter_error': 'l1',
     'mae': 'l1',
     'regression_l1': 'l1',
@@ -61,7 +61,6 @@ REGRESSION_METRICS = {
     'gamma': 'gamma',
     'tweedie': 'tweedie'
 }
-METRICS = {**CLASSIFICATION_METRICS, **REGRESSION_METRICS}
 
 DEFAULT_PARAM_DISTRIBUTIONS = {
     'colsample_bytree':
@@ -83,8 +82,7 @@ DEFAULT_PARAM_DISTRIBUTIONS = {
 }
 
 
-def is_higher_better(metric: str) -> bool:
-    """Is eval result higher better."""
+def _is_higher_better(metric: str) -> bool:
     return metric in ['auc']
 
 
@@ -140,16 +138,16 @@ class _Objective(object):
             folds=self.cv,
             num_boost_round=self.n_estimators
         )
-        value: float = eval_hist[f'{self.params["metric"]}-mean'][-1]
-        is_best_value: bool = True
+        value: float = eval_hist[f'{params["metric"]}-mean'][-1]
+        is_best_trial: bool = True
 
         try:
-            is_best_value = (value < trial.study.best_value) \
-                ^ is_higher_better(self.params['metric'])
+            is_best_trial = (value < trial.study.best_value) \
+                ^ _is_higher_better(params['metric'])
         except ValueError:
             pass
 
-        if is_best_value:
+        if is_best_trial:
             best_iteration: int = callbacks[0]._best_iteration  # type: ignore
             boosters: List[lgb.Booster] = \
                 callbacks[0]._boosters  # type: ignore
@@ -194,6 +192,15 @@ class _Objective(object):
 
 class _BaseOGBMModel(BaseEstimator):
     @property
+    def _param_distributions(
+        self
+    ) -> Dict[str, optuna.distributions.BaseDistribution]:
+        if self.param_distributions is None:
+            return DEFAULT_PARAM_DISTRIBUTIONS
+
+        return self.param_distributions
+
+    @property
     def feature_importances_(self) -> np.ndarray:
         """Feature importances."""
         self._check_is_fitted()
@@ -216,7 +223,6 @@ class _BaseOGBMModel(BaseEstimator):
         importance_type: str = 'split',
         learning_rate: float = 0.1,
         max_iter: int = 1_000,
-        metric: Optional[str] = None,
         n_iter_no_change: Optional[int] = 10,
         n_jobs: int = 1,
         n_trials: int = 25,
@@ -234,7 +240,6 @@ class _BaseOGBMModel(BaseEstimator):
         self.importance_type = importance_type
         self.learning_rate = learning_rate
         self.max_iter = max_iter
-        self.metric = metric
         self.n_iter_no_change = n_iter_no_change
         self.n_jobs = n_jobs
         self.n_trials = n_trials
@@ -254,7 +259,8 @@ class _BaseOGBMModel(BaseEstimator):
         self,
         X: TWO_DIM_ARRAYLIKE_TYPE,
         y: ONE_DIM_ARRAYLIKE_TYPE,
-        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None
+        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
+        eval_metric: Optional[str] = None
     ) -> '_BaseOGBMModel':
         """Fit the model according to the given training data.
 
@@ -268,6 +274,9 @@ class _BaseOGBMModel(BaseEstimator):
 
         sample_weight
             Weights of training data.
+
+        eval_metric
+            Evaluation metric.
 
         Returns
         -------
@@ -319,20 +328,15 @@ class _BaseOGBMModel(BaseEstimator):
         if self.objective is not None:
             params['objective'] = self.objective
 
-        if self.metric is None:
-            params['metric'] = METRICS[params['objective']]
+        if eval_metric is None:
+            params['metric'] = OBJECTIVE2METRIC[params['objective']]
         else:
-            params['metric'] = self.metric
+            params['metric'] = eval_metric
 
-        if is_higher_better(params['metric']):
+        if _is_higher_better(params['metric']):
             direction = 'maximize'
         else:
             direction = 'minimize'
-
-        if self.param_distributions is None:
-            param_distributions = DEFAULT_PARAM_DISTRIBUTIONS
-        else:
-            param_distributions = self.param_distributions
 
         if self.study is None:
             sampler = optuna.samplers.TPESampler(seed=seed)
@@ -347,7 +351,7 @@ class _BaseOGBMModel(BaseEstimator):
 
         objective = _Objective(
             params,
-            param_distributions,
+            self._param_distributions,
             X,
             y,
             categorical_feature=self.categorical_features,
