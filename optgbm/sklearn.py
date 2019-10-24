@@ -216,14 +216,12 @@ class _BaseOGBMModel(BaseEstimator):
 
     def __init__(
         self,
-        categorical_features: Union[List[Union[int, str]], str] = 'auto',
         class_weight: Optional[Union[str, Dict[str, float]]] = None,
         cv: Union[BaseCrossValidator, int] = 5,
         enable_pruning: bool = False,
         importance_type: str = 'split',
         learning_rate: float = 0.1,
-        max_iter: int = 1_000,
-        n_iter_no_change: Optional[int] = 10,
+        n_estimators: int = 1_000,
         n_jobs: int = 1,
         n_trials: int = 25,
         objective: Optional[str] = None,
@@ -234,14 +232,12 @@ class _BaseOGBMModel(BaseEstimator):
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None
     ) -> None:
-        self.categorical_features = categorical_features
         self.class_weight = class_weight
         self.cv = cv
         self.enable_pruning = enable_pruning
         self.importance_type = importance_type
         self.learning_rate = learning_rate
-        self.max_iter = max_iter
-        self.n_iter_no_change = n_iter_no_change
+        self.n_estimators = n_estimators
         self.n_jobs = n_jobs
         self.n_trials = n_trials
         self.objective = objective
@@ -262,7 +258,9 @@ class _BaseOGBMModel(BaseEstimator):
         X: TWO_DIM_ARRAYLIKE_TYPE,
         y: ONE_DIM_ARRAYLIKE_TYPE,
         sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
-        eval_metric: Optional[str] = None
+        eval_metric: Optional[str] = None,
+        early_stopping_rounds: Optional[int] = 10,
+        categorical_feature: Union[List[Union[int, str]], str] = 'auto'
     ) -> '_BaseOGBMModel':
         """Fit the model according to the given training data.
 
@@ -279,6 +277,12 @@ class _BaseOGBMModel(BaseEstimator):
 
         eval_metric
             Evaluation metric.
+
+        early_stopping_rounds
+            Used to activate early stopping.
+
+        categorical_feature
+            Categorical features.
 
         Returns
         -------
@@ -349,7 +353,7 @@ class _BaseOGBMModel(BaseEstimator):
 
         dataset = lgb.Dataset(
             X,
-            categorical_feature=self.categorical_features,
+            categorical_feature=categorical_feature,
             label=y,
             weight=sample_weight
         )
@@ -359,9 +363,9 @@ class _BaseOGBMModel(BaseEstimator):
             dataset,
             self._param_distributions,
             cv=cv,
-            early_stopping_rounds=self.n_iter_no_change,
+            early_stopping_rounds=early_stopping_rounds,
             enable_pruning=self.enable_pruning,
-            n_estimators=self.max_iter
+            n_estimators=self.n_estimators
         )
 
         self.weights_ = np.array([
@@ -411,9 +415,6 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     Parameters
     ----------
-    categorical_features
-        Categorical features.
-
     class_weight
         Weights associated with classes.
 
@@ -429,12 +430,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     learning_rate
         Learning rate.
 
-    max_iter
+    n_estimators
         Maximum number of iterations of the boosting process. a.k.a.
         `num_boost_round`.
-
-    n_iter_no_change
-        Used to activate early stopping. a.k.a. `early_stopping_rounds`.
 
     n_jobs
         Number of parallel jobs.
@@ -563,9 +561,6 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     Parameters
     ----------
-    categorical_features
-        Categorical features.
-
     cv
         Cross-validation strategy.
 
@@ -578,12 +573,9 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     learning_rate
         Learning rate.
 
-    max_iter
+    n_estimators
         Maximum number of iterations of the boosting process. a.k.a.
         `num_boost_round`.
-
-    n_iter_no_change
-        Used to activate early stopping. a.k.a. `early_stopping_rounds`.
 
     n_jobs
         Number of parallel jobs.
@@ -641,13 +633,11 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     def __init__(
         self,
-        categorical_features: Union[List[Union[int, str]], str] = 'auto',
         cv: Union[BaseCrossValidator, int] = 5,
         enable_pruning: bool = False,
         importance_type: str = 'split',
         learning_rate: float = 0.1,
-        max_iter: int = 1_000,
-        n_iter_no_change: Optional[int] = 10,
+        n_estimators: int = 1_000,
         n_jobs: int = 1,
         n_trials: int = 25,
         objective: Optional[str] = None,
@@ -659,13 +649,11 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         timeout: Optional[float] = None
     ) -> None:
         super().__init__(
-            categorical_features=categorical_features,
             cv=cv,
             enable_pruning=enable_pruning,
             importance_type=importance_type,
             learning_rate=learning_rate,
-            max_iter=max_iter,
-            n_iter_no_change=n_iter_no_change,
+            n_estimators=n_estimators,
             n_jobs=n_jobs,
             n_trials=n_trials,
             objective=objective,
