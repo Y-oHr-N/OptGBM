@@ -8,7 +8,6 @@ import numpy as np
 import optuna
 import pytest
 
-from sklearn.datasets import load_boston
 from sklearn.datasets import load_breast_cancer
 from sklearn.model_selection import train_test_split
 from sklearn.utils.estimator_checks import check_estimator
@@ -34,10 +33,10 @@ def test_ogbm_regressor() -> None:
 
 @pytest.mark.parametrize('storage', [None, 'sqlite:///:memory:'])
 def test_fit_twice_with_study(storage: Optional[str]) -> None:
-    X, y = load_boston(return_X_y=True)
+    X, y = load_breast_cancer(return_X_y=True)
     n_trials = 5
     study = optuna.create_study(storage=storage)
-    reg = OGBMRegressor(n_trials=n_trials, study=study)
+    reg = OGBMClassifier(n_trials=n_trials, study=study)
 
     reg.fit(X, y)
 
@@ -58,15 +57,15 @@ def test_fit_with_eval_metric(eval_metric: Union[str, Callable]) -> None:
 
 @pytest.mark.parametrize('refit', [False, True])
 def test_score(refit: bool) -> None:
-    X, y = load_boston(return_X_y=True)
+    X, y = load_breast_cancer(return_X_y=True)
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
-    reg = lgb.LGBMRegressor(random_state=0)
+    reg = lgb.LGBMClassifier(random_state=0)
 
     reg.fit(X_train, y_train)
 
     score = reg.score(X_test, y_test)
 
-    reg = OGBMRegressor(n_trials=100, random_state=0, refit=refit)
+    reg = OGBMClassifier(n_trials=50, random_state=0, refit=refit)
 
     reg.fit(X_train, y_train)
 
@@ -75,8 +74,8 @@ def test_score(refit: bool) -> None:
 
 @pytest.mark.parametrize('n_jobs', [-1, 1])
 def test_feature_importances(n_jobs: int) -> None:
-    X, y = load_boston(return_X_y=True)
-    reg = OGBMRegressor(n_jobs=n_jobs)
+    X, y = load_breast_cancer(return_X_y=True)
+    reg = OGBMClassifier(n_jobs=n_jobs)
 
     reg.fit(X, y)
 
