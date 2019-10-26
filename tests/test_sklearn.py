@@ -1,4 +1,7 @@
+from typing import Callable
 from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import lightgbm as lgb
 import numpy as np
@@ -6,11 +9,19 @@ import optuna
 import pytest
 
 from sklearn.datasets import load_boston
+from sklearn.datasets import load_breast_cancer
 from sklearn.model_selection import train_test_split
 from sklearn.utils.estimator_checks import check_estimator
 
 from optgbm.sklearn import OGBMClassifier
 from optgbm.sklearn import OGBMRegressor
+
+
+def zero_one_loss(
+    y_true: np.ndarray,
+    y_pred: np.ndarray
+) -> Tuple[str, float, bool]:
+    return 'zero_one_loss', np.mean(y_true != y_pred), False
 
 
 def test_ogbm_classifier() -> None:
@@ -35,6 +46,14 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
     reg.fit(X, y)
 
     assert len(study.trials) == 2 * n_trials
+
+
+@pytest.mark.parametrize('eval_metric', ['auc', zero_one_loss])
+def test_fit_with_eval_metric(eval_metric: Union[str, Callable]) -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+    reg = OGBMClassifier()
+
+    reg.fit(X, y, eval_metric=eval_metric)
 
 
 @pytest.mark.parametrize('refit', [False, True])

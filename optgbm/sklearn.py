@@ -104,15 +104,21 @@ class _Objective(object):
         params: Dict[str, Any],
         dataset: lgb.Dataset,
         param_distributions: Dict[str, optuna.distributions.BaseDistribution],
+        eval_name: str,
+        is_higher_better: bool,
         cv: Optional[BaseCrossValidator] = None,
         early_stopping_rounds: Optional[int] = None,
         enable_pruning: bool = False,
+        feval: Optional[Callable] = None,
         n_estimators: int = 100
     ) -> None:
         self.cv = cv
         self.dataset = dataset
         self.early_stopping_rounds = early_stopping_rounds
         self.enable_pruning = enable_pruning
+        self.eval_name = eval_name
+        self.feval = feval
+        self.is_higher_better = is_higher_better
         self.n_estimators = n_estimators
         self.params = params
         self.param_distributions = param_distributions
@@ -126,15 +132,16 @@ class _Objective(object):
             dataset,
             callbacks=callbacks,
             early_stopping_rounds=self.early_stopping_rounds,
+            feval=self.feval,
             folds=self.cv,
             num_boost_round=self.n_estimators
         )
-        value: float = eval_hist[f'{params["metric"]}-mean'][-1]
+        value: float = eval_hist[f'{self.eval_name}-mean'][-1]
         is_best_trial: bool = True
 
         try:
             is_best_trial = (value < trial.study.best_value) \
-                ^ _is_higher_better(params['metric'])
+                ^ self.is_higher_better
         except ValueError:
             pass
 
@@ -162,7 +169,7 @@ class _Objective(object):
             pruning_callback: optuna.integration.LightGBMPruningCallback = \
                 optuna.integration.LightGBMPruningCallback(
                     trial,
-                    self.params['metric']
+                    self.eval_name
                 )
 
             callbacks.append(pruning_callback)
@@ -258,7 +265,7 @@ class _BaseOGBMModel(BaseEstimator):
         X: TWO_DIM_ARRAYLIKE_TYPE,
         y: ONE_DIM_ARRAYLIKE_TYPE,
         sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
-        eval_metric: Optional[str] = None,
+        eval_metric: Optional[Union[str, Callable]] = None,
         early_stopping_rounds: Optional[int] = 10,
         categorical_feature: Union[List[Union[int, str]], str] = 'auto'
     ) -> '_BaseOGBMModel':
@@ -331,21 +338,26 @@ class _BaseOGBMModel(BaseEstimator):
         if self.objective is not None:
             params['objective'] = self.objective
 
-        if eval_metric is None:
-            params['metric'] = OBJECTIVE2METRIC[params['objective']]
-        else:
-            params['metric'] = eval_metric
+        if callable(eval_metric):
+            params['metric'] = 'None'
+            feval = lgb.sklearn._EvalFunctionWrapper(eval_metric)
+            eval_name, _, is_higher_better = eval_metric(y, y)
 
-        if _is_higher_better(params['metric']):
-            direction = 'maximize'
         else:
-            direction = 'minimize'
+            if eval_metric is None:
+                params['metric'] = OBJECTIVE2METRIC[params['objective']]
+            else:
+                params['metric'] = eval_metric
+
+            feval = None
+            eval_name = params['metric']
+            is_higher_better = _is_higher_better(params['metric'])
 
         if self.study is None:
             sampler = optuna.samplers.TPESampler(seed=seed)
 
             self.study_ = optuna.create_study(
-                direction=direction,
+                direction='maximize' if is_higher_better else 'minimize',
                 sampler=sampler
             )
 
@@ -363,9 +375,12 @@ class _BaseOGBMModel(BaseEstimator):
             params,
             dataset,
             self._param_distributions,
+            eval_name,
+            is_higher_better,
             cv=cv,
             early_stopping_rounds=early_stopping_rounds,
             enable_pruning=self.enable_pruning,
+            feval=feval,
             n_estimators=self.n_estimators
         )
 
