@@ -65,6 +65,8 @@ OBJECTIVE2METRIC = {
 }
 
 DEFAULT_PARAM_DISTRIBUTIONS = {
+    'boosting_type':
+        optuna.distributions.CategoricalDistribution(['gbdt', 'rf']),
     'colsample_bytree':
         optuna.distributions.DiscreteUniformDistribution(0.5, 1.0, 0.05),
     'min_child_samples':
@@ -78,7 +80,7 @@ DEFAULT_PARAM_DISTRIBUTIONS = {
     'reg_lambda':
         optuna.distributions.LogUniformDistribution(1e-06, 10.0),
     'subsample':
-        optuna.distributions.DiscreteUniformDistribution(0.5, 1.0, 0.05),
+        optuna.distributions.DiscreteUniformDistribution(0.5, 0.95, 0.05),
     'subsample_freq':
         optuna.distributions.IntUniformDistribution(1, 10)
 }
