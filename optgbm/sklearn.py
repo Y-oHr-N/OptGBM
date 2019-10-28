@@ -267,7 +267,7 @@ class _BaseOGBMModel(BaseEstimator):
         X: TWO_DIM_ARRAYLIKE_TYPE,
         y: ONE_DIM_ARRAYLIKE_TYPE,
         sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
-        eval_metric: Optional[Union[str, Callable]] = None,
+        eval_metric: Optional[Union[Callable, str]] = None,
         early_stopping_rounds: Optional[int] = 10,
         categorical_feature: Union[List[Union[int, str]], str] = 'auto'
     ) -> '_BaseOGBMModel':
