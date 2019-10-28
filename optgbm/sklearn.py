@@ -24,6 +24,12 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 from sklearn.utils.validation import check_is_fitted
 
+try:  # lightgbm<=2.2.3
+    from lightgbm.sklearn import _eval_function_wrapper \
+        as _EvalFunctionWrapper
+except ImportError:
+    from lightgbm.sklearn import _EvalFunctionWrapper
+
 from .utils import check_cv
 from .utils import check_fit_params
 from .utils import check_X
@@ -342,7 +348,7 @@ class _BaseOGBMModel(BaseEstimator):
 
         if callable(eval_metric):
             params['metric'] = 'None'
-            feval = lgb.sklearn._EvalFunctionWrapper(eval_metric)
+            feval = _EvalFunctionWrapper(eval_metric)
             eval_name, _, is_higher_better = eval_metric(y, y)
 
         else:
