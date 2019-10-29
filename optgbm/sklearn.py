@@ -13,9 +13,6 @@ import lightgbm as lgb
 import numpy as np
 import optuna
 
-from joblib import delayed
-from joblib import effective_n_jobs
-from joblib import Parallel
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
@@ -220,12 +217,12 @@ class _BaseOGBMModel(BaseEstimator):
         """Feature importances."""
         self._check_is_fitted()
 
-        n_jobs = effective_n_jobs(self.n_jobs)
-        parallel = Parallel(n_jobs=n_jobs)
-        func = delayed(lgb.Booster.feature_importance)
-        results = parallel(
-            func(b, self.importance_type) for b in self.boosters_
-        )
+        results = []
+
+        for b in self.boosters_:
+            result = b.feature_importance(importance_type=self.importance_type)
+
+            results.append(result)
 
         return np.average(results, axis=0, weights=self.weights_)
 
@@ -565,20 +562,23 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
             estimator=self,
             force_all_finite=False
         )
-        n_jobs = effective_n_jobs(self.n_jobs)
-        parallel = Parallel(n_jobs=n_jobs)
-        func = delayed(lgb.Booster.predict)
-        results = parallel(func(b, X) for b in self.boosters_)
-        result = np.average(results, axis=0, weights=self.weights_)
         n_classes = len(self.encoder_.classes_)
+        results = []
+
+        for b in self.boosters_:
+            result = b.predict(X)
+
+            results.append(result)
+
+        preds = np.average(results, axis=0, weights=self.weights_)
 
         if n_classes > 2:
-            return result
+            return preds
 
         else:
-            result = result.reshape(-1, 1)
+            preds = preds.reshape(-1, 1)
 
-            return np.concatenate([1.0 - result, result], axis=1)
+            return np.concatenate([1.0 - preds, preds], axis=1)
 
 
 class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
@@ -710,9 +710,11 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             estimator=self,
             force_all_finite=False
         )
-        n_jobs = effective_n_jobs(self.n_jobs)
-        parallel = Parallel(n_jobs=n_jobs)
-        func = delayed(lgb.Booster.predict)
-        results = parallel(func(b, X) for b in self.boosters_)
+        results = []
+
+        for b in self.boosters_:
+            result = b.predict(X)
+
+            results.append(result)
 
         return np.average(results, axis=0, weights=self.weights_)

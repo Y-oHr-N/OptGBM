@@ -55,6 +55,18 @@ def test_fit_with_eval_metric(eval_metric: Union[str, Callable]) -> None:
     reg.fit(X, y, eval_metric=eval_metric)
 
 
+@pytest.mark.parametrize('n_jobs', [-1, 1])
+def test_predict(n_jobs: int) -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+    clf = OGBMClassifier(n_jobs=n_jobs)
+
+    clf.fit(X, y)
+
+    y_pred = clf.predict(X)
+
+    assert y.shape == y_pred.shape
+
+
 @pytest.mark.parametrize('refit', [False, True])
 def test_score(refit: bool) -> None:
     X, y = load_breast_cancer(return_X_y=True)
