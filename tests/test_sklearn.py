@@ -34,15 +34,16 @@ def test_ogbm_regressor() -> None:
 @pytest.mark.parametrize('storage', [None, 'sqlite:///:memory:'])
 def test_fit_twice_with_study(storage: Optional[str]) -> None:
     X, y = load_breast_cancer(return_X_y=True)
+
     n_trials = 5
     study = optuna.create_study(storage=storage)
-    reg = OGBMClassifier(n_trials=n_trials, study=study)
+    clf = OGBMClassifier(n_trials=n_trials, study=study)
 
-    reg.fit(X, y)
+    clf.fit(X, y)
 
     assert len(study.trials) == n_trials
 
-    reg.fit(X, y)
+    clf.fit(X, y)
 
     assert len(study.trials) == 2 * n_trials
 
@@ -50,14 +51,16 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
 @pytest.mark.parametrize('eval_metric', ['auc', zero_one_loss])
 def test_fit_with_eval_metric(eval_metric: Union[str, Callable]) -> None:
     X, y = load_breast_cancer(return_X_y=True)
-    reg = OGBMClassifier()
 
-    reg.fit(X, y, eval_metric=eval_metric)
+    clf = OGBMClassifier()
+
+    clf.fit(X, y, eval_metric=eval_metric)
 
 
 @pytest.mark.parametrize('n_jobs', [-1, 1])
 def test_predict(n_jobs: int) -> None:
     X, y = load_breast_cancer(return_X_y=True)
+
     clf = OGBMClassifier(n_jobs=n_jobs)
 
     clf.fit(X, y)
@@ -71,24 +74,26 @@ def test_predict(n_jobs: int) -> None:
 def test_score(refit: bool) -> None:
     X, y = load_breast_cancer(return_X_y=True)
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
-    reg = lgb.LGBMClassifier(random_state=0)
 
-    reg.fit(X_train, y_train)
+    clf = lgb.LGBMClassifier(random_state=0)
 
-    score = reg.score(X_test, y_test)
+    clf.fit(X_train, y_train)
 
-    reg = OGBMClassifier(n_trials=50, random_state=0, refit=refit)
+    score = clf.score(X_test, y_test)
 
-    reg.fit(X_train, y_train)
+    clf = OGBMClassifier(n_trials=50, random_state=0, refit=refit)
 
-    assert score < reg.score(X_test, y_test)
+    clf.fit(X_train, y_train)
+
+    assert score < clf.score(X_test, y_test)
 
 
 @pytest.mark.parametrize('n_jobs', [-1, 1])
 def test_feature_importances(n_jobs: int) -> None:
     X, y = load_breast_cancer(return_X_y=True)
-    reg = OGBMClassifier(n_jobs=n_jobs)
 
-    reg.fit(X, y)
+    clf = OGBMClassifier(n_jobs=n_jobs)
 
-    assert isinstance(reg.feature_importances_, np.ndarray)
+    clf.fit(X, y)
+
+    assert isinstance(clf.feature_importances_, np.ndarray)
