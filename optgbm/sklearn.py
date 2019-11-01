@@ -391,6 +391,7 @@ class _BaseOGBMModel(BaseEstimator):
 
         self.study_.optimize(
             objective,
+            catch=(),
             n_jobs=self.n_jobs,
             n_trials=self.n_trials,
             timeout=self.timeout
@@ -400,6 +401,8 @@ class _BaseOGBMModel(BaseEstimator):
 
         if self.refit:
             params.update(self.study_.best_params)
+
+            params['n_jobs'] = 0
 
             booster = lgb.train(params, dataset, num_boost_round=self.n_iter_)
 
