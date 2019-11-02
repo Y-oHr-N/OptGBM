@@ -111,12 +111,14 @@ class _Objective(object):
         param_distributions: Dict[str, optuna.distributions.BaseDistribution],
         eval_name: str,
         is_higher_better: bool,
+        categorical_feature: Union[List[Union[int, str]], str] = 'auto',
         cv: Optional[BaseCrossValidator] = None,
         early_stopping_rounds: Optional[int] = None,
         enable_pruning: bool = False,
         feval: Optional[Callable] = None,
         n_estimators: int = 100
     ) -> None:
+        self.categorical_feature = categorical_feature
         self.cv = cv
         self.dataset = dataset
         self.early_stopping_rounds = early_stopping_rounds
@@ -136,6 +138,7 @@ class _Objective(object):
             params,
             dataset,
             callbacks=callbacks,
+            categorical_feature=self.categorical_feature,
             early_stopping_rounds=self.early_stopping_rounds,
             feval=self.feval,
             folds=self.cv,
@@ -378,12 +381,7 @@ class _BaseOGBMModel(BaseEstimator):
         else:
             self.study_ = self.study
 
-        dataset = lgb.Dataset(
-            X,
-            categorical_feature=categorical_feature,
-            label=y,
-            weight=sample_weight
-        )
+        dataset = lgb.Dataset(X, label=y, weight=sample_weight)
 
         objective = _Objective(
             params,
@@ -391,6 +389,7 @@ class _BaseOGBMModel(BaseEstimator):
             self._param_distributions,
             eval_name,
             is_higher_better,
+            categorical_feature=categorical_feature,
             cv=cv,
             early_stopping_rounds=early_stopping_rounds,
             enable_pruning=self.enable_pruning,
