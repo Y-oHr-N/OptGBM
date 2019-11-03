@@ -115,6 +115,7 @@ class _Objective(object):
         cv: Optional[BaseCrossValidator] = None,
         early_stopping_rounds: Optional[int] = None,
         enable_pruning: bool = False,
+        feature_name: Union[List[str], str] = 'auto',
         feval: Optional[Callable] = None,
         n_estimators: int = 100
     ) -> None:
@@ -125,6 +126,7 @@ class _Objective(object):
         self.enable_pruning = enable_pruning
         self.eval_name = eval_name
         self.feval = feval
+        self.feature_name = feature_name
         self.is_higher_better = is_higher_better
         self.n_estimators = n_estimators
         self.params = params
@@ -140,6 +142,7 @@ class _Objective(object):
             callbacks=callbacks,
             categorical_feature=self.categorical_feature,
             early_stopping_rounds=self.early_stopping_rounds,
+            feature_name=self.feature_name,
             feval=self.feval,
             folds=self.cv,
             num_boost_round=self.n_estimators
@@ -281,6 +284,7 @@ class _BaseOGBMModel(BaseEstimator):
         sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
         eval_metric: Optional[Union[Callable, str]] = None,
         early_stopping_rounds: Optional[int] = 10,
+        feature_name: Union[List[str], str] = 'auto',
         categorical_feature: Union[List[Union[int, str]], str] = 'auto'
     ) -> '_BaseOGBMModel':
         """Fit the model according to the given training data.
@@ -301,6 +305,9 @@ class _BaseOGBMModel(BaseEstimator):
 
         early_stopping_rounds
             Used to activate early stopping.
+
+        feature_name
+            Feature names.
 
         categorical_feature
             Categorical features.
@@ -393,6 +400,7 @@ class _BaseOGBMModel(BaseEstimator):
             cv=cv,
             early_stopping_rounds=early_stopping_rounds,
             enable_pruning=self.enable_pruning,
+            feature_name=feature_name,
             feval=feval,
             n_estimators=self.n_estimators
         )
