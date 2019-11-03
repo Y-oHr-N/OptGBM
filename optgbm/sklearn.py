@@ -287,11 +287,11 @@ class _BaseOGBMModel(BaseEstimator):
         X: TWO_DIM_ARRAYLIKE_TYPE,
         y: ONE_DIM_ARRAYLIKE_TYPE,
         sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
-        eval_metric: Optional[Union[Callable, str]] = None,
-        early_stopping_rounds: Optional[int] = 10,
-        feature_name: Union[List[str], str] = 'auto',
+        callbacks: Optional[List[Callable]] = None,
         categorical_feature: Union[List[Union[int, str]], str] = 'auto',
-        callbacks: Optional[List[Callable]] = None
+        early_stopping_rounds: Optional[int] = 10,
+        eval_metric: Optional[Union[Callable, str]] = None,
+        feature_name: Union[List[str], str] = 'auto'
     ) -> '_BaseOGBMModel':
         """Fit the model according to the given training data.
 
@@ -306,20 +306,20 @@ class _BaseOGBMModel(BaseEstimator):
         sample_weight
             Weights of training data.
 
-        eval_metric
-            Evaluation metric.
-
-        early_stopping_rounds
-            Used to activate early stopping.
-
-        feature_name
-            Feature names.
+        callbacks
+            List of callback functions that are applied at each iteration.
 
         categorical_feature
             Categorical features.
 
-        callbacks
-            List of callback functions that are applied at each iteration.
+        early_stopping_rounds
+            Used to activate early stopping.
+
+        eval_metric
+            Evaluation metric.
+
+        feature_name
+            Feature names.
 
         Returns
         -------
