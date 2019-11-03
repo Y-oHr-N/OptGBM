@@ -36,6 +36,19 @@ def test_ogbm_regressor() -> None:
     check_estimator(OGBMRegressor)
 
 
+@pytest.mark.parametrize('callbacks', [None, [callback]])
+@pytest.mark.parametrize('eval_metric', ['auc', zero_one_loss])
+def test_fit_with_fit_params(
+    callbacks: Optional[List[Callable]],
+    eval_metric: Union[Callable, str]
+) -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier()
+
+    clf.fit(X, y, callbacks=callbacks, eval_metric=eval_metric)
+
+
 @pytest.mark.parametrize('storage', [None, 'sqlite:///:memory:'])
 def test_fit_twice_with_study(storage: Optional[str]) -> None:
     X, y = load_breast_cancer(return_X_y=True)
@@ -51,24 +64,6 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
     clf.fit(X, y)
 
     assert len(study.trials) == 2 * n_trials
-
-
-@pytest.mark.parametrize('callbacks', [None, [callback]])
-def test_fit_with_callbacks(callbacks: Optional[List[Callable]]) -> None:
-    X, y = load_breast_cancer(return_X_y=True)
-
-    clf = OGBMClassifier()
-
-    clf.fit(X, y, callbacks=callbacks)
-
-
-@pytest.mark.parametrize('eval_metric', ['auc', zero_one_loss])
-def test_fit_with_eval_metric(eval_metric: Union[str, Callable]) -> None:
-    X, y = load_breast_cancer(return_X_y=True)
-
-    clf = OGBMClassifier()
-
-    clf.fit(X, y, eval_metric=eval_metric)
 
 
 @pytest.mark.parametrize('n_jobs', [-1, 1])
