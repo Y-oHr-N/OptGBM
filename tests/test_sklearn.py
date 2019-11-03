@@ -1,4 +1,5 @@
 from typing import Callable
+from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -14,6 +15,10 @@ from sklearn.utils.estimator_checks import check_estimator
 
 from optgbm.sklearn import OGBMClassifier
 from optgbm.sklearn import OGBMRegressor
+
+callback = lgb.reset_parameter(
+    learning_rate=lambda iteration: 0.05 * (0.99 ** iteration)
+)
 
 
 def zero_one_loss(
@@ -46,6 +51,15 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
     clf.fit(X, y)
 
     assert len(study.trials) == 2 * n_trials
+
+
+@pytest.mark.parametrize('callbacks', [None, [callback]])
+def test_fit_with_callbacks(callbacks: Optional[List[Callable]]) -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier()
+
+    clf.fit(X, y, callbacks=callbacks)
 
 
 @pytest.mark.parametrize('eval_metric', ['auc', zero_one_loss])

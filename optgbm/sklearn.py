@@ -111,6 +111,7 @@ class _Objective(object):
         param_distributions: Dict[str, optuna.distributions.BaseDistribution],
         eval_name: str,
         is_higher_better: bool,
+        callbacks: Optional[List[Callable]] = None,
         categorical_feature: Union[List[Union[int, str]], str] = 'auto',
         cv: Optional[BaseCrossValidator] = None,
         early_stopping_rounds: Optional[int] = None,
@@ -119,6 +120,7 @@ class _Objective(object):
         feval: Optional[Callable] = None,
         n_estimators: int = 100
     ) -> None:
+        self.callbacks = callbacks
         self.categorical_feature = categorical_feature
         self.cv = cv
         self.dataset = dataset
@@ -184,6 +186,9 @@ class _Objective(object):
                 )
 
             callbacks.append(pruning_callback)
+
+        if self.callbacks is not None:
+            callbacks += self.callbacks
 
         return callbacks
 
@@ -285,7 +290,8 @@ class _BaseOGBMModel(BaseEstimator):
         eval_metric: Optional[Union[Callable, str]] = None,
         early_stopping_rounds: Optional[int] = 10,
         feature_name: Union[List[str], str] = 'auto',
-        categorical_feature: Union[List[Union[int, str]], str] = 'auto'
+        categorical_feature: Union[List[Union[int, str]], str] = 'auto',
+        callbacks: Optional[List[Callable]] = None
     ) -> '_BaseOGBMModel':
         """Fit the model according to the given training data.
 
@@ -311,6 +317,9 @@ class _BaseOGBMModel(BaseEstimator):
 
         categorical_feature
             Categorical features.
+
+        callbacks
+            List of callback functions that are applied at each iteration.
 
         Returns
         -------
@@ -396,6 +405,7 @@ class _BaseOGBMModel(BaseEstimator):
             self._param_distributions,
             eval_name,
             is_higher_better,
+            callbacks=callbacks,
             categorical_feature=categorical_feature,
             cv=cv,
             early_stopping_rounds=early_stopping_rounds,
