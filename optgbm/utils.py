@@ -1,6 +1,9 @@
 """Utilities."""
 
 from typing import Any
+from typing import Dict
+from typing import List
+from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -10,6 +13,8 @@ import pandas as pd
 
 from sklearn.base import BaseEstimator
 from sklearn.base import is_classifier
+from sklearn.model_selection import BaseCrossValidator
+from sklearn.model_selection import check_cv as sklearn_check_cv
 from sklearn.utils import check_array
 from sklearn.utils import check_consistent_length
 from sklearn.utils.class_weight import compute_sample_weight
@@ -18,13 +23,49 @@ from sklearn.utils.validation import _assert_all_finite
 from sklearn.utils.validation import _num_samples
 from sklearn.utils.validation import column_or_1d
 
+try:  # lightgbm<=2.2.1
+    from lightgbm.engine import CVBooster as _CVBooster
+except ImportError:
+    from lightgbm.engine import _CVBooster
+
+RANDOM_STATE_TYPE = Union[int, np.random.RandomState]
 ONE_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.Series]
 TWO_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.DataFrame]
 
 
+def check_cv(
+    cv: Union[BaseCrossValidator, int] = 5,
+    y: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
+    classifier: bool = False
+) -> BaseCrossValidator:
+    """Check `cv`.
+
+    Parameters
+    ----------
+    cv
+        Cross-validation strategy.
+
+    y
+        Target.
+
+    classifier
+        If the task is a classification task, `StratifiedKFold` will be used.
+
+    Returns
+    -------
+    cv
+        Converted cross-validation strategy.
+    """
+    if classifier and isinstance(cv, int):
+        _, counts = np.unique(y, return_counts=True)
+        cv = max(2, min(cv, *counts))
+
+    return sklearn_check_cv(cv, y, classifier)
+
+
 def check_X(
     X: TWO_DIM_ARRAYLIKE_TYPE,
-    estimator: BaseEstimator = None,
+    estimator: Optional[BaseEstimator] = None,
     **kwargs: Any
 ) -> TWO_DIM_ARRAYLIKE_TYPE:
     """Check `X`.
@@ -65,7 +106,7 @@ def check_X(
 def check_fit_params(
     X: TWO_DIM_ARRAYLIKE_TYPE,
     y: ONE_DIM_ARRAYLIKE_TYPE,
-    sample_weight: ONE_DIM_ARRAYLIKE_TYPE = None,
+    sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
     estimator: Optional[BaseEstimator] = None,
     **kwargs: Any
 ) -> Tuple[
@@ -127,3 +168,14 @@ def check_fit_params(
     check_consistent_length(X, y, sample_weight)
 
     return X, y, sample_weight
+
+
+class LightGBMCallbackEnv(NamedTuple):
+    """Callback environment used by callbacks."""
+
+    model: _CVBooster
+    params: Dict[str, Any]
+    iteration: int
+    begin_iteration: int
+    end_iteration: int
+    evaluation_result_list: List
