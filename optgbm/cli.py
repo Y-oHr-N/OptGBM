@@ -11,7 +11,7 @@ from joblib import dump
 
 @click.group()
 def optgbm() -> None:
-    pass
+    """Run optgbm."""
 
 
 @optgbm.command()
