@@ -2,12 +2,8 @@
 
 import importlib
 
-from typing import Callable
-from typing import Dict
-from typing import List
+from typing import Any
 from typing import Optional
-from typing import Type
-from typing import Union
 
 import click
 import pandas as pd
@@ -37,22 +33,12 @@ class Dataset(object):
         self,
         data: str,
         label: Optional[str] = None,
-        dtype: Optional[Dict[str, Union[Type, str]]] = None,
-        index_col: Optional[Union[int, List[int], List[str], str]] = None,
-        usecols: Optional[Union[Callable, List[int], List[str]]] = None
-    ):
+        **kwargs: Any
+    ) -> None:
         self.data = data
         self.label = label
-        self.dtype = dtype
-        self.index_col = index_col
-        self.usecols = usecols
 
-        self._data = pd.read_csv(
-            data,
-            dtype=dtype,
-            index_col=index_col,
-            usecols=usecols
-        )
+        self._data = pd.read_csv(data, **kwargs)
 
     def get_data(self) -> pd.DataFrame:
         """Get the data of the dataset."""
@@ -77,18 +63,14 @@ class Trainer(object):
         with open(recipe_path, 'r') as f:
             content = yaml.load(f)
 
-        dtype = content.get('dtype')
-        index_col = content.get('index_col')
-        usecols = content.get('usecols')
+        data_kwargs = content.get('data_kwargs', {})
         params = content.get('params', {})
         fit_params = content.get('fit_params', {})
 
         dataset = Dataset(
             content['data_path'],
             label=content['label_col'],
-            dtype=dtype,
-            index_col=index_col,
-            usecols=usecols
+            **data_kwargs
         )
         data = dataset.get_data()
         label = dataset.get_label()
