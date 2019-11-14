@@ -36,10 +36,14 @@ class Trainer(object):
             dtype=content['dtype'],
             index_col=content['index_col']
         )
-        label = data.pop(content['label_column'])
+        label = data.pop(content['label_col'])
 
-        module = importlib.import_module('..sklearn', __name__)
-        klass = getattr(module, content['model_name'])
+        module_name, class_name = content['model_source'].rsplit(
+            '.',
+            maxsplit=1
+        )
+        module = importlib.import_module(module_name)
+        klass = getattr(module, class_name)
         model = klass(**content['params'])
 
         model.fit(data, label, **content['fit_params'])
