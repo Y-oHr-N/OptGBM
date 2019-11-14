@@ -112,7 +112,7 @@ class _Objective(object):
         eval_name: str,
         is_higher_better: bool,
         callbacks: Optional[List[Callable]] = None,
-        categorical_feature: Union[List[Union[int, str]], str] = 'auto',
+        categorical_feature: Union[List[int], List[str], str] = 'auto',
         cv: Optional[BaseCrossValidator] = None,
         early_stopping_rounds: Optional[int] = None,
         enable_pruning: bool = False,
@@ -288,7 +288,7 @@ class _BaseOGBMModel(BaseEstimator):
         y: ONE_DIM_ARRAYLIKE_TYPE,
         sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
         callbacks: Optional[List[Callable]] = None,
-        categorical_feature: Union[List[Union[int, str]], str] = 'auto',
+        categorical_feature: Union[List[int], List[str], str] = 'auto',
         early_stopping_rounds: Optional[int] = 10,
         eval_metric: Optional[Union[Callable, str]] = None,
         feature_name: Union[List[str], str] = 'auto'
