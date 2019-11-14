@@ -35,9 +35,9 @@ class Dataset(object):
     def __init__(
         self,
         data: str,
-        label: str = None,
+        label: Optional[str] = None,
         dtype: Optional[Dict[str, Union[Type, str]]] = None,
-        index_col: Union[int, List[int], List[str], str] = None
+        index_col: Optional[Union[int, List[int], List[str], str]] = None
     ):
         self.data = data
         self.label = label
