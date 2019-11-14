@@ -31,7 +31,11 @@ class Trainer(object):
         with open(recipe_path, 'r') as f:
             content = yaml.load(f)
 
-        data = pd.read_csv(content['data_path'], dtype=content['dtype'])
+        data = pd.read_csv(
+            content['data_path'],
+            dtype=content['dtype'],
+            index_col=content['index_col']
+        )
         label = data.pop(content['label_column'])
 
         module = importlib.import_module('..sklearn', __name__)
