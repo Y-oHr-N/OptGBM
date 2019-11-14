@@ -31,10 +31,15 @@ class Trainer(object):
         with open(recipe_path, 'r') as f:
             content = yaml.load(f)
 
+        dtype = content.get('dtype')
+        index_col = content.get('index_col')
+        params = content.get('params', {})
+        fit_params = content.get('fit_params', {})
+
         data = pd.read_csv(
             content['data_path'],
-            dtype=content['dtype'],
-            index_col=content['index_col']
+            dtype=dtype,
+            index_col=index_col
         )
         label = data.pop(content['label_col'])
 
@@ -44,8 +49,8 @@ class Trainer(object):
         )
         module = importlib.import_module(module_name)
         klass = getattr(module, class_name)
-        model = klass(**content['params'])
+        model = klass(**params)
 
-        model.fit(data, label, **content['fit_params'])
+        model.fit(data, label, **fit_params)
 
         dump(model, content['model_path'])
