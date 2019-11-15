@@ -1,6 +1,6 @@
-data_path: examples/train.csv.gz
+data_path: examples/titanic/train.csv.gz
 label_col: Survived
-model_path: examples/model.pkl
+model_path: examples/titanic/model.pkl
 model_source: optgbm.sklearn.OGBMClassifier
 
 # Optional
