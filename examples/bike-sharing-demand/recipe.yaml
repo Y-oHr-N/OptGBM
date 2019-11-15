@@ -1,0 +1,34 @@
+data_path: examples/bike-sharing-demand/train.csv.gz
+label_col: count
+model_path: examples/bike-sharing-demand/model.pkl
+model_source: optgbm.sklearn.OGBMRegressor
+
+# Optional
+data_kwargs:
+  dtype:
+    atemp: float32
+    holiday: category
+    humidity: float32
+    season: category
+    temp: float32
+    weather: category
+    windspeed: float32
+    workingday: category
+  index_col: datetime
+  parse_dates:
+    - datetime
+  usecols:
+    - datetime
+    - atemp
+    - holiday
+    - humidity
+    - season
+    - temp
+    - weather
+    - windspeed
+    - workingday
+    - count
+params:
+  n_trials: 100
+  n_jobs: -1
+  random_state: 0
