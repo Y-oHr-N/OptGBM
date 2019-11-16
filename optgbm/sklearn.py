@@ -560,7 +560,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         return self.encoder_.classes_
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
-        """Predict using the Fitted model.
+        """Predict using the fitted model.
 
         Parameters
         ----------
@@ -745,7 +745,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         )
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
-        """Predict using the Fitted model.
+        """Predict using the fitted model.
 
         Parameters
         ----------
