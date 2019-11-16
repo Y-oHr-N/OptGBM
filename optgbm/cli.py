@@ -1,6 +1,7 @@
 """CLI."""
 
 import importlib
+import sys
 
 from typing import Any
 from typing import Optional
@@ -10,6 +11,7 @@ import pandas as pd
 import yaml
 
 from joblib import dump
+from joblib import load
 
 
 @click.group()
@@ -24,6 +26,22 @@ def train(recipe_path: str) -> None:
     trainer = Trainer(recipe_path)
 
     trainer.train()
+
+
+@optgbm.command()
+@click.argument('recipe-path')
+@click.argument('input-path')
+@click.option('--output-path', '-o', default=None)
+def predict(recipe_path: str, input_path: str, output_path: str) -> None:
+    """Predict with a recipe."""
+    predictor = Predictor(recipe_path)
+
+    y_pred = predictor.predict(input_path)
+
+    if output_path is None:
+        output_path = sys.stdout
+
+    y_pred.to_csv(output_path, header=True)
 
 
 class Dataset(object):
@@ -89,3 +107,29 @@ class Trainer(object):
         model.fit(data, label, **fit_params)
 
         dump(model, content['model_path'])
+
+
+class Predictor(object):
+    """Predictor."""
+
+    def __init__(self, recipe_path: str) -> None:
+        self.recipe_path = recipe_path
+
+    def predict(self, input_path: str) -> pd.Series:
+        """Predict with a recipe."""
+        with open(self.recipe_path, 'r') as f:
+            content = yaml.load(f)
+
+        data_kwargs = content.get('data_kwargs', {})
+
+        if content['label_col'] in data_kwargs.get('usecols', {}):
+            data_kwargs['usecols'].remove(content['label_col'])
+
+        dataset = Dataset(input_path, **data_kwargs)
+        data = dataset.get_data()
+
+        model = load(content['model_path'])
+
+        y_pred = model.predict(data)
+
+        return pd.Series(y_pred, index=data.index, name=content['label_col'])
