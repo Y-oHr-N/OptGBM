@@ -18,12 +18,12 @@ def optgbm() -> None:
 
 
 @optgbm.command()
-@click.argument('recipe_path')
+@click.argument('recipe-path')
 def train(recipe_path: str) -> None:
     """Train the model with a recipe."""
-    trainer = Trainer()
+    trainer = Trainer(recipe_path)
 
-    trainer.train(recipe_path)
+    trainer.train()
 
 
 class Dataset(object):
@@ -58,9 +58,12 @@ class Dataset(object):
 class Trainer(object):
     """Trainer."""
 
-    def train(self, recipe_path: str) -> None:
+    def __init__(self, recipe_path: str) -> None:
+        self.recipe_path = recipe_path
+
+    def train(self) -> None:
         """Train the model with a recipe."""
-        with open(recipe_path, 'r') as f:
+        with open(self.recipe_path, 'r') as f:
             content = yaml.load(f)
 
         data_kwargs = content.get('data_kwargs', {})
