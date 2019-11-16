@@ -63,6 +63,11 @@ class Dataset(object):
 
         self._data = pd.read_csv(data, **kwargs)
 
+        categorical_cols = self._data.dtypes == object
+
+        self._data.loc[:, categorical_cols] = \
+            self._data.loc[:, categorical_cols].astype('category')
+
     def get_data(self) -> pd.DataFrame:
         """Get the data of the dataset."""
         if self.label is None:
