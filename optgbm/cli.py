@@ -8,6 +8,7 @@ from typing import Any
 from typing import Optional
 
 import click
+import numpy as np
 import pandas as pd
 import yaml
 
@@ -65,8 +66,9 @@ class Dataset(object):
 
         categorical_cols = self._data.dtypes == object
 
-        self._data.loc[:, categorical_cols] = \
-            self._data.loc[:, categorical_cols].astype('category')
+        if np.sum(categorical_cols) > 0:
+            self._data.loc[:, categorical_cols] = \
+                self._data.loc[:, categorical_cols].astype('category')
 
     def get_data(self) -> pd.DataFrame:
         """Get the data of the dataset."""
