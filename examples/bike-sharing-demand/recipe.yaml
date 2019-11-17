@@ -6,15 +6,12 @@ model_source: optgbm.sklearn.OGBMRegressor
 # Optional
 data_kwargs:
   dtype:
-    atemp: float32
-    holiday: category
-    humidity: float32
     season: category
-    temp: float32
     weather: category
-    windspeed: float32
-    workingday: category
   index_col: datetime
+  na_values:
+    windspeed:
+      - 0.0
   parse_dates:
     - datetime
   usecols:
@@ -29,6 +26,7 @@ data_kwargs:
     - workingday
     - count
 params:
+  n_estimators: 100_000
   n_trials: 100
   n_jobs: -1
   random_state: 0

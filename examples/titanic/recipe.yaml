@@ -6,13 +6,7 @@ model_source: optgbm.sklearn.OGBMClassifier
 # Optional
 data_kwargs:
   dtype:
-    Age: float32
-    Embarked: category
-    Fare: float32
     Pclass: category
-    Parch: float32
-    Sex: category
-    SibSp: float32
   index_col: PassengerId
   usecols:
     - PassengerId
@@ -25,6 +19,7 @@ data_kwargs:
     - SibSp
     - Survived
 params:
+  n_estimators: 100_000
   n_trials: 100
   n_jobs: -1
   random_state: 0
