@@ -1,0 +1,13 @@
+data_path: examples/mercedes-benz-greener-manufacturing/train.csv.gz
+label_col: y
+model_path: examples/mercedes-benz-greener-manufacturing/model.pkl
+model_source: optgbm.sklearn.OGBMRegressor
+
+# Optional
+data_kwargs:
+  index_col: ID
+params:
+  n_estimators: 100_000
+  n_trials: 100
+  n_jobs: -1
+  random_state: 0
