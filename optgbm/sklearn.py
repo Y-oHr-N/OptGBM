@@ -68,10 +68,10 @@ OBJECTIVE2METRIC = {
 }
 
 DEFAULT_PARAM_DISTRIBUTIONS = {
-    'boosting_type':
-        optuna.distributions.CategoricalDistribution(['gbdt', 'rf']),
+    # 'boosting_type':
+    #     optuna.distributions.CategoricalDistribution(['gbdt', 'rf']),
     'colsample_bytree':
-        optuna.distributions.DiscreteUniformDistribution(0.5, 1.0, 0.05),
+        optuna.distributions.DiscreteUniformDistribution(0.1, 1.0, 0.05),
     'min_child_samples':
         optuna.distributions.IntUniformDistribution(1, 100),
     'min_child_weight':
@@ -560,7 +560,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         return self.encoder_.classes_
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
-        """Predict using the Fitted model.
+        """Predict using the fitted model.
 
         Parameters
         ----------
@@ -745,7 +745,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         )
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
-        """Predict using the Fitted model.
+        """Predict using the fitted model.
 
         Parameters
         ----------

@@ -10,6 +10,9 @@ import optuna
 import pytest
 
 from sklearn.datasets import load_breast_cancer
+from sklearn.datasets import load_digits
+from sklearn.datasets import load_iris
+from sklearn.datasets import load_wine
 from sklearn.model_selection import train_test_split
 from sklearn.utils.estimator_checks import check_estimator
 
@@ -81,20 +84,27 @@ def test_predict(n_jobs: int) -> None:
 
 @pytest.mark.parametrize('refit', [False, True])
 def test_score(refit: bool) -> None:
-    X, y = load_breast_cancer(return_X_y=True)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+    load_functions = [load_breast_cancer, load_digits, load_iris, load_wine]
 
-    clf = lgb.LGBMClassifier(random_state=0)
+    for load_function in load_functions:
+        X, y = load_function(return_X_y=True)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X,
+            y,
+            random_state=0
+        )
 
-    clf.fit(X_train, y_train)
+        clf = lgb.LGBMClassifier(random_state=0)
 
-    score = clf.score(X_test, y_test)
+        clf.fit(X_train, y_train)
 
-    clf = OGBMClassifier(n_trials=50, random_state=0, refit=refit)
+        score = clf.score(X_test, y_test)
 
-    clf.fit(X_train, y_train)
+        clf = OGBMClassifier(random_state=0, refit=refit)
 
-    assert score < clf.score(X_test, y_test)
+        clf.fit(X_train, y_train)
+
+        assert score <= clf.score(X_test, y_test)
 
 
 @pytest.mark.parametrize('n_jobs', [-1, 1])
