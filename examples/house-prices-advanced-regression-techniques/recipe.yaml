@@ -1,6 +1,6 @@
-data_path: examples/house-prices/train.csv.gz
+data_path: examples/house-prices-advanced-regression-techniques/train.csv.gz
 label_col: SalePrice
-model_path: examples/house-prices/model.pkl
+model_path: examples/house-prices-advanced-regression-techniques/model.pkl
 model_source: optgbm.sklearn.OGBMRegressor
 
 # Optional
