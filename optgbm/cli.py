@@ -37,7 +37,7 @@ def train(recipe_path: str) -> None:
 @click.argument('input-path')
 @click.option('--output-path', '-o', default=None)
 def predict(recipe_path: str, input_path: str, output_path: str) -> None:
-    """Predict with a recipe."""
+    """Predict using the fitted model."""
     predictor = Predictor(recipe_path)
 
     y_pred = predictor.predict(input_path)
@@ -136,7 +136,7 @@ class Predictor(object):
         self.recipe_path = recipe_path
 
     def predict(self, input_path: str) -> pd.Series:
-        """Predict with a recipe."""
+        """Predict using the fitted model."""
         logger.info('Load the recipe.')
 
         with open(self.recipe_path, 'r') as f:
