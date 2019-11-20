@@ -1,6 +1,5 @@
 """CLI."""
 
-import importlib
 import logging
 import sys
 
@@ -10,10 +9,13 @@ from typing import Optional
 import click
 import numpy as np
 import pandas as pd
-import yaml
+import traitlets
+import traitlets.config
 
 from joblib import dump
 from joblib import load
+from sklearn.base import BaseEstimator
+from sklearn.base import clone
 
 logger = logging.getLogger(__name__)
 
@@ -24,21 +26,21 @@ def optgbm() -> None:
 
 
 @optgbm.command()
-@click.argument('recipe-path')
-def train(recipe_path: str) -> None:
+@click.argument('config-path')
+def train(config_path: str) -> None:
     """Train the model with a recipe."""
-    trainer = Trainer(recipe_path)
+    trainer = Trainer(config_path)
 
     trainer.train()
 
 
 @optgbm.command()
-@click.argument('recipe-path')
+@click.argument('config-path')
 @click.argument('input-path')
 @click.option('--output-path', '-o', default=None)
-def predict(recipe_path: str, input_path: str, output_path: str) -> None:
+def predict(config_path: str, input_path: str, output_path: str) -> None:
     """Predict using the fitted model."""
-    predictor = Predictor(recipe_path)
+    predictor = Predictor(config_path)
 
     y_pred = predictor.predict(input_path)
 
@@ -48,6 +50,19 @@ def predict(recipe_path: str, input_path: str, output_path: str) -> None:
     logger.info('Write the result to a csv file.')
 
     y_pred.to_csv(output_path, header=True)
+
+
+class Recipe(traitlets.config.Configurable):
+    """Recipe."""
+
+    data_path = traitlets.Unicode().tag(config=True)
+    label_col = traitlets.Unicode().tag(config=True)
+    dataset_kwargs = traitlets.Dict().tag(config=True)
+
+    model_instance = traitlets.Instance(klass=BaseEstimator).tag(config=True)
+    params = traitlets.Dict().tag(config=True)
+    fit_params = traitlets.Dict().tag(config=True)
+    model_path = traitlets.Unicode().tag(config=True)
 
 
 class Dataset(object):
@@ -88,76 +103,69 @@ class Dataset(object):
 class Trainer(object):
     """Trainer."""
 
-    def __init__(self, recipe_path: str) -> None:
-        self.recipe_path = recipe_path
+    def __init__(self, config_path: str) -> None:
+        self.config_path = config_path
 
     def train(self) -> None:
         """Train the model with a recipe."""
         logger.info('Load the recipe.')
 
-        with open(self.recipe_path, 'r') as f:
-            content = yaml.load(f)
-
-        data_kwargs = content.get('data_kwargs', {})
-        params = content.get('params', {})
-        fit_params = content.get('fit_params', {})
+        loader = traitlets.config.loader.PyFileConfigLoader(self.config_path)
+        config = loader.load_config()
+        recipe = Recipe(config=config)
 
         logger.info('Load the dataset.')
 
         dataset = Dataset(
-            content['data_path'],
-            label=content['label_col'],
-            **data_kwargs
+            recipe.data_path,
+            label=recipe.label_col,
+            **recipe.dataset_kwargs
         )
         data = dataset.get_data()
         label = dataset.get_label()
 
         logger.info('Fit the model according to the given training data.')
 
-        module_name, class_name = content['model_source'].rsplit(
-            '.',
-            maxsplit=1
-        )
-        module = importlib.import_module(module_name)
-        klass = getattr(module, class_name)
-        model = klass(**params)
+        model = clone(recipe.model_instance)
 
-        model.fit(data, label, **fit_params)
+        model.set_params(**recipe.params)
+        model.fit(data, label, **recipe.fit_params)
 
         logger.info('Dump the model.')
 
-        dump(model, content['model_path'])
+        dump(model, recipe.model_path)
 
 
 class Predictor(object):
     """Predictor."""
 
-    def __init__(self, recipe_path: str) -> None:
-        self.recipe_path = recipe_path
+    def __init__(self, config_path: str) -> None:
+        self.config_path = config_path
 
     def predict(self, input_path: str) -> pd.Series:
         """Predict using the fitted model."""
         logger.info('Load the recipe.')
 
-        with open(self.recipe_path, 'r') as f:
-            content = yaml.load(f)
+        loader = traitlets.config.loader.PyFileConfigLoader(self.config_path)
+        config = loader.load_config()
+        recipe = Recipe(config=config)
 
-        data_kwargs = content.get('data_kwargs', {})
+        dataset_kwargs = recipe.dataset_kwargs.copy()
 
-        if content['label_col'] in data_kwargs.get('usecols', {}):
-            data_kwargs['usecols'].remove(content['label_col'])
+        if recipe.label_col in dataset_kwargs.get('usecols', {}):
+            dataset_kwargs['usecols'].remove(recipe.label_col)
 
         logger.info('Load the dataset.')
 
-        dataset = Dataset(input_path, **data_kwargs)
+        dataset = Dataset(input_path, **dataset_kwargs)
         data = dataset.get_data()
 
         logger.info('Load the model.')
 
-        model = load(content['model_path'])
+        model = load(recipe.model_path)
 
         logger.info('Predict using the fitted model.')
 
         y_pred = model.predict(data)
 
-        return pd.Series(y_pred, index=data.index, name=content['label_col'])
+        return pd.Series(y_pred, index=data.index, name=recipe.label_col)
