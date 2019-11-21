@@ -1,6 +1,9 @@
 """Config."""
 
+import numpy as np
+
 from optgbm.sklearn import OGBMRegressor
+from sklearn.compose import TransformedTargetRegressor
 
 c = get_config()  # noqa
 
@@ -25,9 +28,13 @@ c.Recipe.dataset_kwargs = {
     ]
 }
 
-c.Recipe.model_instance = OGBMRegressor(
-    n_estimators=100_000,
-    n_trials=100,
-    random_state=0
+c.Recipe.model_instance = TransformedTargetRegressor(
+    regressor=OGBMRegressor(
+        n_estimators=100_000,
+        n_trials=100,
+        random_state=0
+    ),
+    func=np.log1p,
+    inverse_func=np.expm1
 )
 c.Recipe.model_path = 'examples/bike-sharing-demand/model.pkl'
