@@ -60,7 +60,6 @@ class Recipe(traitlets.config.Configurable):
     dataset_kwargs = traitlets.Dict().tag(config=True)
 
     model_instance = traitlets.Instance(klass=BaseEstimator).tag(config=True)
-    params = traitlets.Dict().tag(config=True)
     fit_params = traitlets.Dict().tag(config=True)
     model_path = traitlets.Unicode().tag(config=True)
 
@@ -128,7 +127,6 @@ class Trainer(object):
 
         model = clone(recipe.model_instance)
 
-        model.set_params(**recipe.params)
         model.fit(data, label, **recipe.fit_params)
 
         logger.info('Dump the model.')

@@ -22,11 +22,9 @@ c.Recipe.dataset_kwargs = {
     ]
 }
 
-c.Recipe.model_instance = OGBMClassifier()
-c.Recipe.params = {
-    'n_estimators': 100_000,
-    'n_jobs': -1,
-    'n_trials': 100,
-    'random_state': 0
-}
+c.Recipe.model_instance = OGBMClassifier(
+    n_estimators=100_000,
+    n_trials=100,
+    random_state=0
+)
 c.Recipe.model_path = 'examples/titanic/model.pkl'
