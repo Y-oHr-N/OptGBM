@@ -66,7 +66,7 @@ class Recipe(traitlets.config.Configurable):
     ).tag(config=True)
 
     read_params = traitlets.Dict(
-        help='Parameters passes to `pd.read_csv`.'
+        help='Parameters passed to `pd.read_csv`.'
     ).tag(config=True)
 
     model_instance = traitlets.Instance(
