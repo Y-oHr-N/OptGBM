@@ -71,7 +71,8 @@ class Recipe(traitlets.config.Configurable):
 
     model_instance = traitlets.Instance(
         help='Model to be fit.',
-        klass=BaseEstimator
+        klass=BaseEstimator,
+        kw={}
     ).tag(config=True)
 
     fit_params = traitlets.Dict(
