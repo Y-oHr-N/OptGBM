@@ -6,7 +6,7 @@ c = get_config()  # noqa
 
 c.Recipe.data_path = 'examples/titanic/train.csv.gz'
 c.Recipe.label_col = 'Survived'
-c.Recipe.dataset_kwargs = {
+c.Recipe.read_params = {
     'dtype': {'Pclass': 'category'},
     'index_col': 'PassengerId',
     'usecols': [

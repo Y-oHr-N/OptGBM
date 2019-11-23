@@ -9,7 +9,7 @@ c = get_config()  # noqa
 
 c.Recipe.data_path = 'examples/bike-sharing-demand/train.csv.gz'
 c.Recipe.label_col = 'count'
-c.Recipe.dataset_kwargs = {
+c.Recipe.read_params = {
     'dtype': {'season': 'category', 'weather': 'category'},
     'index_col': 'datetime',
     'na_values': {'windspeed': [0.0]},

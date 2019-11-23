@@ -65,7 +65,7 @@ class Recipe(traitlets.config.Configurable):
         help='Label of the data.'
     ).tag(config=True)
 
-    dataset_kwargs = traitlets.Dict(
+    read_params = traitlets.Dict(
         help='Parameters passes to `pd.read_csv`.'
     ).tag(config=True)
 
@@ -91,12 +91,12 @@ class Dataset(object):
         self,
         data: str,
         label: Optional[str] = None,
-        **kwargs: Any
+        **read_params: Any
     ) -> None:
         self.data = data
         self.label = label
 
-        self._data = pd.read_csv(data, **kwargs)
+        self._data = pd.read_csv(data, **read_params)
 
         categorical_cols = self._data.dtypes == object
 
@@ -138,7 +138,7 @@ class Trainer(object):
         dataset = Dataset(
             recipe.data_path,
             label=recipe.label_col,
-            **recipe.dataset_kwargs
+            **recipe.read_params
         )
         data = dataset.get_data()
         label = dataset.get_label()
@@ -168,14 +168,14 @@ class Predictor(object):
         config = loader.load_config()
         recipe = Recipe(config=config)
 
-        dataset_kwargs = recipe.dataset_kwargs.copy()
+        read_params = recipe.read_params.copy()
 
-        if recipe.label_col in dataset_kwargs.get('usecols', {}):
-            dataset_kwargs['usecols'].remove(recipe.label_col)
+        if recipe.label_col in read_params.get('usecols', {}):
+            read_params['usecols'].remove(recipe.label_col)
 
         logger.info('Load the dataset.')
 
-        dataset = Dataset(input_path, **dataset_kwargs)
+        dataset = Dataset(input_path, **read_params)
         data = dataset.get_data()
 
         logger.info('Load the model.')

@@ -7,7 +7,7 @@ c = get_config()  # noqa
 c.Recipe.data_path = \
     'examples/house-prices-advanced-regression-techniques/train.csv.gz'
 c.Recipe.label_col = 'SalePrice'
-c.Recipe.dataset_kwargs = {'index_col': 'Id'}
+c.Recipe.read_params = {'index_col': 'Id'}
 
 c.Recipe.model_instance = OGBMRegressor(
     n_estimators=100_000,

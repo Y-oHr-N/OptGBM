@@ -7,7 +7,7 @@ c = get_config()  # noqa
 c.Recipe.data_path = \
     'examples/mercedes-benz-greener-manufacturing/train.csv.gz'
 c.Recipe.label_col = 'y'
-c.Recipe.dataset_kwargs = {'index_col': 'ID'}
+c.Recipe.read_params = {'index_col': 'ID'}
 
 c.Recipe.model_instance = OGBMRegressor(
     n_estimators=100_000,

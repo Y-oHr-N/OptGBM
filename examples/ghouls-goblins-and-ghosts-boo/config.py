@@ -6,7 +6,7 @@ c = get_config()  # noqa
 
 c.Recipe.data_path = 'examples/ghouls-goblins-and-ghosts-boo/train.csv.gz'
 c.Recipe.label_col = 'type'
-c.Recipe.dataset_kwargs = {'index_col': 'id'}
+c.Recipe.read_params = {'index_col': 'id'}
 
 c.Recipe.model_instance = OGBMClassifier(
     n_estimators=100_000,
