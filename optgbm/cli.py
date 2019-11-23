@@ -125,33 +125,32 @@ class Trainer(object):
     def __init__(self, config_path: str) -> None:
         self.config_path = config_path
 
-    def train(self) -> None:
-        """Train the model with a recipe."""
-        logger.info('Load the recipe.')
-
         loader = traitlets.config.loader.PyFileConfigLoader(self.config_path)
         config = loader.load_config()
-        recipe = Recipe(config=config)
 
+        self._recipe = Recipe(config=config)
+
+    def train(self) -> None:
+        """Train the model with a recipe."""
         logger.info('Load the dataset.')
 
         dataset = Dataset(
-            recipe.data_path,
-            label=recipe.label_col,
-            **recipe.read_params
+            self._recipe.data_path,
+            label=self._recipe.label_col,
+            **self._recipe.read_params
         )
         data = dataset.get_data()
         label = dataset.get_label()
 
         logger.info('Fit the model according to the given training data.')
 
-        model = clone(recipe.model_instance)
+        model = clone(self._recipe.model_instance)
 
-        model.fit(data, label, **recipe.fit_params)
+        model.fit(data, label, **self._recipe.fit_params)
 
         logger.info('Dump the model.')
 
-        dump(model, recipe.model_path)
+        dump(model, self._recipe.model_path)
 
 
 class Predictor(object):
@@ -160,30 +159,29 @@ class Predictor(object):
     def __init__(self, config_path: str) -> None:
         self.config_path = config_path
 
-    def predict(self, input_path: str) -> pd.Series:
-        """Predict using the fitted model."""
-        logger.info('Load the recipe.')
-
         loader = traitlets.config.loader.PyFileConfigLoader(self.config_path)
         config = loader.load_config()
-        recipe = Recipe(config=config)
 
-        read_params = recipe.read_params.copy()
+        self._recipe = Recipe(config=config)
 
-        if recipe.label_col in read_params.get('usecols', {}):
-            read_params['usecols'].remove(recipe.label_col)
-
+    def predict(self, input_path: str) -> pd.Series:
+        """Predict using the fitted model."""
         logger.info('Load the dataset.')
+
+        read_params = self._recipe.read_params.copy()
+
+        if self._recipe.label_col in read_params.get('usecols', {}):
+            read_params['usecols'].remove(self._recipe.label_col)
 
         dataset = Dataset(input_path, **read_params)
         data = dataset.get_data()
 
         logger.info('Load the model.')
 
-        model = load(recipe.model_path)
+        model = load(self._recipe.model_path)
 
         logger.info('Predict using the fitted model.')
 
         y_pred = model.predict(data)
 
-        return pd.Series(y_pred, index=data.index, name=recipe.label_col)
+        return pd.Series(y_pred, index=data.index, name=self._recipe.label_col)
