@@ -26,7 +26,7 @@ def optgbm() -> None:
 
 
 @optgbm.command()
-@click.argument('config-path')
+@click.argument('config-path', type=click.Path(exists=True))
 def train(config_path: str) -> None:
     """Train the model with a recipe."""
     trainer = Trainer(config_path)
@@ -35,9 +35,9 @@ def train(config_path: str) -> None:
 
 
 @optgbm.command()
-@click.argument('config-path')
-@click.argument('input-path')
-@click.option('--output-path', '-o', default=None)
+@click.argument('config-path', type=click.Path(exists=True))
+@click.argument('input-path', type=click.Path(exists=True))
+@click.option('--output-path', '-o', default=None, type=click.Path())
 def predict(config_path: str, input_path: str, output_path: str) -> None:
     """Predict using the fitted model."""
     predictor = Predictor(config_path)
