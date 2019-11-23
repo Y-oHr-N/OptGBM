@@ -55,13 +55,33 @@ def predict(config_path: str, input_path: str, output_path: str) -> None:
 class Recipe(traitlets.config.Configurable):
     """Recipe."""
 
-    data_path = traitlets.Unicode('/path/to/data.csv').tag(config=True)
-    label_col = traitlets.Unicode('label').tag(config=True)
-    dataset_kwargs = traitlets.Dict().tag(config=True)
+    data_path = traitlets.Unicode(
+        default_value='/path/to/data.csv',
+        help='Path to the dataset.'
+    ).tag(config=True)
 
-    model_instance = traitlets.Instance(klass=BaseEstimator).tag(config=True)
-    fit_params = traitlets.Dict().tag(config=True)
-    model_path = traitlets.Unicode('/path/to/model.pkl').tag(config=True)
+    label_col = traitlets.Unicode(
+        default_value='label',
+        help='Label of the data.'
+    ).tag(config=True)
+
+    dataset_kwargs = traitlets.Dict(
+        help='Parameters passes to `pd.read_csv`.'
+    ).tag(config=True)
+
+    model_instance = traitlets.Instance(
+        help='Model to be fit.',
+        klass=BaseEstimator
+    ).tag(config=True)
+
+    fit_params = traitlets.Dict(
+        help='Parameters passed to `fit` of the estimator.'
+    ).tag(config=True)
+
+    model_path = traitlets.Unicode(
+        default_value='/path/to/model.pkl',
+        help='Path to the model.'
+    ).tag(config=True)
 
 
 class Dataset(object):
