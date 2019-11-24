@@ -5,6 +5,30 @@ import numpy as np
 from optgbm.sklearn import OGBMRegressor
 from sklearn.compose import TransformedTargetRegressor
 
+
+def transform_batch(X):
+    """User-defined proprocessing."""
+    s = X.index.to_series()
+
+    attrs = [
+        'year',
+        'weekofyear',
+        'dayofyear',
+        'quarter',
+        'month',
+        'day',
+        'weekday',
+        'hour',
+        # 'minute',
+        # 'second'
+    ]
+
+    for attr in attrs:
+        X[attr] = getattr(s.dt, attr)
+
+    return X
+
+
 c = get_config()  # noqa
 
 c.Recipe.data_path = 'examples/bike-sharing-demand/train.csv.gz'
@@ -27,6 +51,7 @@ c.Recipe.read_params = {
         'count'
     ]
 }
+c.Recipe.transform_batch = transform_batch
 
 c.Recipe.model_instance = TransformedTargetRegressor(
     regressor=OGBMRegressor(

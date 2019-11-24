@@ -4,6 +4,7 @@ import logging
 import sys
 
 from typing import Any
+from typing import Callable
 from typing import Optional
 
 import click
@@ -69,6 +70,10 @@ class Recipe(traitlets.config.Configurable):
         help='Parameters passed to `pd.read_csv`.'
     ).tag(config=True)
 
+    transform_batch = traitlets.Any(
+        help='Callable that transforms the data.'
+    ).tag(config=True)
+
     model_instance = traitlets.Instance(
         help='Model to be fit.',
         klass=BaseEstimator,
@@ -92,10 +97,12 @@ class Dataset(object):
         self,
         data: str,
         label: Optional[str] = None,
+        transform_batch: Optional[Callable] = None,
         **read_params: Any
     ) -> None:
         self.data = data
         self.label = label
+        self.transform_batch = transform_batch
 
         self._data = pd.read_csv(data, **read_params)
 
@@ -104,6 +111,9 @@ class Dataset(object):
         if np.sum(categorical_cols) > 0:
             self._data.loc[:, categorical_cols] = \
                 self._data.loc[:, categorical_cols].astype('category')
+
+        if transform_batch is not None:
+            self._data = transform_batch(self._data)
 
     def get_data(self) -> pd.DataFrame:
         """Get the data of the dataset."""
@@ -138,6 +148,7 @@ class Trainer(object):
         dataset = Dataset(
             self._recipe.data_path,
             label=self._recipe.label_col,
+            transform_batch=self._recipe.transform_batch,
             **self._recipe.read_params
         )
         data = dataset.get_data()
@@ -174,7 +185,11 @@ class Predictor(object):
         if self._recipe.label_col in read_params.get('usecols', {}):
             read_params['usecols'].remove(self._recipe.label_col)
 
-        dataset = Dataset(input_path, **read_params)
+        dataset = Dataset(
+            input_path,
+            transform_batch=self._recipe.transform_batch,
+            **read_params
+        )
         data = dataset.get_data()
 
         logger.info('Load the model.')
