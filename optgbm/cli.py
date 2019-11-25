@@ -1,5 +1,6 @@
 """CLI."""
 
+import inspect
 import logging
 import sys
 
@@ -97,11 +98,13 @@ class Dataset(object):
         self,
         data: str,
         label: Optional[str] = None,
+        train: bool = True,
         transform_batch: Optional[Callable] = None,
         **read_params: Any
     ) -> None:
         self.data = data
         self.label = label
+        self.train = train
         self.transform_batch = transform_batch
 
         self._data = pd.read_csv(data, **read_params)
@@ -113,18 +116,24 @@ class Dataset(object):
                 self._data.loc[:, categorical_cols].astype('category')
 
         if transform_batch is not None:
-            self._data = transform_batch(self._data)
+            kwargs = {}
+            signature = inspect.signature(transform_batch)
+
+            if 'train' in signature.parameters:
+                kwargs['train'] = self.train
+
+            self._data = transform_batch(self._data, **kwargs)
 
     def get_data(self) -> pd.DataFrame:
         """Get the data of the dataset."""
-        if self.label is None:
+        if not self.train:
             return self._data
 
         return self._data.drop(columns=self.label)
 
     def get_label(self) -> Optional[pd.Series]:
         """Get the label of the dataset."""
-        if self.label is None:
+        if not self.train:
             return None
 
         return self._data[self.label]
@@ -187,6 +196,7 @@ class Predictor(object):
 
         dataset = Dataset(
             input_path,
+            train=False,
             transform_batch=self._recipe.transform_batch,
             **read_params
         )
