@@ -8,14 +8,20 @@ from sklearn.compose import TransformedTargetRegressor
 from sklearn.model_selection import TimeSeriesSplit
 
 
-def transform_batch(X: pd.DataFrame, train: bool = True) -> pd.DataFrame:
+def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
     """User-defined proprocessing."""
     if train:
-        X = X.sort_index()
+        data = data.sort_index()
 
-    s = X.index.to_series()
+        # y = data['count']
+        # q25, q75 = np.quantile(y, [0.25, 0.75])
+        # iqr = q75 - q25
+        # is_inlier = (q25 - 1.5 * iqr <= y) & (y <= q75 + 1.5 * iqr)
+        # data = data[is_inlier]
 
-    X['unixtime'] = 1e-09 * s.astype('int64')
+    s = data.index.to_series()
+
+    data['unixtime'] = 1e-09 * s.astype('int64')
 
     attrs = [
         # 'year',
@@ -48,10 +54,10 @@ def transform_batch(X: pd.DataFrame, train: bool = True) -> pd.DataFrame:
 
         theta = 2.0 * np.pi * getattr(s.dt, attr) / period
 
-        X['{}_sin'.format(attr)] = np.sin(theta)
-        X['{}_cos'.format(attr)] = np.cos(theta)
+        data['{}_sin'.format(attr)] = np.sin(theta)
+        data['{}_cos'.format(attr)] = np.cos(theta)
 
-    return X
+    return data
 
 
 c = get_config()  # noqa
