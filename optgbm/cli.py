@@ -54,6 +54,24 @@ def predict(config_path: str, input_path: str, output_path: str) -> None:
     y_pred.to_csv(output_path, header=True)
 
 
+@optgbm.command()
+@click.argument('config-path', type=click.Path(exists=True))
+@click.argument('input-path', type=click.Path(exists=True))
+@click.option('--output-path', '-o', default=None, type=click.Path())
+def predict_proba(config_path: str, input_path: str, output_path: str) -> None:
+    """Predict class probabilities for data."""
+    predictor = Predictor(config_path)
+
+    probas = predictor.predict_proba(input_path)
+
+    if output_path is None:
+        output_path = sys.stdout
+
+    logger.info('Write the result to a csv file.')
+
+    probas.to_csv(output_path, header=True)
+
+
 class Recipe(traitlets.config.Configurable):
     """Recipe."""
 
@@ -212,3 +230,31 @@ class Predictor(object):
         y_pred = model.predict(data)
 
         return pd.Series(y_pred, index=data.index, name=self._recipe.label_col)
+
+    def predict_proba(self, input_path: str) -> pd.DataFrame:
+        """Predict class probabilities for data."""
+        logger.info('Load the dataset.')
+
+        read_params = self._recipe.read_params.copy()
+        usecols = read_params.get('usecols')
+
+        if isinstance(usecols, dict) and self._recipe.label_col in usecols:
+            read_params['usecols'].remove(self._recipe.label_col)
+
+        dataset = Dataset(
+            input_path,
+            train=False,
+            transform_batch=self._recipe.transform_batch,
+            **read_params
+        )
+        data = dataset.get_data()
+
+        logger.info('Load the model.')
+
+        model = load(self._recipe.model_path)
+
+        logger.info('Predict class probabilities for data.')
+
+        probas = model.predict_proba(data)
+
+        return pd.DataFrame(probas, columns=model.classes_, index=data.index)
