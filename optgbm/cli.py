@@ -125,6 +125,11 @@ class Dataset(object):
         self.train = train
         self.transform_batch = transform_batch
 
+        usecols = read_params.get('usecols')
+
+        if not train and isinstance(usecols, list) and label in usecols:
+            read_params['usecols'].remove(label)
+
         self._data = pd.read_csv(data, **read_params)
 
         categorical_cols = self._data.dtypes == object
@@ -207,17 +212,12 @@ class Predictor(object):
         """Predict using the fitted model."""
         logger.info('Load the dataset.')
 
-        read_params = self._recipe.read_params.copy()
-        usecols = read_params.get('usecols')
-
-        if isinstance(usecols, dict) and self._recipe.label_col in usecols:
-            read_params['usecols'].remove(self._recipe.label_col)
-
         dataset = Dataset(
             input_path,
+            label=self._recipe.label_col,
             train=False,
             transform_batch=self._recipe.transform_batch,
-            **read_params
+            **self._recipe.read_params
         )
         data = dataset.get_data()
 
@@ -235,17 +235,12 @@ class Predictor(object):
         """Predict class probabilities for data."""
         logger.info('Load the dataset.')
 
-        read_params = self._recipe.read_params.copy()
-        usecols = read_params.get('usecols')
-
-        if isinstance(usecols, dict) and self._recipe.label_col in usecols:
-            read_params['usecols'].remove(self._recipe.label_col)
-
         dataset = Dataset(
             input_path,
+            label=self._recipe.label_col,
             train=False,
             transform_batch=self._recipe.transform_batch,
-            **read_params
+            **self._recipe.read_params
         )
         data = dataset.get_data()
 
