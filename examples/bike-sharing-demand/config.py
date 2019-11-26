@@ -13,10 +13,10 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
     if train:
         data = data.sort_index()
 
-        # y = data['count']
-        # q25, q75 = np.quantile(y, [0.25, 0.75])
+        # label = data['count']
+        # q25, q75 = np.quantile(label, [0.25, 0.75])
         # iqr = q75 - q25
-        # is_inlier = (q25 - 1.5 * iqr <= y) & (y <= q75 + 1.5 * iqr)
+        # is_inlier = (q25 - 1.5 * iqr <= label) & (label <= q75 + 1.5 * iqr)
         # data = data[is_inlier]
 
     s = data.index.to_series()
