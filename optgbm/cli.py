@@ -190,8 +190,9 @@ class Predictor(object):
         logger.info('Load the dataset.')
 
         read_params = self._recipe.read_params.copy()
+        usecols = read_params.get('usecols')
 
-        if self._recipe.label_col in read_params.get('usecols', {}):
+        if isinstance(usecols, dict) and self._recipe.label_col in usecols:
             read_params['usecols'].remove(self._recipe.label_col)
 
         dataset = Dataset(
