@@ -40,11 +40,17 @@ def train(config_path: str) -> None:
 @click.argument('config-path', type=click.Path(exists=True))
 @click.argument('input-path', type=click.Path(exists=True))
 @click.option('--output-path', '-o', default=None, type=click.Path())
-def predict(config_path: str, input_path: str, output_path: str) -> None:
+@click.option('--label-col', '-l', default=None)
+def predict(
+    config_path: str,
+    input_path: str,
+    output_path: str,
+    label_col: str
+) -> None:
     """Predict using the fitted model."""
     predictor = Predictor(config_path)
 
-    y_pred = predictor.predict(input_path)
+    y_pred = predictor.predict(input_path, label_col=label_col)
 
     if output_path is None:
         output_path = sys.stdout
@@ -208,7 +214,11 @@ class Predictor(object):
 
         self._recipe = Recipe(config=config)
 
-    def predict(self, input_path: str) -> pd.Series:
+    def predict(
+        self,
+        input_path: str,
+        label_col: Optional[str] = None
+    ) -> pd.Series:
         """Predict using the fitted model."""
         logger.info('Load the dataset.')
 
@@ -229,7 +239,10 @@ class Predictor(object):
 
         y_pred = model.predict(data)
 
-        return pd.Series(y_pred, index=data.index, name=self._recipe.label_col)
+        if label_col is None:
+            label_col = self._recipe.label_col
+
+        return pd.Series(y_pred, index=data.index, name=label_col)
 
     def predict_proba(self, input_path: str) -> pd.DataFrame:
         """Predict class probabilities for data."""
