@@ -1,4 +1,5 @@
 from typing import Callable
+from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -9,11 +10,18 @@ import optuna
 import pytest
 
 from sklearn.datasets import load_breast_cancer
+from sklearn.datasets import load_digits
+from sklearn.datasets import load_iris
+from sklearn.datasets import load_wine
 from sklearn.model_selection import train_test_split
 from sklearn.utils.estimator_checks import check_estimator
 
 from optgbm.sklearn import OGBMClassifier
 from optgbm.sklearn import OGBMRegressor
+
+callback = lgb.reset_parameter(
+    learning_rate=lambda iteration: 0.05 * (0.99 ** iteration)
+)
 
 
 def zero_one_loss(
@@ -29,6 +37,19 @@ def test_ogbm_classifier() -> None:
 
 def test_ogbm_regressor() -> None:
     check_estimator(OGBMRegressor)
+
+
+@pytest.mark.parametrize('callbacks', [None, [callback]])
+@pytest.mark.parametrize('eval_metric', ['auc', zero_one_loss])
+def test_fit_with_fit_params(
+    callbacks: Optional[List[Callable]],
+    eval_metric: Union[Callable, str]
+) -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier()
+
+    clf.fit(X, y, callbacks=callbacks, eval_metric=eval_metric)
 
 
 @pytest.mark.parametrize('storage', [None, 'sqlite:///:memory:'])
@@ -48,15 +69,6 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
     assert len(study.trials) == 2 * n_trials
 
 
-@pytest.mark.parametrize('eval_metric', ['auc', zero_one_loss])
-def test_fit_with_eval_metric(eval_metric: Union[str, Callable]) -> None:
-    X, y = load_breast_cancer(return_X_y=True)
-
-    clf = OGBMClassifier()
-
-    clf.fit(X, y, eval_metric=eval_metric)
-
-
 @pytest.mark.parametrize('n_jobs', [-1, 1])
 def test_predict(n_jobs: int) -> None:
     X, y = load_breast_cancer(return_X_y=True)
@@ -72,20 +84,27 @@ def test_predict(n_jobs: int) -> None:
 
 @pytest.mark.parametrize('refit', [False, True])
 def test_score(refit: bool) -> None:
-    X, y = load_breast_cancer(return_X_y=True)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+    load_functions = [load_breast_cancer, load_digits, load_iris, load_wine]
 
-    clf = lgb.LGBMClassifier(random_state=0)
+    for load_function in load_functions:
+        X, y = load_function(return_X_y=True)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X,
+            y,
+            random_state=0
+        )
 
-    clf.fit(X_train, y_train)
+        clf = lgb.LGBMClassifier(random_state=0)
 
-    score = clf.score(X_test, y_test)
+        clf.fit(X_train, y_train)
 
-    clf = OGBMClassifier(n_trials=50, random_state=0, refit=refit)
+        score = clf.score(X_test, y_test)
 
-    clf.fit(X_train, y_train)
+        clf = OGBMClassifier(random_state=0, refit=refit)
 
-    assert score < clf.score(X_test, y_test)
+        clf.fit(X_train, y_train)
+
+        assert score <= clf.score(X_test, y_test)
 
 
 @pytest.mark.parametrize('n_jobs', [-1, 1])

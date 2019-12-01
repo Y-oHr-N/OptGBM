@@ -68,10 +68,10 @@ OBJECTIVE2METRIC = {
 }
 
 DEFAULT_PARAM_DISTRIBUTIONS = {
-    'boosting_type':
-        optuna.distributions.CategoricalDistribution(['gbdt', 'rf']),
+    # 'boosting_type':
+    #     optuna.distributions.CategoricalDistribution(['gbdt', 'rf']),
     'colsample_bytree':
-        optuna.distributions.DiscreteUniformDistribution(0.5, 1.0, 0.05),
+        optuna.distributions.DiscreteUniformDistribution(0.1, 1.0, 0.05),
     'min_child_samples':
         optuna.distributions.IntUniformDistribution(1, 100),
     'min_child_weight':
@@ -111,18 +111,24 @@ class _Objective(object):
         param_distributions: Dict[str, optuna.distributions.BaseDistribution],
         eval_name: str,
         is_higher_better: bool,
+        callbacks: Optional[List[Callable]] = None,
+        categorical_feature: Union[List[int], List[str], str] = 'auto',
         cv: Optional[BaseCrossValidator] = None,
         early_stopping_rounds: Optional[int] = None,
         enable_pruning: bool = False,
+        feature_name: Union[List[str], str] = 'auto',
         feval: Optional[Callable] = None,
         n_estimators: int = 100
     ) -> None:
+        self.callbacks = callbacks
+        self.categorical_feature = categorical_feature
         self.cv = cv
         self.dataset = dataset
         self.early_stopping_rounds = early_stopping_rounds
         self.enable_pruning = enable_pruning
         self.eval_name = eval_name
         self.feval = feval
+        self.feature_name = feature_name
         self.is_higher_better = is_higher_better
         self.n_estimators = n_estimators
         self.params = params
@@ -136,7 +142,9 @@ class _Objective(object):
             params,
             dataset,
             callbacks=callbacks,
+            categorical_feature=self.categorical_feature,
             early_stopping_rounds=self.early_stopping_rounds,
+            feature_name=self.feature_name,
             feval=self.feval,
             folds=self.cv,
             num_boost_round=self.n_estimators
@@ -178,6 +186,9 @@ class _Objective(object):
                 )
 
             callbacks.append(pruning_callback)
+
+        if self.callbacks is not None:
+            callbacks += self.callbacks
 
         return callbacks
 
@@ -233,6 +244,8 @@ class _BaseOGBMModel(BaseEstimator):
         enable_pruning: bool = False,
         importance_type: str = 'split',
         learning_rate: float = 0.1,
+        max_depth: int = -1,
+        min_split_gain: float = 0.0,
         n_estimators: int = 1_000,
         n_jobs: int = 1,
         n_trials: int = 25,
@@ -242,6 +255,7 @@ class _BaseOGBMModel(BaseEstimator):
         random_state: Optional[RANDOM_STATE_TYPE] = None,
         refit: bool = False,
         study: Optional[optuna.study.Study] = None,
+        subsample_for_bin: int = 200_000,
         timeout: Optional[float] = None
     ) -> None:
         self.class_weight = class_weight
@@ -249,6 +263,8 @@ class _BaseOGBMModel(BaseEstimator):
         self.enable_pruning = enable_pruning
         self.importance_type = importance_type
         self.learning_rate = learning_rate
+        self.max_depth = max_depth
+        self.min_split_gain = min_split_gain
         self.n_estimators = n_estimators
         self.n_jobs = n_jobs
         self.n_trials = n_trials
@@ -257,6 +273,7 @@ class _BaseOGBMModel(BaseEstimator):
         self.random_state = random_state
         self.refit = refit
         self.study = study
+        self.subsample_for_bin = subsample_for_bin
         self.timeout = timeout
 
     def _check_is_fitted(self) -> None:
@@ -270,9 +287,11 @@ class _BaseOGBMModel(BaseEstimator):
         X: TWO_DIM_ARRAYLIKE_TYPE,
         y: ONE_DIM_ARRAYLIKE_TYPE,
         sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
-        eval_metric: Optional[Union[Callable, str]] = None,
+        callbacks: Optional[List[Callable]] = None,
+        categorical_feature: Union[List[int], List[str], str] = 'auto',
         early_stopping_rounds: Optional[int] = 10,
-        categorical_feature: Union[List[Union[int, str]], str] = 'auto'
+        eval_metric: Optional[Union[Callable, str]] = None,
+        feature_name: Union[List[str], str] = 'auto'
     ) -> '_BaseOGBMModel':
         """Fit the model according to the given training data.
 
@@ -287,14 +306,20 @@ class _BaseOGBMModel(BaseEstimator):
         sample_weight
             Weights of training data.
 
-        eval_metric
-            Evaluation metric.
+        callbacks
+            List of callback functions that are applied at each iteration.
+
+        categorical_feature
+            Categorical features.
 
         early_stopping_rounds
             Used to activate early stopping.
 
-        categorical_feature
-            Categorical features.
+        eval_metric
+            Evaluation metric.
+
+        feature_name
+            Feature names.
 
         Returns
         -------
@@ -320,8 +345,11 @@ class _BaseOGBMModel(BaseEstimator):
 
         params: Dict[str, Any] = {
             'learning_rate': self.learning_rate,
+            'max_depth': self.max_depth,
+            'min_split_gain': self.min_split_gain,
             'n_jobs': 1,
             'seed': seed,
+            'subsample_for_bin': self.subsample_for_bin,
             'verbose': -1
         }
 
@@ -369,12 +397,7 @@ class _BaseOGBMModel(BaseEstimator):
         else:
             self.study_ = self.study
 
-        dataset = lgb.Dataset(
-            X,
-            categorical_feature=categorical_feature,
-            label=y,
-            weight=sample_weight
-        )
+        dataset = lgb.Dataset(X, label=y, weight=sample_weight)
 
         objective = _Objective(
             params,
@@ -382,15 +405,19 @@ class _BaseOGBMModel(BaseEstimator):
             self._param_distributions,
             eval_name,
             is_higher_better,
+            callbacks=callbacks,
+            categorical_feature=categorical_feature,
             cv=cv,
             early_stopping_rounds=early_stopping_rounds,
             enable_pruning=self.enable_pruning,
+            feature_name=feature_name,
             feval=feval,
             n_estimators=self.n_estimators
         )
 
         self.study_.optimize(
             objective,
+            catch=(),
             n_jobs=self.n_jobs,
             n_trials=self.n_trials,
             timeout=self.timeout
@@ -400,6 +427,8 @@ class _BaseOGBMModel(BaseEstimator):
 
         if self.refit:
             params.update(self.study_.best_params)
+
+            params['n_jobs'] = 0
 
             booster = lgb.train(params, dataset, num_boost_round=self.n_iter_)
 
@@ -452,6 +481,13 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     learning_rate
         Learning rate.
 
+    max_depth
+        Maximum depth of each tree.
+
+    min_split_gain
+        Minimum loss reduction required to make a further partition on a leaf
+        node of the tree.
+
     n_estimators
         Maximum number of iterations of the boosting process. a.k.a.
         `num_boost_round`.
@@ -476,6 +512,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     study
         Study that corresponds to the optimization task.
+
+    subsample_for_bin
+        Number of samples for constructing bins.
 
     timeout
         Time limit in seconds for the search of appropriate models.
@@ -521,7 +560,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         return self.encoder_.classes_
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
-        """Predict using the Fitted model.
+        """Predict using the fitted model.
 
         Parameters
         ----------
@@ -598,6 +637,13 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     learning_rate
         Learning rate.
 
+    max_depth
+        Maximum depth of each tree.
+
+    min_split_gain
+        Minimum loss reduction required to make a further partition on a leaf
+        node of the tree.
+
     n_estimators
         Maximum number of iterations of the boosting process. a.k.a.
         `num_boost_round`.
@@ -622,6 +668,9 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     study
         Study that corresponds to the optimization task.
+
+    subsample_for_bin
+        Number of samples for constructing bins.
 
     timeout
         Time limit in seconds for the search of appropriate models.
@@ -662,6 +711,8 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         enable_pruning: bool = False,
         importance_type: str = 'split',
         learning_rate: float = 0.1,
+        max_depth: int = -1,
+        min_split_gain: float = 0.0,
         n_estimators: int = 1_000,
         n_jobs: int = 1,
         n_trials: int = 25,
@@ -671,6 +722,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         random_state: Optional[RANDOM_STATE_TYPE] = None,
         refit: bool = False,
         study: Optional[optuna.study.Study] = None,
+        subsample_for_bin: int = 200_000,
         timeout: Optional[float] = None
     ) -> None:
         super().__init__(
@@ -678,6 +730,8 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             enable_pruning=enable_pruning,
             importance_type=importance_type,
             learning_rate=learning_rate,
+            max_depth=max_depth,
+            min_split_gain=min_split_gain,
             n_estimators=n_estimators,
             n_jobs=n_jobs,
             n_trials=n_trials,
@@ -686,11 +740,12 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             random_state=random_state,
             refit=refit,
             study=study,
+            subsample_for_bin=subsample_for_bin,
             timeout=timeout
         )
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
-        """Predict using the Fitted model.
+        """Predict using the fitted model.
 
         Parameters
         ----------
