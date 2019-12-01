@@ -74,8 +74,8 @@ DEFAULT_PARAM_DISTRIBUTIONS = {
         optuna.distributions.DiscreteUniformDistribution(0.1, 1.0, 0.05),
     'min_child_samples':
         optuna.distributions.IntUniformDistribution(1, 100),
-    'min_child_weight':
-        optuna.distributions.LogUniformDistribution(1e-03, 10.0),
+    # 'min_child_weight':
+    #     optuna.distributions.LogUniformDistribution(1e-03, 10.0),
     'num_leaves':
         optuna.distributions.IntUniformDistribution(2, 127),
     'reg_alpha':
