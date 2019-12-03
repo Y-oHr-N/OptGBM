@@ -1,11 +1,14 @@
 """Config."""
 
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
 from optgbm.sklearn import OGBMRegressor
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.model_selection import TimeSeriesSplit
+from sklearn.feature_selection import SelectFromModel
+from sklearn.pipeline import make_pipeline
 
 
 def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
@@ -21,7 +24,7 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
 
     s = data.index.to_series()
 
-    data['unixtime'] = 1e-09 * s.astype('int64')
+    data['{}_unixtime'.format(s.name)] = 1e-09 * s.astype('int64')
 
     attrs = [
         # 'year',
@@ -32,8 +35,8 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
         'day',
         'weekday',
         'hour',
-        # 'minute',
-        # 'second'
+        'minute',
+        'second'
     ]
 
     for attr in attrs:
@@ -54,8 +57,8 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
 
         theta = 2.0 * np.pi * getattr(s.dt, attr) / period
 
-        data['{}_sin'.format(attr)] = np.sin(theta)
-        data['{}_cos'.format(attr)] = np.cos(theta)
+        data['{}_{}_sin'.format(s.name, attr)] = np.sin(theta)
+        data['{}_{}_cos'.format(s.name, attr)] = np.cos(theta)
 
     return data
 
@@ -85,11 +88,17 @@ c.Recipe.read_params = {
 c.Recipe.transform_batch = transform_batch
 
 c.Recipe.model_instance = TransformedTargetRegressor(
-    regressor=OGBMRegressor(
-        cv=TimeSeriesSplit(5),
-        n_estimators=100_000,
-        n_trials=100,
-        random_state=0
+    regressor=make_pipeline(
+        SelectFromModel(
+            lgb.LGBMRegressor(random_state=0),
+            threshold=1e-06
+        ),  # lightgbm>=2.3.0, scikit-learn>=0.22
+        OGBMRegressor(
+            cv=TimeSeriesSplit(5),
+            n_estimators=100_000,
+            n_trials=100,
+            random_state=0
+        )
     ),
     func=np.log1p,
     inverse_func=np.expm1

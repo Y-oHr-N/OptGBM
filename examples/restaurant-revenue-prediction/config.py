@@ -20,7 +20,7 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
 
     s = data['Open Date']
 
-    data['unixtime'] = 1e-09 * s.astype('int64')
+    data['{}_unixtime'.format(s.name)] = 1e-09 * s.astype('int64')
 
     attrs = [
         # 'year',
@@ -31,8 +31,8 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
         'day',
         'weekday',
         'hour',
-        # 'minute',
-        # 'second'
+        'minute',
+        'second'
     ]
 
     for attr in attrs:
@@ -53,8 +53,8 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
 
         theta = 2.0 * np.pi * getattr(s.dt, attr) / period
 
-        data['{}_sin'.format(attr)] = np.sin(theta)
-        data['{}_cos'.format(attr)] = np.cos(theta)
+        data['{}_{}_sin'.format(s.name, attr)] = np.sin(theta)
+        data['{}_{}_cos'.format(s.name, attr)] = np.cos(theta)
 
     return data.drop(columns='Open Date')
 
