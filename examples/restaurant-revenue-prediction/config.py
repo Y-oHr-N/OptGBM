@@ -6,13 +6,15 @@ import pandas as pd
 from optgbm.sklearn import OGBMRegressor
 from sklearn.model_selection import TimeSeriesSplit
 
+label_col = 'revenue'
+
 
 def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
     """User-defined proprocessing."""
     if train:
         data = data.sort_values('Open Date')
 
-        # label = data['count']
+        # label = data[label_col]
         # q25, q75 = np.quantile(label, [0.25, 0.75])
         # iqr = q75 - q25
         # is_inlier = (q25 - 1.5 * iqr <= label) & (label <= q75 + 1.5 * iqr)
@@ -62,7 +64,7 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
 c = get_config()  # noqa
 
 c.Recipe.data_path = 'examples/restaurant-revenue-prediction/train.csv.gz'
-c.Recipe.label_col = 'revenue'
+c.Recipe.label_col = label_col
 c.Recipe.read_params = {
     'index_col': 'Id',
     'parse_dates': ['Open Date']

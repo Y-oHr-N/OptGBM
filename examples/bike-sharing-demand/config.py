@@ -10,17 +10,31 @@ from sklearn.model_selection import TimeSeriesSplit
 from sklearn.feature_selection import SelectFromModel
 from sklearn.pipeline import make_pipeline
 
+label_col = 'count'
+
 
 def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
     """User-defined proprocessing."""
     if train:
         data = data.sort_index()
 
-        # label = data['count']
+        # label = data[label_col]
         # q25, q75 = np.quantile(label, [0.25, 0.75])
         # iqr = q75 - q25
         # is_inlier = (q25 - 1.5 * iqr <= label) & (label <= q75 + 1.5 * iqr)
         # data = data[is_inlier]
+
+        X = data.drop(columns=label_col)
+
+    else:
+        X = data
+
+    numerical_cols = X.dtypes == np.number
+
+    if np.sum(numerical_cols) > 0:
+        new_numerical_cols = \
+            X.loc[:, numerical_cols].columns.map('{}_diff'.format)
+        data[new_numerical_cols] = X.loc[:, numerical_cols].diff()
 
     s = data.index.to_series()
 
@@ -66,7 +80,7 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
 c = get_config()  # noqa
 
 c.Recipe.data_path = 'examples/bike-sharing-demand/train.csv.gz'
-c.Recipe.label_col = 'count'
+c.Recipe.label_col = label_col
 c.Recipe.read_params = {
     'dtype': {'season': 'category', 'weather': 'category'},
     'index_col': 'datetime',
@@ -90,7 +104,7 @@ c.Recipe.transform_batch = transform_batch
 c.Recipe.model_instance = TransformedTargetRegressor(
     regressor=make_pipeline(
         SelectFromModel(
-            lgb.LGBMRegressor(random_state=0),
+            lgb.LGBMRegressor(importance_type='gain', random_state=0),
             threshold=1e-06
         ),  # lightgbm>=2.3.0, scikit-learn>=0.22
         OGBMRegressor(
