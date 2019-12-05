@@ -1,5 +1,6 @@
 """Config."""
 
+import itertools
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
@@ -29,15 +30,18 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
     else:
         X = data
 
-    numerical_cols = X.dtypes == np.number
-
-    if np.sum(numerical_cols) > 0:
-        new_numerical_cols = \
-            X.loc[:, numerical_cols].columns.map('{}_diff'.format)
-        data[new_numerical_cols] = X.loc[:, numerical_cols].diff()
-
     s = data.index.to_series()
 
+    cols = X.columns
+    numerical_cols = X.dtypes == np.number
+    numerical_cols = cols[numerical_cols]
+
+    # make diff features
+    if len(numerical_cols) > 0:
+        new_numerical_cols = numerical_cols.map('{}_diff'.format)
+        data[new_numerical_cols] = data[numerical_cols].diff()
+
+    # make calendar features
     data['{}_unixtime'.format(s.name)] = 1e-09 * s.astype('int64')
 
     attrs = [
@@ -73,6 +77,13 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
 
         data['{}_{}_sin'.format(s.name, attr)] = np.sin(theta)
         data['{}_{}_cos'.format(s.name, attr)] = np.cos(theta)
+
+    # make arithmetical features
+    # for col1, col2 in itertools.combinations(numerical_cols, 2):
+    #     for operand in ['add', 'subtract', 'multiply', 'divide']:
+    #         func = getattr(np, operand)
+    #         data['{}_{}_{}'.format(operand, col1, col2)] = \
+    #             func(data[col1], data[col2])
 
     return data
 
