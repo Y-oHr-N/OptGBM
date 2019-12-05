@@ -114,10 +114,10 @@ c.Recipe.transform_batch = transform_batch
 
 c.Recipe.model_instance = TransformedTargetRegressor(
     regressor=make_pipeline(
-        SelectFromModel(
-            lgb.LGBMRegressor(importance_type='gain', random_state=0),
-            threshold=1e-06
-        ),  # lightgbm>=2.3.0, scikit-learn>=0.22
+        # SelectFromModel(
+        #     lgb.LGBMRegressor(importance_type='gain', random_state=0),
+        #     threshold=1e-06
+        # ),  # lightgbm>=2.3.0, scikit-learn>=0.22
         OGBMRegressor(
             cv=TimeSeriesSplit(5),
             n_estimators=100_000,
