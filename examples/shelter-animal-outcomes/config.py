@@ -8,7 +8,7 @@ from sklearn.model_selection import TimeSeriesSplit
 
 
 def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
-    """User-defined proprocessing."""
+    """User-defined preprocessing."""
     if train:
         data = data.sort_values('DateTime')
 
