@@ -14,35 +14,28 @@ from sklearn.pipeline import make_pipeline
 label_col = 'count'
 
 
-def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
-    """User-defined proprocessing."""
-    if train:
-        data = data.sort_index()
+def create_arithmetical_features(X: pd.DataFrame) -> pd.DataFrame:
+    """Create arithmetical features."""
+    Xt = pd.DataFrame(index=X.index)
 
-        # label = data[label_col]
-        # q25, q75 = np.quantile(label, [0.25, 0.75])
-        # iqr = q75 - q25
-        # is_inlier = (q25 - 1.5 * iqr <= label) & (label <= q75 + 1.5 * iqr)
-        # data = data[is_inlier]
+    operands = [
+        'add',
+        'subtract',
+        'multiply',
+        'divide'
+    ]
 
-        X = data.drop(columns=label_col)
+    for col1, col2 in itertools.combinations(X.columns, 2):
+        for operand in operands:
+            func = getattr(np, operand)
+            Xt['{}_{}_{}'.format(operand, col1, col2)] = func(X[col1], X[col2])
 
-    else:
-        X = data
+    return Xt
 
-    s = data.index.to_series()
 
-    cols = X.columns
-    numerical_cols = X.dtypes == np.number
-    numerical_cols = cols[numerical_cols]
-
-    # make diff features
-    if len(numerical_cols) > 0:
-        new_numerical_cols = numerical_cols.map('{}_diff'.format)
-        data[new_numerical_cols] = data[numerical_cols].diff()
-
-    # make calendar features
-    data['{}_unixtime'.format(s.name)] = 1e-09 * s.astype('int64')
+def create_calendar_features(X: pd.DataFrame) -> pd.DataFrame:
+    """Create calendar features."""
+    Xt = pd.DataFrame(index=X.index)
 
     attrs = [
         # 'year',
@@ -53,39 +46,89 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
         'day',
         'weekday',
         'hour',
-        'minute',
-        'second'
+        # 'minute',
+        # 'second'
     ]
 
-    for attr in attrs:
-        if attr == 'dayofyear':
-            period = np.where(s.dt.is_leap_year, 366.0, 365.0)
-        elif attr == 'quarter':
-            period = 4.0
-        elif attr == 'month':
-            period = 12.0
-        elif attr == 'day':
-            period = s.dt.daysinmonth
-        elif attr == 'weekday':
-            period = 7.0
-        elif attr == 'hour':
-            period = 24.0
-        elif attr in ['minute', 'second']:
-            period = 60.0
+    for col in X:
+        s = X[col]
+        Xt[col] = 1e-09 * s.astype('int64')
 
-        theta = 2.0 * np.pi * getattr(s.dt, attr) / period
+        for attr in attrs:
+            x = getattr(s.dt, attr)
 
-        data['{}_{}_sin'.format(s.name, attr)] = np.sin(theta)
-        data['{}_{}_cos'.format(s.name, attr)] = np.cos(theta)
+            if x.nunique() == 1:
+                continue
 
-    # make arithmetical features
-    # for col1, col2 in itertools.combinations(numerical_cols, 2):
-    #     for operand in ['add', 'subtract', 'multiply', 'divide']:
-    #         func = getattr(np, operand)
-    #         data['{}_{}_{}'.format(operand, col1, col2)] = \
-    #             func(data[col1], data[col2])
+            if attr == 'dayofyear':
+                period = np.where(s.dt.is_leap_year, 366.0, 365.0)
+            elif attr == 'quarter':
+                period = 4.0
+            elif attr == 'month':
+                period = 12.0
+            elif attr == 'day':
+                period = s.dt.daysinmonth
+            elif attr == 'weekday':
+                period = 7.0
+            elif attr == 'hour':
+                x += s.dt.minute / 60.0 + s.dt.second / 60.0
+                period = 24.0
+            elif attr in ['minute', 'second']:
+                period = 60.0
 
-    return data
+            theta = 2.0 * np.pi * x / period
+
+            Xt['{}_{}_sin'.format(s.name, attr)] = np.sin(theta)
+            Xt['{}_{}_cos'.format(s.name, attr)] = np.cos(theta)
+
+    return Xt
+
+
+def create_diff_features(X: pd.DataFrame) -> pd.DataFrame:
+    """Create diff features."""
+    Xt = X.diff()
+
+    return Xt.rename(columns='{}_diff'.format)
+
+
+def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
+    """User-defined proprocessing."""
+    if train:
+        data = data.sort_index()
+
+        label = data[label_col]
+        q25, q75 = np.quantile(label, [0.25, 0.75])
+        iqr = q75 - q25
+
+        # is_inlier = (q25 - 1.5 * iqr <= label) & (label <= q75 + 1.5 * iqr)
+        # data = data[is_inlier]
+
+        data[label_col] = label.clip(q25 - 1.5 * iqr, q75 + 1.5 * iqr)
+
+        X = data.drop(columns=label_col)
+
+    else:
+        X = data.copy()
+
+    X['datetime'] = X.index
+    
+    numerical_cols = X.dtypes == np.number
+    time_cols = X.dtypes == 'datetime64[ns]'
+
+    arithmetical_features = \
+        create_arithmetical_features(X.loc[:, numerical_cols])
+    calendar_features = create_calendar_features(X.loc[:, time_cols])
+    diff_features = create_diff_features(X.loc[:, numerical_cols])
+
+    return pd.concat(
+        [
+            data,
+            arithmetical_features,
+            calendar_features,
+            diff_features
+        ],
+        axis=1
+    )
 
 
 c = get_config()  # noqa
