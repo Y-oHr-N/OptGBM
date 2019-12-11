@@ -253,7 +253,6 @@ class _BaseOGBMModel(BaseEstimator):
         param_distributions:
             Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
         random_state: Optional[RANDOM_STATE_TYPE] = None,
-        refit: bool = False,
         study: Optional[optuna.study.Study] = None,
         subsample_for_bin: int = 200_000,
         timeout: Optional[float] = None
@@ -271,7 +270,6 @@ class _BaseOGBMModel(BaseEstimator):
         self.objective = objective
         self.param_distributions = param_distributions
         self.random_state = random_state
-        self.refit = refit
         self.study = study
         self.subsample_for_bin = subsample_for_bin
         self.timeout = timeout
@@ -423,40 +421,78 @@ class _BaseOGBMModel(BaseEstimator):
             timeout=self.timeout
         )
 
+        self.best_params_ = {**params, **self.study_.best_params}
         self.n_iter_ = self.study_.user_attrs['best_iteration']
 
-        if self.refit:
-            params.update(self.study_.best_params)
+        try:  # lightgbm<=2.2.3
+            self.boosters_ = [
+                lgb.Booster(
+                    params={'model_str': model_str}
+                ) for model_str
+                in self.study_.user_attrs['representations']
+            ]
+        except TypeError:
+            self.boosters_ = [
+                lgb.Booster(
+                    model_str=model_str,
+                    silent=True
+                ) for model_str
+                in self.study_.user_attrs['representations']
+            ]
 
-            params['n_jobs'] = 0
+        self.weights_ = np.array([
+            np.sum(sample_weight[train]) for train, _ in cv.split(X, y)
+        ])
 
-            booster = lgb.train(params, dataset, num_boost_round=self.n_iter_)
+        return self
 
-            booster.free_dataset()
+    def refit(
+        self,
+        X: TWO_DIM_ARRAYLIKE_TYPE,
+        y: ONE_DIM_ARRAYLIKE_TYPE,
+        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
+        callbacks: Optional[List[Callable]] = None,
+        categorical_feature: Union[List[int], List[str], str] = 'auto',
+        feature_name: Union[List[str], str] = 'auto'
+    ) -> '_BaseOGBMModel':
+        """Refit the estimator with the best found hyperparameters.
 
-            self.boosters_ = [booster]
-            self.weights_ = np.ones(1)
+        Parameters
+        ----------
+        X
+            Training data.
 
-        else:
-            try:  # lightgbm<=2.2.3
-                self.boosters_ = [
-                    lgb.Booster(
-                        params={'model_str': model_str}
-                    ) for model_str
-                    in self.study_.user_attrs['representations']
-                ]
-            except TypeError:
-                self.boosters_ = [
-                    lgb.Booster(
-                        model_str=model_str,
-                        silent=True
-                    ) for model_str
-                    in self.study_.user_attrs['representations']
-                ]
+        y
+            Target.
 
-            self.weights_ = np.array([
-                np.sum(sample_weight[train]) for train, _ in cv.split(X, y)
-            ])
+        sample_weight
+            Weights of training data.
+
+        callbacks
+            List of callback functions that are applied at each iteration.
+
+        categorical_feature
+            Categorical features.
+
+        feature_name
+            Feature names.
+
+        Returns
+        -------
+        self
+            Return self.
+        """
+        self._check_is_fitted()
+
+        params = self.best_params_.copy()
+        params['n_jobs'] = 0
+        dataset = lgb.Dataset(X, label=y, weight=sample_weight)
+        booster = lgb.train(params, dataset, num_boost_round=self.n_iter_)
+
+        booster.free_dataset()
+
+        self.boosters_ = [booster]
+        self.weights_ = np.ones(1)
 
         return self
 
@@ -506,9 +542,6 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     random_state
         Seed of the pseudo random number generator.
-
-    refit
-        If True, refit the estimator with the best found hyperparameters.
 
     study
         Study that corresponds to the optimization task.
@@ -663,9 +696,6 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     random_state
         Seed of the pseudo random number generator.
 
-    refit
-        If True, refit the estimator with the best found hyperparameters.
-
     study
         Study that corresponds to the optimization task.
 
@@ -720,7 +750,6 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         param_distributions:
             Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
         random_state: Optional[RANDOM_STATE_TYPE] = None,
-        refit: bool = False,
         study: Optional[optuna.study.Study] = None,
         subsample_for_bin: int = 200_000,
         timeout: Optional[float] = None
@@ -738,7 +767,6 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             objective=objective,
             param_distributions=param_distributions,
             random_state=random_state,
-            refit=refit,
             study=study,
             subsample_for_bin=subsample_for_bin,
             timeout=timeout

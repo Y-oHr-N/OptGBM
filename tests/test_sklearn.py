@@ -52,6 +52,16 @@ def test_fit_with_fit_params(
     clf.fit(X, y, callbacks=callbacks, eval_metric=eval_metric)
 
 
+def test_refit() -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier()
+
+    clf.fit(X, y)
+
+    clf.refit(X, y)
+
+
 @pytest.mark.parametrize('storage', [None, 'sqlite:///:memory:'])
 def test_fit_twice_with_study(storage: Optional[str]) -> None:
     X, y = load_breast_cancer(return_X_y=True)
@@ -82,8 +92,7 @@ def test_predict(n_jobs: int) -> None:
     assert y.shape == y_pred.shape
 
 
-@pytest.mark.parametrize('refit', [False, True])
-def test_score(refit: bool) -> None:
+def test_score() -> None:
     load_functions = [load_breast_cancer, load_digits, load_iris, load_wine]
 
     for load_function in load_functions:
@@ -100,7 +109,7 @@ def test_score(refit: bool) -> None:
 
         score = clf.score(X_test, y_test)
 
-        clf = OGBMClassifier(random_state=0, refit=refit)
+        clf = OGBMClassifier(random_state=0)
 
         clf.fit(X_train, y_train)
 
