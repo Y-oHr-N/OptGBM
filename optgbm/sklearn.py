@@ -193,13 +193,10 @@ class _Objective(object):
         return callbacks
 
     def _get_params(self, trial: optuna.trial.Trial) -> Dict[str, Any]:
-        params: Dict[str, Any] = {
-            name: trial._suggest(
-                name, distribution
-            ) for name, distribution in self.param_distributions.items()
-        }
+        params: Dict[str, Any] = self.params.copy()
 
-        params.update(self.params)
+        for name, distribution in self.param_distributions.items():
+            params[name] = trial._suggest(name, distribution)
 
         return params
 
