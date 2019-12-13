@@ -1,8 +1,11 @@
 """Config."""
 
+import builtins
 import itertools
 
+from typing import Any
 from typing import Optional
+from typing import Union
 
 import lightgbm as lgb
 import numpy as np
@@ -10,11 +13,18 @@ import pandas as pd
 
 from optgbm.sklearn import OGBMRegressor
 from sklearn.base import BaseEstimator
+from sklearn.base import clone
 from sklearn.base import TransformerMixin
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.model_selection import TimeSeriesSplit
-from sklearn.feature_selection import SelectFromModel
 from sklearn.pipeline import make_pipeline
+
+try:  # scikit-learn<=0.21
+    from sklearn.feature_selection.from_model import _calculate_threshold
+    from sklearn.feature_selection.from_model import _get_feature_importances
+except ImportError:
+    from sklearn.feature_selection._from_model import _calculate_threshold
+    from sklearn.feature_selection._from_model import _get_feature_importances
 
 label_col = 'count'
 
@@ -214,6 +224,43 @@ class DiffFeatures(BaseEstimator, TransformerMixin):
         return Xt.rename(columns='{}_diff'.format)
 
 
+class ModifiedSelectFromModel(BaseEstimator, TransformerMixin):
+    def __init__(
+        self,
+        estimator: BaseEstimator,
+        threshold: Optional[Union[float, str]] = None
+    ):
+        self.estimator = estimator
+        self.threshold = threshold
+
+    def fit(
+        self,
+        X: pd.DataFrame,
+        y: Optional[pd.Series] = None,
+        **fit_params: Any
+    ) -> 'ModifiedSelectFromModel':
+        self.estimator_ = clone(self.estimator)
+
+        self.estimator_.fit(X, y, **fit_params)
+
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        X = pd.DataFrame(X)
+
+        feature_importances = _get_feature_importances(self.estimator_)
+        threshold = _calculate_threshold(
+            self.estimator_,
+            feature_importances,
+            self.threshold
+        )
+        cols = feature_importances >= threshold
+
+        return X.loc[:, cols]
+
+
+builtins.ModifiedSelectFromModel = ModifiedSelectFromModel
+
 c = get_config()  # noqa
 
 c.Recipe.data_path = 'examples/bike-sharing-demand/train.csv.gz'
@@ -240,10 +287,10 @@ c.Recipe.transform_batch = transform_batch
 
 c.Recipe.model_instance = TransformedTargetRegressor(
     regressor=make_pipeline(
-        # SelectFromModel(
-        #     lgb.LGBMRegressor(importance_type='gain', random_state=0),
-        #     threshold=1e-06
-        # ),  # lightgbm>=2.3.0, scikit-learn>=0.22
+        ModifiedSelectFromModel(
+            lgb.LGBMRegressor(importance_type='gain', random_state=0),
+            threshold=1e-06
+        ),
         OGBMRegressor(
             cv=TimeSeriesSplit(5),
             n_estimators=100_000,
