@@ -31,6 +31,20 @@ except ImportError:
 label_col = 'count'
 
 
+def get_numerical_cols(X: pd.DataFrame):
+    """Get numerical columns."""
+    X = pd.DataFrame(X)
+
+    return X.dtypes == np.number
+
+
+def get_time_cols(X: pd.DataFrame):
+    """Get time columns."""
+    X = pd.DataFrame(X)
+
+    return X.dtypes == 'datetime64[ns]'
+
+
 def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
     """User-defined preprocessing."""
     if train:
@@ -52,8 +66,8 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
 
     X['datetime'] = X.index
 
-    numerical_cols = X.dtypes == np.number
-    time_cols = X.dtypes == 'datetime64[ns]'
+    numerical_cols = get_numerical_cols(X)
+    time_cols = get_time_cols(X)
 
     # transform_numerical_features = ClippedFeatures().fit_transform
     create_arithmetical_features = ArithmeticalFeatures().fit_transform
