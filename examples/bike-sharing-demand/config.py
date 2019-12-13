@@ -4,6 +4,8 @@ import builtins
 import itertools
 
 from typing import Any
+from typing import Dict
+from typing import List
 from typing import Optional
 from typing import Union
 
@@ -49,17 +51,20 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
         X = data.copy()
 
     X['datetime'] = X.index
-    
+
     numerical_cols = X.dtypes == np.number
     time_cols = X.dtypes == 'datetime64[ns]'
 
-    transform_numerical_features = ClippedFeatures().fit_transform
+    # transform_numerical_features = ClippedFeatures().fit_transform
     create_arithmetical_features = ArithmeticalFeatures().fit_transform
-    create_calendar_features = CalendarFeatures().fit_transform
+    create_calendar_features = \
+        CalendarFeatures(dtype='float32').fit_transform
     create_diff_features = DiffFeatures().fit_transform
 
-    X.loc[:, numerical_cols] = \
-        transform_numerical_features(X.loc[:, numerical_cols])
+    X.loc[:, numerical_cols] = X.loc[:, numerical_cols].astype('float32')
+
+    # X.loc[:, numerical_cols] = \
+    #     transform_numerical_features(X.loc[:, numerical_cols])
 
     arithmetical_features = \
         create_arithmetical_features(X.loc[:, numerical_cols])
@@ -69,7 +74,7 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
     return pd.concat(
         [
             data,
-            # arithmetical_features,
+            arithmetical_features,
             calendar_features,
             diff_features
         ],
@@ -105,13 +110,17 @@ class ArithmeticalFeatures(BaseEstimator, TransformerMixin):
         return Xt
 
 
-
 class CalendarFeatures(BaseEstimator, TransformerMixin):
+    def __init__(self, dtype: str = 'float32'):
+        self.dtype = dtype
+
     def fit(
         self,
         X: pd.DataFrame,
         y: Optional[pd.Series] = None
     ) -> 'CalendarFeatures':
+        X = pd.DataFrame(X)
+
         secondsinminute = 60.0
         secondsinhour = 60.0 * secondsinminute
         secondsinday = 24.0 * secondsinhour
@@ -119,7 +128,7 @@ class CalendarFeatures(BaseEstimator, TransformerMixin):
         secondsinmonth = 30.4167 * secondsinday
         secondsinyear = 12.0 * secondsinmonth
 
-        self.attributes_ = {}
+        self.attributes_: Dict[str, List[str]] = {}
 
         for col in X:
             s = X[col]
@@ -155,6 +164,7 @@ class CalendarFeatures(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        X = pd.DataFrame(X)
         Xt = pd.DataFrame()
 
         for col in X:
@@ -185,7 +195,7 @@ class CalendarFeatures(BaseEstimator, TransformerMixin):
                 Xt["{}_{}_sin".format(s.name, attr)] = np.sin(theta)
                 Xt["{}_{}_cos".format(s.name, attr)] = np.cos(theta)
 
-        return Xt
+        return Xt.astype(self.dtype)
 
 
 class ClippedFeatures(BaseEstimator, TransformerMixin):
@@ -207,6 +217,8 @@ class ClippedFeatures(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        X = pd.DataFrame(X)
+
         return X.clip(self.data_min_, self.data_max_, axis=1)
 
 
@@ -219,6 +231,7 @@ class DiffFeatures(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        X = pd.DataFrame(X)
         Xt = X.diff()
 
         return Xt.rename(columns='{}_diff'.format)
