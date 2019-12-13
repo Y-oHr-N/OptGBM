@@ -1,11 +1,16 @@
 """Config."""
 
 import itertools
+
+from typing import Optional
+
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
 from optgbm.sklearn import OGBMRegressor
+from sklearn.base import BaseEstimator
+from sklearn.base import TransformerMixin
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.feature_selection import SelectFromModel
@@ -22,70 +27,191 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
         # label = data[label_col]
         # q25, q75 = np.quantile(label, [0.25, 0.75])
         # iqr = q75 - q25
+
+        # data[label_col] = label.clip(q25 - 1.5 * iqr, q75 + 1.5 * iqr)
+
         # is_inlier = (q25 - 1.5 * iqr <= label) & (label <= q75 + 1.5 * iqr)
         # data = data[is_inlier]
 
         X = data.drop(columns=label_col)
 
     else:
-        X = data
+        X = data.copy()
 
-    s = data.index.to_series()
-
-    cols = X.columns
+    X['datetime'] = X.index
+    
     numerical_cols = X.dtypes == np.number
-    numerical_cols = cols[numerical_cols]
+    time_cols = X.dtypes == 'datetime64[ns]'
 
-    # make diff features
-    if len(numerical_cols) > 0:
-        new_numerical_cols = numerical_cols.map('{}_diff'.format)
-        data[new_numerical_cols] = data[numerical_cols].diff()
+    transform_numerical_features = ClippedFeatures().fit_transform
+    create_arithmetical_features = ArithmeticalFeatures().fit_transform
+    create_calendar_features = CalendarFeatures().fit_transform
+    create_diff_features = DiffFeatures().fit_transform
 
-    # make calendar features
-    data['{}_unixtime'.format(s.name)] = 1e-09 * s.astype('int64')
+    X.loc[:, numerical_cols] = \
+        transform_numerical_features(X.loc[:, numerical_cols])
 
-    attrs = [
-        # 'year',
-        # 'weekofyear',
-        'dayofyear',
-        'quarter',
-        'month',
-        'day',
-        'weekday',
-        'hour',
-        'minute',
-        'second'
-    ]
+    arithmetical_features = \
+        create_arithmetical_features(X.loc[:, numerical_cols])
+    calendar_features = create_calendar_features(X.loc[:, time_cols])
+    diff_features = create_diff_features(X.loc[:, numerical_cols])
 
-    for attr in attrs:
-        if attr == 'dayofyear':
-            period = np.where(s.dt.is_leap_year, 366.0, 365.0)
-        elif attr == 'quarter':
-            period = 4.0
-        elif attr == 'month':
-            period = 12.0
-        elif attr == 'day':
-            period = s.dt.daysinmonth
-        elif attr == 'weekday':
-            period = 7.0
-        elif attr == 'hour':
-            period = 24.0
-        elif attr in ['minute', 'second']:
-            period = 60.0
+    return pd.concat(
+        [
+            data,
+            # arithmetical_features,
+            calendar_features,
+            diff_features
+        ],
+        axis=1
+    )
 
-        theta = 2.0 * np.pi * getattr(s.dt, attr) / period
 
-        data['{}_{}_sin'.format(s.name, attr)] = np.sin(theta)
-        data['{}_{}_cos'.format(s.name, attr)] = np.cos(theta)
+class ArithmeticalFeatures(BaseEstimator, TransformerMixin):
+    def fit(
+        self,
+        X: pd.DataFrame,
+        y: Optional[pd.Series] = None
+    ) -> 'ArithmeticalFeatures':
+        return self
 
-    # make arithmetical features
-    # for col1, col2 in itertools.combinations(numerical_cols, 2):
-    #     for operand in ['add', 'subtract', 'multiply', 'divide']:
-    #         func = getattr(np, operand)
-    #         data['{}_{}_{}'.format(operand, col1, col2)] = \
-    #             func(data[col1], data[col2])
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        Xt = pd.DataFrame()
 
-    return data
+        operands = [
+            'add',
+            'subtract',
+            'multiply',
+            'divide'
+        ]
+
+        for col1, col2 in itertools.combinations(X.columns, 2):
+            for operand in operands:
+                func = getattr(np, operand)
+
+                Xt['{}_{}_{}'.format(operand, col1, col2)] = \
+                    func(X[col1], X[col2])
+
+        return Xt
+
+
+
+class CalendarFeatures(BaseEstimator, TransformerMixin):
+    def fit(
+        self,
+        X: pd.DataFrame,
+        y: Optional[pd.Series] = None
+    ) -> 'CalendarFeatures':
+        secondsinminute = 60.0
+        secondsinhour = 60.0 * secondsinminute
+        secondsinday = 24.0 * secondsinhour
+        secondsinweekday = 7.0 * secondsinday
+        secondsinmonth = 30.4167 * secondsinday
+        secondsinyear = 12.0 * secondsinmonth
+
+        self.attributes_ = {}
+
+        for col in X:
+            s = X[col]
+            duration = s.max() - s.min()
+            duration = duration.total_seconds()
+            attrs = []
+
+            if duration >= 2.0 * secondsinyear:
+                if s.dt.dayofyear.nunique() > 1:
+                    attrs.append("dayofyear")
+                if s.dt.quarter.nunique() > 1:
+                    attrs.append("quarter")
+                if s.dt.month.nunique() > 1:
+                    attrs.append("month")
+            if duration >= 2.0 * secondsinmonth \
+                    and s.dt.day.nunique() > 1:
+                attrs.append("day")
+            if duration >= 2.0 * secondsinweekday \
+                    and s.dt.weekday.nunique() > 1:
+                attrs.append("weekday")
+            if duration >= 2.0 * secondsinday \
+                    and s.dt.hour.nunique() > 1:
+                attrs.append("hour")
+            # if duration >= 2.0 * secondsinhour \
+            #         and s.dt.minute.nunique() > 1:
+            #     attrs.append("minute")
+            # if duration >= 2.0 * secondsinminute \
+            #         and s.dt.second.nunique() > 1:
+            #     attrs.append("second")
+
+            self.attributes_[col] = attrs
+
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        Xt = pd.DataFrame()
+
+        for col in X:
+            s = X[col]
+            Xt[col] = 1e-09 * s.astype('int64')
+
+            for attr in self.attributes_[col]:
+                x = getattr(s.dt, attr)
+
+                if attr == "dayofyear":
+                    period = np.where(s.dt.is_leap_year, 366.0, 365.0)
+                elif attr == "quarter":
+                    period = 4.0
+                elif attr == "month":
+                    period = 12.0
+                elif attr == "day":
+                    period = s.dt.daysinmonth
+                elif attr == "weekday":
+                    period = 7.0
+                elif attr == "hour":
+                    x += s.dt.minute / 60.0 + s.dt.second / 60.0
+                    period = 24.0
+                elif attr in ["minute", "second"]:
+                    period = 60.0
+
+                theta = 2.0 * np.pi * x / period
+
+                Xt["{}_{}_sin".format(s.name, attr)] = np.sin(theta)
+                Xt["{}_{}_cos".format(s.name, attr)] = np.cos(theta)
+
+        return Xt
+
+
+class ClippedFeatures(BaseEstimator, TransformerMixin):
+    def __init__(self, high: float = 99.0, low: float = 1.0) -> None:
+        self.high = high
+        self.low = low
+
+    def fit(
+        self,
+        X: pd.DataFrame,
+        y: Optional[pd.Series] = None
+    ) -> 'ClippedFeatures':
+        self.data_min_, self.data_max_ = np.nanpercentile(
+            X,
+            [self.low, self.high],
+            axis=0
+        )
+
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        return X.clip(self.data_min_, self.data_max_, axis=1)
+
+
+class DiffFeatures(BaseEstimator, TransformerMixin):
+    def fit(
+        self,
+        X: pd.DataFrame,
+        y: Optional[pd.Series] = None
+    ) -> 'DiffFeatures':
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        Xt = X.diff()
+
+        return Xt.rename(columns='{}_diff'.format)
 
 
 c = get_config()  # noqa
