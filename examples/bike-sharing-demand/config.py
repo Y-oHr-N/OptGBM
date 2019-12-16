@@ -31,6 +31,13 @@ except ImportError:
 label_col = 'count'
 
 
+def get_categorical_cols(X: pd.DataFrame):
+    """Get categorical columns."""
+    X = pd.DataFrame(X)
+
+    return X.dtypes == 'category'
+
+
 def get_numerical_cols(X: pd.DataFrame):
     """Get numerical columns."""
     X = pd.DataFrame(X)
@@ -69,9 +76,9 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
     numerical_cols = get_numerical_cols(X)
     time_cols = get_time_cols(X)
 
-    arithmetical_features = ArithmeticalFeatures()
     calendar_features = CalendarFeatures(dtype='float32')
     # clipped_features = ClippedFeatures()
+    combined_features = CombinedFeatures()
     diff_features = DiffFeatures()
 
     X.loc[:, numerical_cols] = X.loc[:, numerical_cols].astype('float32')
@@ -82,38 +89,48 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
     return pd.concat(
         [
             data,
-            arithmetical_features.fit_transform(X.loc[:, numerical_cols]),
             calendar_features.fit_transform(X.loc[:, time_cols]),
+            combined_features.fit_transform(X),
             diff_features.fit_transform(X.loc[:, numerical_cols])
         ],
         axis=1
     )
 
 
-class ArithmeticalFeatures(BaseEstimator, TransformerMixin):
+class CombinedFeatures(BaseEstimator, TransformerMixin):
     def fit(
         self,
         X: pd.DataFrame,
         y: Optional[pd.Series] = None
-    ) -> 'ArithmeticalFeatures':
+    ) -> 'CombinedFeatures':
         return self
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         Xt = pd.DataFrame()
-
-        operands = [
-            'add',
-            'subtract',
-            'multiply',
-            'divide'
-        ]
+        categorical_cols = get_categorical_cols(X)
+        numerical_cols = get_numerical_cols(X)
 
         for col1, col2 in itertools.combinations(X.columns, 2):
-            for operand in operands:
-                func = getattr(np, operand)
+            if np.all(categorical_cols[[col1, col2]]):
+                func = np.vectorize(lambda x1, x2: '{}+{}'.format(x1, x2))
 
-                Xt['{}_{}_{}'.format(operand, col1, col2)] = \
-                    func(X[col1], X[col2])
+                feature = func(X[col1], X[col2])
+                feature = pd.Series(feature, index=X.index)
+                Xt['add_{}_{}'.format(col1, col2)] = feature.astype('category')
+
+            if np.all(numerical_cols[[col1, col2]]):
+                operands = [
+                    'add',
+                    'subtract',
+                    'multiply',
+                    'divide'
+                ]
+
+                for operand in operands:
+                    func = getattr(np, operand)
+
+                    Xt['{}_{}_{}'.format(operand, col1, col2)] = \
+                        func(X[col2], X[col2])
 
         return Xt
 
