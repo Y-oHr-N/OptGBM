@@ -35,14 +35,14 @@ def get_numerical_cols(X: pd.DataFrame):
     """Get numerical columns."""
     X = pd.DataFrame(X)
 
-    return X.dtypes == np.number
+    return X.dtypes.apply(lambda x: issubclass(x.type, np.number))
 
 
 def get_time_cols(X: pd.DataFrame):
     """Get time columns."""
     X = pd.DataFrame(X)
 
-    return X.dtypes == 'datetime64[ns]'
+    return X.dtypes.apply(lambda x: issubclass(x.type, np.datetime64))
 
 
 def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
@@ -293,7 +293,12 @@ c = get_config()  # noqa
 c.Recipe.data_path = 'examples/bike-sharing-demand/train.csv.gz'
 c.Recipe.label_col = label_col
 c.Recipe.read_params = {
-    'dtype': {'season': 'category', 'weather': 'category'},
+    'dtype': {
+        'holiday': 'category',
+        'season': 'category',
+        'weather': 'category',
+        'workingday': 'category'
+    },
     'index_col': 'datetime',
     'na_values': {'windspeed': [0.0]},
     'parse_dates': ['datetime'],
