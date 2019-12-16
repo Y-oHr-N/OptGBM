@@ -69,28 +69,22 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
     numerical_cols = get_numerical_cols(X)
     time_cols = get_time_cols(X)
 
-    # transform_numerical_features = ClippedFeatures().fit_transform
-    create_arithmetical_features = ArithmeticalFeatures().fit_transform
-    create_calendar_features = \
-        CalendarFeatures(dtype='float32').fit_transform
-    create_diff_features = DiffFeatures().fit_transform
+    arithmetical_features = ArithmeticalFeatures()
+    calendar_features = CalendarFeatures(dtype='float32')
+    # clipped_features = ClippedFeatures()
+    diff_features = DiffFeatures()
 
     X.loc[:, numerical_cols] = X.loc[:, numerical_cols].astype('float32')
 
     # X.loc[:, numerical_cols] = \
-    #     transform_numerical_features(X.loc[:, numerical_cols])
-
-    arithmetical_features = \
-        create_arithmetical_features(X.loc[:, numerical_cols])
-    calendar_features = create_calendar_features(X.loc[:, time_cols])
-    diff_features = create_diff_features(X.loc[:, numerical_cols])
+    #     clipped_features.fit_transform(X.loc[:, numerical_cols])
 
     return pd.concat(
         [
             data,
-            arithmetical_features,
-            calendar_features,
-            diff_features
+            arithmetical_features.fit_transform(X.loc[:, numerical_cols]),
+            calendar_features.fit_transform(X.loc[:, time_cols]),
+            diff_features.fit_transform(X.loc[:, numerical_cols])
         ],
         axis=1
     )
