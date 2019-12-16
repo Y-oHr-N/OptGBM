@@ -80,6 +80,7 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
     # clipped_features = ClippedFeatures()
     combined_features = CombinedFeatures()
     diff_features = DiffFeatures()
+    row_statistics = RowStatistics(dtype='float32')
 
     X.loc[:, numerical_cols] = X.loc[:, numerical_cols].astype('float32')
 
@@ -91,7 +92,8 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
             data,
             calendar_features.fit_transform(X.loc[:, time_cols]),
             combined_features.fit_transform(X),
-            diff_features.fit_transform(X.loc[:, numerical_cols])
+            diff_features.fit_transform(X.loc[:, numerical_cols]),
+            row_statistics.fit_transform(X)
         ],
         axis=1
     )
@@ -295,6 +297,28 @@ class ModifiedSelectFromModel(BaseEstimator, TransformerMixin):
         cols = feature_importances >= threshold
 
         return X.loc[:, cols]
+
+
+class RowStatistics(BaseEstimator, TransformerMixin):
+    def __init__(self, dtype: str = 'float32'):
+        self.dtype = dtype
+
+    def fit(
+        self,
+        X: pd.DataFrame,
+        y: Optional[pd.Series] = None
+    ) -> 'RowStatistics':
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        X = pd.DataFrame(X)
+        Xt = pd.DataFrame()
+
+        is_null = X.isnull()
+
+        Xt['#na_values'] = is_null.sum(axis=1)
+
+        return Xt.astype(self.dtype)
 
 
 builtins.ModifiedSelectFromModel = ModifiedSelectFromModel
