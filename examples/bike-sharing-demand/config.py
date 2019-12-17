@@ -125,7 +125,8 @@ class CombinedFeatures(BaseEstimator, TransformerMixin):
                     'add',
                     'subtract',
                     'multiply',
-                    'divide'
+                    'divide',
+                    'equal'
                 ]
 
                 for operand in operands:
@@ -138,7 +139,7 @@ class CombinedFeatures(BaseEstimator, TransformerMixin):
 
 
 class CalendarFeatures(BaseEstimator, TransformerMixin):
-    def __init__(self, dtype: str = 'float32'):
+    def __init__(self, dtype: str = 'float32') -> None:
         self.dtype = dtype
 
     def fit(
@@ -165,26 +166,28 @@ class CalendarFeatures(BaseEstimator, TransformerMixin):
 
             if duration >= 2.0 * secondsinyear:
                 if s.dt.dayofyear.nunique() > 1:
-                    attrs.append("dayofyear")
+                    attrs.append('dayofyear')
+                if s.dt.weekofyear.nunique() > 1:
+                    attrs.append('weekofyear')
                 if s.dt.quarter.nunique() > 1:
-                    attrs.append("quarter")
+                    attrs.append('quarter')
                 if s.dt.month.nunique() > 1:
-                    attrs.append("month")
+                    attrs.append('month')
             if duration >= 2.0 * secondsinmonth \
                     and s.dt.day.nunique() > 1:
-                attrs.append("day")
+                attrs.append('day')
             if duration >= 2.0 * secondsinweekday \
                     and s.dt.weekday.nunique() > 1:
-                attrs.append("weekday")
+                attrs.append('weekday')
             if duration >= 2.0 * secondsinday \
                     and s.dt.hour.nunique() > 1:
-                attrs.append("hour")
+                attrs.append('hour')
             # if duration >= 2.0 * secondsinhour \
             #         and s.dt.minute.nunique() > 1:
-            #     attrs.append("minute")
+            #     attrs.append('minute')
             # if duration >= 2.0 * secondsinminute \
             #         and s.dt.second.nunique() > 1:
-            #     attrs.append("second")
+            #     attrs.append('second')
 
             self.attributes_[col] = attrs
 
@@ -201,26 +204,28 @@ class CalendarFeatures(BaseEstimator, TransformerMixin):
             for attr in self.attributes_[col]:
                 x = getattr(s.dt, attr)
 
-                if attr == "dayofyear":
+                if attr == 'dayofyear':
                     period = np.where(s.dt.is_leap_year, 366.0, 365.0)
-                elif attr == "quarter":
+                elif attr == 'weekofyear':
+                    period = 52.1429
+                elif attr == 'quarter':
                     period = 4.0
-                elif attr == "month":
+                elif attr == 'month':
                     period = 12.0
-                elif attr == "day":
+                elif attr == 'day':
                     period = s.dt.daysinmonth
-                elif attr == "weekday":
+                elif attr == 'weekday':
                     period = 7.0
-                elif attr == "hour":
+                elif attr == 'hour':
                     x += s.dt.minute / 60.0 + s.dt.second / 60.0
                     period = 24.0
-                elif attr in ["minute", "second"]:
+                elif attr in ['minute', 'second']:
                     period = 60.0
 
                 theta = 2.0 * np.pi * x / period
 
-                Xt["{}_{}_sin".format(s.name, attr)] = np.sin(theta)
-                Xt["{}_{}_cos".format(s.name, attr)] = np.cos(theta)
+                Xt['{}_{}_sin'.format(s.name, attr)] = np.sin(theta)
+                Xt['{}_{}_cos'.format(s.name, attr)] = np.cos(theta)
 
         return Xt.astype(self.dtype)
 
@@ -269,7 +274,7 @@ class ModifiedSelectFromModel(BaseEstimator, TransformerMixin):
         self,
         estimator: BaseEstimator,
         threshold: Optional[Union[float, str]] = None
-    ):
+    ) -> None:
         self.estimator = estimator
         self.threshold = threshold
 
