@@ -139,8 +139,9 @@ class CombinedFeatures(BaseEstimator, TransformerMixin):
 
 
 class CalendarFeatures(BaseEstimator, TransformerMixin):
-    def __init__(self, dtype: str = 'float32') -> None:
+    def __init__(self, dtype: str = 'float32', encode: bool = False) -> None:
         self.dtype = dtype
+        self.encode = encode
 
     def fit(
         self,
@@ -199,10 +200,21 @@ class CalendarFeatures(BaseEstimator, TransformerMixin):
 
         for col in X:
             s = X[col]
-            Xt[col] = 1e-09 * s.astype('int64')
+
+            unixtime = 1e-09 * s.astype('int64')
+            unixtime = unixtime.astype(self.dtype)
+
+            Xt[col] = unixtime
 
             for attr in self.attributes_[col]:
                 x = getattr(s.dt, attr)
+
+                if not self.encode:
+                    x = x.astype('category')
+
+                    Xt['{}_{}'.format(col, attr)] = x
+
+                    continue
 
                 if attr == 'dayofyear':
                     period = np.where(s.dt.is_leap_year, 366.0, 365.0)
@@ -223,11 +235,15 @@ class CalendarFeatures(BaseEstimator, TransformerMixin):
                     period = 60.0
 
                 theta = 2.0 * np.pi * x / period
+                sin_theta = np.sin(theta)
+                sin_theta = sin_theta.astype(self.dtype)
+                cos_theta = np.cos(theta)
+                cos_theta = cos_theta.astype(self.dtype)
 
-                Xt['{}_{}_sin'.format(s.name, attr)] = np.sin(theta)
-                Xt['{}_{}_cos'.format(s.name, attr)] = np.cos(theta)
+                Xt['{}_{}_sin'.format(col, attr)] = sin_theta
+                Xt['{}_{}_cos'.format(col, attr)] = cos_theta
 
-        return Xt.astype(self.dtype)
+        return Xt
 
 
 class ClippedFeatures(BaseEstimator, TransformerMixin):
