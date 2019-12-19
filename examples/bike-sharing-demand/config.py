@@ -166,12 +166,12 @@ class CalendarFeatures(BaseEstimator, TransformerMixin):
             attrs = []
 
             if duration >= 2.0 * secondsinyear:
-                if s.dt.dayofyear.nunique() > 1:
-                    attrs.append('dayofyear')
-                if s.dt.weekofyear.nunique() > 1:
-                    attrs.append('weekofyear')
-                if s.dt.quarter.nunique() > 1:
-                    attrs.append('quarter')
+                # if s.dt.dayofyear.nunique() > 1:
+                #     attrs.append('dayofyear')
+                # if s.dt.weekofyear.nunique() > 1:
+                #     attrs.append('weekofyear')
+                # if s.dt.quarter.nunique() > 1:
+                #     attrs.append('quarter')
                 if s.dt.month.nunique() > 1:
                     attrs.append('month')
             if duration >= 2.0 * secondsinmonth \
