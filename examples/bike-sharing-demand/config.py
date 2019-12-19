@@ -2,6 +2,7 @@
 
 import builtins
 import itertools
+import logging
 
 from typing import Any
 from typing import Dict
@@ -27,6 +28,13 @@ try:  # scikit-learn<=0.21
 except ImportError:
     from sklearn.feature_selection._from_model import _calculate_threshold
     from sklearn.feature_selection._from_model import _get_feature_importances
+
+logger = logging.getLogger()
+handler = logging.StreamHandler()
+
+logger.addHandler(handler)
+
+logger.setLevel(logging.INFO)
 
 label_col = 'count'
 
@@ -54,33 +62,27 @@ def get_time_cols(X: pd.DataFrame):
 
 def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
     """User-defined preprocessing."""
+    X = data.copy()
+
     if train:
-        data = data.sort_index()
-
-        # label = data[label_col]
-        # q25, q75 = np.quantile(label, [0.25, 0.75])
-        # iqr = q75 - q25
-
-        # data[label_col] = label.clip(q25 - 1.5 * iqr, q75 + 1.5 * iqr)
-
-        # is_inlier = (q25 - 1.5 * iqr <= label) & (label <= q75 + 1.5 * iqr)
-        # data = data[is_inlier]
-
-        X = data.drop(columns=label_col)
-
+        X = X.sort_index()
+        y = X.pop(label_col)
     else:
-        X = data.copy()
-
-    X['datetime'] = X.index
-
-    numerical_cols = get_numerical_cols(X)
-    time_cols = get_time_cols(X)
+        y = None
 
     calendar_features = CalendarFeatures(dtype='float32')
     # clipped_features = ClippedFeatures()
     combined_features = CombinedFeatures()
     diff_features = DiffFeatures()
+    profiler = Profiler(label_col=label_col)
     row_statistics = RowStatistics(dtype='float32')
+
+    X['datetime'] = X.index
+
+    profiler.fit(X, y)
+
+    numerical_cols = get_numerical_cols(X)
+    time_cols = get_time_cols(X)
 
     X.loc[:, numerical_cols] = X.loc[:, numerical_cols].astype('float32')
 
@@ -318,6 +320,31 @@ class ModifiedSelectFromModel(BaseEstimator, TransformerMixin):
         cols = feature_importances >= threshold
 
         return X.loc[:, cols]
+
+
+class Profiler(BaseEstimator, TransformerMixin):
+    def __init__(self, label_col: str = 'label'):
+        self.label_col = label_col
+
+    def fit(
+        self,
+        X: pd.DataFrame,
+        y: Optional[pd.Series] = None
+    ) -> 'Profiler':
+        data = pd.DataFrame(X)
+
+        if y is not None:
+            kwargs = {label_col: y}
+            data = X.assign(**kwargs)
+
+        summary = data.describe(include='all')
+
+        logger.info(summary)
+
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame(X)
 
 
 class RowStatistics(BaseEstimator, TransformerMixin):
