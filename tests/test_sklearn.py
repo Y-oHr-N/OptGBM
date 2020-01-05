@@ -41,6 +41,12 @@ def test_ogbm_regressor() -> None:
     check_estimator(OGBMRegressor)
 
 
+def test_set_other_params() -> None:
+    reg = OGBMRegressor()
+
+    reg.set_params(reg_sqrt=True)
+
+
 @pytest.mark.parametrize('callbacks', [None, [callback]])
 @pytest.mark.parametrize('eval_metric', ['auc', zero_one_loss])
 def test_fit_with_fit_params(
