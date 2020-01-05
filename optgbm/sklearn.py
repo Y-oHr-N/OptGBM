@@ -402,10 +402,12 @@ class _BaseOGBMModel(lgb.LGBMModel):
             self.encoder_ = LabelEncoder()
 
             y = self.encoder_.fit_transform(y)
-            n_classes = len(self.encoder_.classes_)
 
-            if n_classes > 2:
-                params['num_classes'] = n_classes
+            self._classes = self.encoder_.classes_
+            self._n_classes = len(self.encoder_.classes_)
+
+            if self._n_classes > 2:
+                params['num_classes'] = self._n_classes
                 params['objective'] = 'multiclass'
             else:
                 params['objective'] = 'binary'
@@ -665,7 +667,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         """Class labels."""
         self._check_is_fitted()
 
-        return self.encoder_.classes_
+        return self._classes
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
         """Predict using the fitted model.
@@ -709,10 +711,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
             estimator=self,
             force_all_finite=False
         )
-        n_classes = len(self.encoder_.classes_)
         preds = self._Booster.predict(X)
 
-        if n_classes > 2:
+        if self._n_classes > 2:
             return preds
 
         else:
