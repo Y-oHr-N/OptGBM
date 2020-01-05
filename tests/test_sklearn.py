@@ -31,10 +31,12 @@ def zero_one_loss(
     return 'zero_one_loss', np.mean(y_true != y_pred), False
 
 
+@pytest.mark.skip
 def test_ogbm_classifier() -> None:
     check_estimator(OGBMClassifier)
 
 
+@pytest.mark.skip
 def test_ogbm_regressor() -> None:
     check_estimator(OGBMRegressor)
 
