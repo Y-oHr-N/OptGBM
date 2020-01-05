@@ -201,6 +201,40 @@ class _Objective(object):
         return params
 
 
+class _VotingBooster(object):
+    def __init__(
+        self,
+        boosters: List[lgb.Booster],
+        weights: Optional[np.ndarray] = None
+    ) -> None:
+        self.boosters = boosters
+        self.weights = weights
+
+    def predict(
+        self,
+        X: TWO_DIM_ARRAYLIKE_TYPE,
+        **kwargs: Any
+    ) -> TWO_DIM_ARRAYLIKE_TYPE:
+        results = []
+
+        for b in self.boosters:
+            result = b.predict(X, **kwargs)
+
+            results.append(result)
+
+        return np.average(results, axis=0, weights=self.weights)
+
+    def feature_importance(self, **kwargs: Any) -> np.ndarray:
+        results = []
+
+        for b in self.boosters:
+            result = b.feature_importance(**kwargs)
+
+            results.append(result)
+
+        return np.average(results, axis=0, weights=self.weights)
+
+
 class _BaseOGBMModel(BaseEstimator):
     @property
     def _param_distributions(
@@ -225,14 +259,9 @@ class _BaseOGBMModel(BaseEstimator):
         """Feature importances."""
         self._check_is_fitted()
 
-        results = []
-
-        for b in self.boosters_:
-            result = b.feature_importance(importance_type=self.importance_type)
-
-            results.append(result)
-
-        return np.average(results, axis=0, weights=self.weights_)
+        return self.booster_.feature_importance(
+            importance_type=self.importance_type
+        )
 
     def __init__(
         self,
@@ -449,14 +478,14 @@ class _BaseOGBMModel(BaseEstimator):
         self.n_iter_ = self.study_.user_attrs['best_iteration']
 
         try:  # lightgbm<=2.2.3
-            self.boosters_ = [
+            boosters = [
                 lgb.Booster(
                     params={'model_str': model_str}
                 ) for model_str
                 in self.study_.user_attrs['representations']
             ]
         except TypeError:
-            self.boosters_ = [
+            boosters = [
                 lgb.Booster(
                     model_str=model_str,
                     silent=True
@@ -464,9 +493,11 @@ class _BaseOGBMModel(BaseEstimator):
                 in self.study_.user_attrs['representations']
             ]
 
-        self.weights_ = np.array([
+        weights = np.array([
             np.sum(sample_weight[train]) for train, _ in cv.split(X, y)
         ])
+
+        self.booster_ = _VotingBooster(boosters, weights=weights)
 
         return self
 
@@ -515,8 +546,7 @@ class _BaseOGBMModel(BaseEstimator):
 
         booster.free_dataset()
 
-        self.boosters_ = [booster]
-        self.weights_ = np.ones(1)
+        self.booster_ = booster
 
         return self
 
@@ -605,8 +635,8 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     Attributes
     ----------
-    boosters_
-        Trained boosters of CV.
+    booster_
+        Trained booster.
 
     encoder_
         Label encoder.
@@ -620,9 +650,6 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     study_
         Actual study.
-
-    weights_
-        Weights to weight the occurrences of predicted values before averaging.
 
     Examples
     --------
@@ -686,14 +713,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
             force_all_finite=False
         )
         n_classes = len(self.encoder_.classes_)
-        results = []
-
-        for b in self.boosters_:
-            result = b.predict(X)
-
-            results.append(result)
-
-        preds = np.average(results, axis=0, weights=self.weights_)
+        preds = self.booster_.predict(X)
 
         if n_classes > 2:
             return preds
@@ -785,8 +805,8 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     Attributes
     ----------
-    boosters_
-        Trained boosters of CV.
+    booster_
+        Trained booster.
 
     n_features_
         Number of features of fitted model.
@@ -797,9 +817,6 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     study_
         Actual study.
-
-    weights_
-        Weights to weight the occurrences of predicted values before averaging.
 
     Examples
     --------
@@ -889,11 +906,5 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             estimator=self,
             force_all_finite=False
         )
-        results = []
 
-        for b in self.boosters_:
-            result = b.predict(X)
-
-            results.append(result)
-
-        return np.average(results, axis=0, weights=self.weights_)
+        return self.booster_.predict(X)
