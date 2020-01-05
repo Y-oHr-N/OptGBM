@@ -10,7 +10,7 @@ jobs:
           command: |
             python -m venv venv
             . venv/bin/activate
-            pip install .
+            pip install .[develop]
       - run:
           name: run tests
           command: |
