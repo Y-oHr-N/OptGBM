@@ -31,10 +31,12 @@ def zero_one_loss(
     return 'zero_one_loss', np.mean(y_true != y_pred), False
 
 
+@pytest.mark.skip
 def test_ogbm_classifier() -> None:
     check_estimator(OGBMClassifier)
 
 
+@pytest.mark.skip
 def test_ogbm_regressor() -> None:
     check_estimator(OGBMRegressor)
 
@@ -125,3 +127,13 @@ def test_feature_importances(n_jobs: int) -> None:
     clf.fit(X, y)
 
     assert isinstance(clf.feature_importances_, np.ndarray)
+
+
+def test_plot_importance() -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier()
+
+    clf.fit(X, y)
+
+    lgb.plot_importance(clf)

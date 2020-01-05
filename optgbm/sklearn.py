@@ -13,7 +13,6 @@ import lightgbm as lgb
 import numpy as np
 import optuna
 
-from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
 from sklearn.model_selection import BaseCrossValidator
@@ -201,7 +200,45 @@ class _Objective(object):
         return params
 
 
-class _BaseOGBMModel(BaseEstimator):
+class _VotingBooster(object):
+    @property
+    def feature_name(self) -> List[str]:
+        return self.boosters[0].feature_name
+
+    def __init__(
+        self,
+        boosters: List[lgb.Booster],
+        weights: Optional[np.ndarray] = None
+    ) -> None:
+        self.boosters = boosters
+        self.weights = weights
+
+    def predict(
+        self,
+        X: TWO_DIM_ARRAYLIKE_TYPE,
+        **kwargs: Any
+    ) -> TWO_DIM_ARRAYLIKE_TYPE:
+        results = []
+
+        for b in self.boosters:
+            result = b.predict(X, **kwargs)
+
+            results.append(result)
+
+        return np.average(results, axis=0, weights=self.weights)
+
+    def feature_importance(self, **kwargs: Any) -> np.ndarray:
+        results = []
+
+        for b in self.boosters:
+            result = b.feature_importance(**kwargs)
+
+            results.append(result)
+
+        return np.average(results, axis=0, weights=self.weights)
+
+
+class _BaseOGBMModel(lgb.LGBMModel):
     @property
     def _param_distributions(
         self
@@ -219,20 +256,6 @@ class _BaseOGBMModel(BaseEstimator):
         random_state = check_random_state(self.random_state)
 
         return random_state.randint(0, MAX_INT)
-
-    @property
-    def feature_importances_(self) -> np.ndarray:
-        """Feature importances."""
-        self._check_is_fitted()
-
-        results = []
-
-        for b in self.boosters_:
-            result = b.feature_importance(importance_type=self.importance_type)
-
-            results.append(result)
-
-        return np.average(results, axis=0, weights=self.weights_)
 
     def __init__(
         self,
@@ -263,37 +286,37 @@ class _BaseOGBMModel(BaseEstimator):
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None
     ) -> None:
-        self.boosting_type = boosting_type
-        self.class_weight = class_weight
-        self.colsample_bytree = colsample_bytree
+        super().__init__(
+            boosting_type=boosting_type,
+            class_weight=class_weight,
+            colsample_bytree=colsample_bytree,
+            importance_type=importance_type,
+            learning_rate=learning_rate,
+            max_depth=max_depth,
+            min_child_samples=min_child_samples,
+            min_child_weight=min_child_weight,
+            min_split_gain=min_split_gain,
+            num_leaves=num_leaves,
+            n_estimators=n_estimators,
+            n_jobs=n_jobs,
+            objective=objective,
+            random_state=random_state,
+            reg_alpha=reg_alpha,
+            reg_lambda=reg_lambda,
+            subsample=subsample,
+            subsample_for_bin=subsample_for_bin,
+            subsample_freq=subsample_freq
+        )
+
         self.cv = cv
         self.enable_pruning = enable_pruning
-        self.importance_type = importance_type
-        self.learning_rate = learning_rate
-        self.max_depth = max_depth
-        self.min_child_samples = min_child_samples
-        self.min_child_weight = min_child_weight
-        self.min_split_gain = min_split_gain
-        self.num_leaves = num_leaves
-        self.n_estimators = n_estimators
-        self.n_jobs = n_jobs
         self.n_trials = n_trials
-        self.objective = objective
         self.param_distributions = param_distributions
-        self.random_state = random_state
-        self.reg_alpha = reg_alpha
-        self.reg_lambda = reg_lambda
         self.study = study
-        self.subsample = subsample
-        self.subsample_freq = subsample_freq
-        self.subsample_for_bin = subsample_for_bin
         self.timeout = timeout
 
     def _check_is_fitted(self) -> None:
         check_is_fitted(self, 'n_features_')
-
-    def _more_tags(self) -> Dict[str, Any]:
-        return {'allow_nan': True, 'non_deterministic': True}
 
     def fit(
         self,
@@ -349,7 +372,7 @@ class _BaseOGBMModel(BaseEstimator):
             force_all_finite=False
         )
 
-        _, self.n_features_ = X.shape
+        _, self._n_features = X.shape
 
         is_classifier = self._estimator_type == 'classifier'
         cv = check_cv(self.cv, y, is_classifier)
@@ -379,10 +402,12 @@ class _BaseOGBMModel(BaseEstimator):
             self.encoder_ = LabelEncoder()
 
             y = self.encoder_.fit_transform(y)
-            n_classes = len(self.encoder_.classes_)
 
-            if n_classes > 2:
-                params['num_classes'] = n_classes
+            self._classes = self.encoder_.classes_
+            self._n_classes = len(self.encoder_.classes_)
+
+            if self._n_classes > 2:
+                params['num_classes'] = self._n_classes
                 params['objective'] = 'multiclass'
             else:
                 params['objective'] = 'binary'
@@ -446,17 +471,17 @@ class _BaseOGBMModel(BaseEstimator):
         )
 
         self.best_params_ = {**params, **self.study_.best_params}
-        self.n_iter_ = self.study_.user_attrs['best_iteration']
+        self._best_iteration = self.study_.user_attrs['best_iteration']
 
         try:  # lightgbm<=2.2.3
-            self.boosters_ = [
+            boosters = [
                 lgb.Booster(
                     params={'model_str': model_str}
                 ) for model_str
                 in self.study_.user_attrs['representations']
             ]
         except TypeError:
-            self.boosters_ = [
+            boosters = [
                 lgb.Booster(
                     model_str=model_str,
                     silent=True
@@ -464,9 +489,11 @@ class _BaseOGBMModel(BaseEstimator):
                 in self.study_.user_attrs['representations']
             ]
 
-        self.weights_ = np.array([
+        weights = np.array([
             np.sum(sample_weight[train]) for train, _ in cv.split(X, y)
         ])
+
+        self._Booster = _VotingBooster(boosters, weights=weights)
 
         return self
 
@@ -511,12 +538,15 @@ class _BaseOGBMModel(BaseEstimator):
         params = self.best_params_.copy()
         params['n_jobs'] = 0
         dataset = lgb.Dataset(X, label=y, weight=sample_weight)
-        booster = lgb.train(params, dataset, num_boost_round=self.n_iter_)
+        booster = lgb.train(
+            params,
+            dataset,
+            num_boost_round=self._best_iteration
+        )
 
         booster.free_dataset()
 
-        self.boosters_ = [booster]
-        self.weights_ = np.ones(1)
+        self._Booster = booster
 
         return self
 
@@ -605,8 +635,11 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     Attributes
     ----------
-    boosters_
-        Trained boosters of CV.
+    best_iteration_
+        Number of iterations as selected by early stopping.
+
+    booster_
+        Trained booster.
 
     encoder_
         Label encoder.
@@ -614,15 +647,8 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     n_features_
         Number of features of fitted model.
 
-    n_iter_
-        Number of iterations as selected by early stopping. a.k.a.
-        `best_iteration_`.
-
     study_
         Actual study.
-
-    weights_
-        Weights to weight the occurrences of predicted values before averaging.
 
     Examples
     --------
@@ -641,7 +667,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         """Class labels."""
         self._check_is_fitted()
 
-        return self.encoder_.classes_
+        return self._classes
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
         """Predict using the fitted model.
@@ -685,17 +711,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
             estimator=self,
             force_all_finite=False
         )
-        n_classes = len(self.encoder_.classes_)
-        results = []
+        preds = self._Booster.predict(X)
 
-        for b in self.boosters_:
-            result = b.predict(X)
-
-            results.append(result)
-
-        preds = np.average(results, axis=0, weights=self.weights_)
-
-        if n_classes > 2:
+        if self._n_classes > 2:
             return preds
 
         else:
@@ -785,21 +803,17 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     Attributes
     ----------
-    boosters_
-        Trained boosters of CV.
+    best_iteration_
+        Number of iterations as selected by early stopping.
+
+    booster_
+        Trained booster.
 
     n_features_
         Number of features of fitted model.
 
-    n_iter_
-        Number of iterations as selected by early stopping. a.k.a.
-        `best_iteration_`.
-
     study_
         Actual study.
-
-    weights_
-        Weights to weight the occurrences of predicted values before averaging.
 
     Examples
     --------
@@ -889,11 +903,5 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             estimator=self,
             force_all_finite=False
         )
-        results = []
 
-        for b in self.boosters_:
-            result = b.predict(X)
-
-            results.append(result)
-
-        return np.average(results, axis=0, weights=self.weights_)
+        return self._Booster.predict(X)
