@@ -236,38 +236,56 @@ class _BaseOGBMModel(BaseEstimator):
 
     def __init__(
         self,
-        class_weight: Optional[Union[str, Dict[str, float]]] = None,
+        boosting_type: str = 'gbdt',
+        num_leaves: int = 31,
+        max_depth: int = -1,
+        learning_rate: float = 0.1,
+        n_estimators: int = 1_000,
+        subsample_for_bin: int = 200_000,
+        objective: Optional[str] = None,
+        class_weight: Optional[Union[Dict[str, float], str]] = None,
+        min_split_gain: float = 0.0,
+        min_child_weight: float = 1e-03,
+        min_child_samples: int = 20,
+        subsample: float = 1.0,
+        subsample_freq: int = 0,
+        colsample_bytree: float = 1.0,
+        reg_alpha: float = 0.0,
+        reg_lambda: float = 0.0,
+        random_state: Optional[RANDOM_STATE_TYPE] = None,
+        n_jobs: int = 1,
+        importance_type: str = 'split',
         cv: Union[BaseCrossValidator, int] = 5,
         enable_pruning: bool = False,
-        importance_type: str = 'split',
-        learning_rate: float = 0.1,
-        max_depth: int = -1,
-        min_split_gain: float = 0.0,
-        n_estimators: int = 1_000,
-        n_jobs: int = 1,
         n_trials: int = 25,
-        objective: Optional[str] = None,
         param_distributions:
-            Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
-        random_state: Optional[RANDOM_STATE_TYPE] = None,
+            Optional[Dict[optuna.distributions.BaseDistribution, str]] = None,
         study: Optional[optuna.study.Study] = None,
-        subsample_for_bin: int = 200_000,
         timeout: Optional[float] = None
     ) -> None:
+        self.boosting_type = boosting_type
         self.class_weight = class_weight
+        self.colsample_bytree = colsample_bytree
         self.cv = cv
         self.enable_pruning = enable_pruning
         self.importance_type = importance_type
         self.learning_rate = learning_rate
         self.max_depth = max_depth
+        self.min_child_samples = min_child_samples
+        self.min_child_weight = min_child_weight
         self.min_split_gain = min_split_gain
+        self.num_leaves = num_leaves
         self.n_estimators = n_estimators
         self.n_jobs = n_jobs
         self.n_trials = n_trials
         self.objective = objective
         self.param_distributions = param_distributions
         self.random_state = random_state
+        self.reg_alpha = reg_alpha
+        self.reg_lambda = reg_lambda
         self.study = study
+        self.subsample = subsample
+        self.subsample_freq = subsample_freq
         self.subsample_for_bin = subsample_for_bin
         self.timeout = timeout
 
@@ -339,11 +357,20 @@ class _BaseOGBMModel(BaseEstimator):
         seed = self._random_state
 
         params: Dict[str, Any] = {
+            'boosting_type': self.boosting_type,
+            'colsample_bytree': self.colsample_bytree,
             'learning_rate': self.learning_rate,
             'max_depth': self.max_depth,
+            'min_child_samples': self.min_child_samples,
+            'min_child_weight': self.min_child_weight,
             'min_split_gain': self.min_split_gain,
+            'num_leaves': self.num_leaves,
             'n_jobs': 1,
+            'reg_alpha': self.reg_alpha,
+            'reg_lambda': self.reg_lambda,
             'seed': seed,
+            'subsample': self.subsample,
+            'subsample_freq': self.subsample_freq,
             'subsample_for_bin': self.subsample_for_bin,
             'verbose': -1
         }
@@ -499,8 +526,64 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     Parameters
     ----------
+    boosting_type
+        Boosting type.
+
+    num_leaves
+        Maximum tree leaves for base learners.
+
+    max_depth
+        Maximum depth of each tree.
+
+    learning_rate
+        Learning rate.
+
+    n_estimators
+        Maximum number of iterations of the boosting process. a.k.a.
+        `num_boost_round`.
+
+    subsample_for_bin
+        Number of samples for constructing bins.
+
+    objective
+        Learning objective.
+
     class_weight
         Weights associated with classes.
+
+    min_split_gain
+        Minimum loss reduction required to make a further partition on a leaf
+        node of the tree.
+
+    min_child_weight
+        Minimum sum of instance weight (hessian) needed in a child (leaf).
+
+    min_child_samples
+        Minimum number of data needed in a child (leaf).
+
+    subsample
+        Subsample ratio of the training instance.
+
+    subsample_freq
+        Frequence of subsample.
+
+    colsample_bytree
+        Subsample ratio of columns when constructing each tree.
+
+    reg_alpha
+        L1 regularization term on weights.
+
+    reg_lambda
+        L2 regularization term on weights.
+
+    random_state
+        Seed of the pseudo random number generator.
+
+    n_jobs
+        Number of parallel jobs.
+
+    importance_type
+        Type of feature importances.
 
     cv
         Cross-validation strategy.
@@ -508,43 +591,14 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     enable_pruning
         Used to activate pruning.
 
-    importance_type
-        Type of feature importances.
-
-    learning_rate
-        Learning rate.
-
-    max_depth
-        Maximum depth of each tree.
-
-    min_split_gain
-        Minimum loss reduction required to make a further partition on a leaf
-        node of the tree.
-
-    n_estimators
-        Maximum number of iterations of the boosting process. a.k.a.
-        `num_boost_round`.
-
-    n_jobs
-        Number of parallel jobs.
-
     n_trials
         Number of trials.
-
-    objective
-        Learning objective.
 
     param_distributions
         Dictionary where keys are parameters and values are distributions.
 
-    random_state
-        Seed of the pseudo random number generator.
-
     study
         Study that corresponds to the optimization task.
-
-    subsample_for_bin
-        Number of samples for constructing bins.
 
     timeout
         Time limit in seconds for the search of appropriate models.
@@ -655,49 +709,76 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     Parameters
     ----------
+    boosting_type
+        Boosting type.
+
+    num_leaves
+        Maximum tree leaves for base learners.
+
+    max_depth
+        Maximum depth of each tree.
+
+    learning_rate
+        Learning rate.
+
+    n_estimators
+        Maximum number of iterations of the boosting process. a.k.a.
+        `num_boost_round`.
+
+    subsample_for_bin
+        Number of samples for constructing bins.
+
+    objective
+        Learning objective.
+
+    min_split_gain
+        Minimum loss reduction required to make a further partition on a leaf
+        node of the tree.
+
+    min_child_weight
+        Minimum sum of instance weight (hessian) needed in a child (leaf).
+
+    min_child_samples
+        Minimum number of data needed in a child (leaf).
+
+    subsample
+        Subsample ratio of the training instance.
+
+    subsample_freq
+        Frequence of subsample.
+
+    colsample_bytree
+        Subsample ratio of columns when constructing each tree.
+
+    reg_alpha
+        L1 regularization term on weights.
+
+    reg_lambda
+        L2 regularization term on weights.
+
+    random_state
+        Seed of the pseudo random number generator.
+
+    n_jobs
+        Number of parallel jobs.
+
+    importance_type
+        Type of feature importances.
+
     cv
         Cross-validation strategy.
 
     enable_pruning
         Used to activate pruning.
 
-    importance_type
-        Type of feature importances.
-
-    learning_rate
-        Learning rate.
-
-    max_depth
-        Maximum depth of each tree.
-
-    min_split_gain
-        Minimum loss reduction required to make a further partition on a leaf
-        node of the tree.
-
-    n_estimators
-        Maximum number of iterations of the boosting process. a.k.a.
-        `num_boost_round`.
-
-    n_jobs
-        Number of parallel jobs.
-
     n_trials
         Number of trials.
-
-    objective
-        Learning objective.
 
     param_distributions
         Dictionary where keys are parameters and values are distributions.
 
-    random_state
-        Seed of the pseudo random number generator.
-
     study
         Study that corresponds to the optimization task.
-
-    subsample_for_bin
-        Number of samples for constructing bins.
 
     timeout
         Time limit in seconds for the search of appropriate models.
@@ -734,37 +815,55 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     def __init__(
         self,
+        boosting_type: str = 'gbdt',
+        num_leaves: int = 31,
+        max_depth: int = -1,
+        learning_rate: float = 0.1,
+        n_estimators: int = 1_000,
+        subsample_for_bin: int = 200_000,
+        objective: Optional[str] = None,
+        min_split_gain: float = 0.0,
+        min_child_weight: float = 1e-03,
+        min_child_samples: int = 20,
+        subsample: float = 1.0,
+        subsample_freq: int = 0,
+        colsample_bytree: float = 1.0,
+        reg_alpha: float = 0.0,
+        reg_lambda: float = 0.0,
+        random_state: Optional[RANDOM_STATE_TYPE] = None,
+        n_jobs: int = 1,
+        importance_type: str = 'split',
         cv: Union[BaseCrossValidator, int] = 5,
         enable_pruning: bool = False,
-        importance_type: str = 'split',
-        learning_rate: float = 0.1,
-        max_depth: int = -1,
-        min_split_gain: float = 0.0,
-        n_estimators: int = 1_000,
-        n_jobs: int = 1,
         n_trials: int = 25,
-        objective: Optional[str] = None,
         param_distributions:
-            Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
-        random_state: Optional[RANDOM_STATE_TYPE] = None,
+            Optional[Dict[optuna.distributions.BaseDistribution, str]] = None,
         study: Optional[optuna.study.Study] = None,
-        subsample_for_bin: int = 200_000,
         timeout: Optional[float] = None
     ) -> None:
         super().__init__(
+            boosting_type=boosting_type,
+            colsample_bytree=colsample_bytree,
             cv=cv,
             enable_pruning=enable_pruning,
             importance_type=importance_type,
             learning_rate=learning_rate,
             max_depth=max_depth,
+            min_child_samples=min_child_samples,
+            min_child_weight=min_child_weight,
             min_split_gain=min_split_gain,
+            num_leaves=num_leaves,
             n_estimators=n_estimators,
             n_jobs=n_jobs,
             n_trials=n_trials,
             objective=objective,
             param_distributions=param_distributions,
             random_state=random_state,
+            reg_alpha=reg_alpha,
+            reg_lambda=reg_lambda,
             study=study,
+            subsample=subsample,
+            subsample_freq=subsample_freq,
             subsample_for_bin=subsample_for_bin,
             timeout=timeout
         )
