@@ -127,3 +127,13 @@ def test_feature_importances(n_jobs: int) -> None:
     clf.fit(X, y)
 
     assert isinstance(clf.feature_importances_, np.ndarray)
+
+
+def test_plot_importance() -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier()
+
+    clf.fit(X, y)
+
+    lgb.plot_importance(clf)

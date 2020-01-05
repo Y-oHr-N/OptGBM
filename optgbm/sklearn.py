@@ -201,6 +201,10 @@ class _Objective(object):
 
 
 class _VotingBooster(object):
+    @property
+    def feature_name(self) -> List[str]:
+        return self.boosters[0].feature_name
+
     def __init__(
         self,
         boosters: List[lgb.Booster],
