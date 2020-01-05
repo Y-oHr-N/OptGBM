@@ -137,3 +137,20 @@ def test_plot_importance() -> None:
     clf.fit(X, y)
 
     lgb.plot_importance(clf)
+
+
+@pytest.mark.parametrize('n_jobs', [-1, 1])
+def test_reproducibility(n_jobs: int) -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier(n_jobs=n_jobs, random_state=0)
+
+    clf.fit(X, y)
+
+    probas = clf.predict_proba(X)
+
+    clf = OGBMClassifier(n_jobs=n_jobs, random_state=0)
+
+    clf.fit(X, y)
+
+    assert np.array_equal(probas, clf.predict_proba(X))
