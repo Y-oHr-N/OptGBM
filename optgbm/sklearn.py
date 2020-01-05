@@ -388,7 +388,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
             'min_child_weight': self.min_child_weight,
             'min_split_gain': self.min_split_gain,
             'num_leaves': self.num_leaves,
-            'n_jobs': 1,
+            'n_jobs': self.n_jobs,
             'reg_alpha': self.reg_alpha,
             'reg_lambda': self.reg_lambda,
             'seed': seed,
@@ -465,7 +465,6 @@ class _BaseOGBMModel(lgb.LGBMModel):
         self.study_.optimize(
             objective,
             catch=(),
-            n_jobs=self.n_jobs,
             n_trials=self.n_trials,
             timeout=self.timeout
         )
@@ -536,7 +535,6 @@ class _BaseOGBMModel(lgb.LGBMModel):
         self._check_is_fitted()
 
         params = self.best_params_.copy()
-        params['n_jobs'] = 0
         dataset = lgb.Dataset(X, label=y, weight=sample_weight)
         booster = lgb.train(
             params,
