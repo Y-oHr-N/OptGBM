@@ -13,7 +13,6 @@ import lightgbm as lgb
 import numpy as np
 import optuna
 
-from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
 from sklearn.model_selection import BaseCrossValidator
@@ -74,8 +73,8 @@ DEFAULT_PARAM_DISTRIBUTIONS = {
         optuna.distributions.DiscreteUniformDistribution(0.1, 1.0, 0.05),
     'min_child_samples':
         optuna.distributions.IntUniformDistribution(1, 100),
-    'min_child_weight':
-        optuna.distributions.LogUniformDistribution(1e-03, 10.0),
+    # 'min_child_weight':
+    #     optuna.distributions.LogUniformDistribution(1e-03, 10.0),
     'num_leaves':
         optuna.distributions.IntUniformDistribution(2, 127),
     'reg_alpha':
@@ -193,18 +192,53 @@ class _Objective(object):
         return callbacks
 
     def _get_params(self, trial: optuna.trial.Trial) -> Dict[str, Any]:
-        params: Dict[str, Any] = {
-            name: trial._suggest(
-                name, distribution
-            ) for name, distribution in self.param_distributions.items()
-        }
+        params: Dict[str, Any] = self.params.copy()
 
-        params.update(self.params)
+        for name, distribution in self.param_distributions.items():
+            params[name] = trial._suggest(name, distribution)
 
         return params
 
 
-class _BaseOGBMModel(BaseEstimator):
+class _VotingBooster(object):
+    @property
+    def feature_name(self) -> List[str]:
+        return self.boosters[0].feature_name
+
+    def __init__(
+        self,
+        boosters: List[lgb.Booster],
+        weights: Optional[np.ndarray] = None
+    ) -> None:
+        self.boosters = boosters
+        self.weights = weights
+
+    def predict(
+        self,
+        X: TWO_DIM_ARRAYLIKE_TYPE,
+        **kwargs: Any
+    ) -> TWO_DIM_ARRAYLIKE_TYPE:
+        results = []
+
+        for b in self.boosters:
+            result = b.predict(X, **kwargs)
+
+            results.append(result)
+
+        return np.average(results, axis=0, weights=self.weights)
+
+    def feature_importance(self, **kwargs: Any) -> np.ndarray:
+        results = []
+
+        for b in self.boosters:
+            result = b.feature_importance(**kwargs)
+
+            results.append(result)
+
+        return np.average(results, axis=0, weights=self.weights)
+
+
+class _BaseOGBMModel(lgb.LGBMModel):
     @property
     def _param_distributions(
         self
@@ -223,64 +257,66 @@ class _BaseOGBMModel(BaseEstimator):
 
         return random_state.randint(0, MAX_INT)
 
-    @property
-    def feature_importances_(self) -> np.ndarray:
-        """Feature importances."""
-        self._check_is_fitted()
-
-        results = []
-
-        for b in self.boosters_:
-            result = b.feature_importance(importance_type=self.importance_type)
-
-            results.append(result)
-
-        return np.average(results, axis=0, weights=self.weights_)
-
     def __init__(
         self,
-        class_weight: Optional[Union[str, Dict[str, float]]] = None,
+        boosting_type: str = 'gbdt',
+        num_leaves: int = 31,
+        max_depth: int = -1,
+        learning_rate: float = 0.1,
+        n_estimators: int = 1_000,
+        subsample_for_bin: int = 200_000,
+        objective: Optional[str] = None,
+        class_weight: Optional[Union[Dict[str, float], str]] = None,
+        min_split_gain: float = 0.0,
+        min_child_weight: float = 1e-03,
+        min_child_samples: int = 20,
+        subsample: float = 1.0,
+        subsample_freq: int = 0,
+        colsample_bytree: float = 1.0,
+        reg_alpha: float = 0.0,
+        reg_lambda: float = 0.0,
+        random_state: Optional[RANDOM_STATE_TYPE] = None,
+        n_jobs: int = 1,
+        importance_type: str = 'split',
         cv: Union[BaseCrossValidator, int] = 5,
         enable_pruning: bool = False,
-        importance_type: str = 'split',
-        learning_rate: float = 0.1,
-        max_depth: int = -1,
-        min_split_gain: float = 0.0,
-        n_estimators: int = 1_000,
-        n_jobs: int = 1,
         n_trials: int = 25,
-        objective: Optional[str] = None,
         param_distributions:
-            Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
-        random_state: Optional[RANDOM_STATE_TYPE] = None,
-        refit: bool = False,
+            Optional[Dict[optuna.distributions.BaseDistribution, str]] = None,
         study: Optional[optuna.study.Study] = None,
-        subsample_for_bin: int = 200_000,
         timeout: Optional[float] = None
     ) -> None:
-        self.class_weight = class_weight
+        super().__init__(
+            boosting_type=boosting_type,
+            class_weight=class_weight,
+            colsample_bytree=colsample_bytree,
+            importance_type=importance_type,
+            learning_rate=learning_rate,
+            max_depth=max_depth,
+            min_child_samples=min_child_samples,
+            min_child_weight=min_child_weight,
+            min_split_gain=min_split_gain,
+            num_leaves=num_leaves,
+            n_estimators=n_estimators,
+            n_jobs=n_jobs,
+            objective=objective,
+            random_state=random_state,
+            reg_alpha=reg_alpha,
+            reg_lambda=reg_lambda,
+            subsample=subsample,
+            subsample_for_bin=subsample_for_bin,
+            subsample_freq=subsample_freq
+        )
+
         self.cv = cv
         self.enable_pruning = enable_pruning
-        self.importance_type = importance_type
-        self.learning_rate = learning_rate
-        self.max_depth = max_depth
-        self.min_split_gain = min_split_gain
-        self.n_estimators = n_estimators
-        self.n_jobs = n_jobs
         self.n_trials = n_trials
-        self.objective = objective
         self.param_distributions = param_distributions
-        self.random_state = random_state
-        self.refit = refit
         self.study = study
-        self.subsample_for_bin = subsample_for_bin
         self.timeout = timeout
 
     def _check_is_fitted(self) -> None:
         check_is_fitted(self, 'n_features_')
-
-    def _more_tags(self) -> Dict[str, Any]:
-        return {'allow_nan': True, 'non_deterministic': True}
 
     def fit(
         self,
@@ -336,7 +372,7 @@ class _BaseOGBMModel(BaseEstimator):
             force_all_finite=False
         )
 
-        _, self.n_features_ = X.shape
+        _, self._n_features = X.shape
 
         is_classifier = self._estimator_type == 'classifier'
         cv = check_cv(self.cv, y, is_classifier)
@@ -344,11 +380,20 @@ class _BaseOGBMModel(BaseEstimator):
         seed = self._random_state
 
         params: Dict[str, Any] = {
+            'boosting_type': self.boosting_type,
+            'colsample_bytree': self.colsample_bytree,
             'learning_rate': self.learning_rate,
             'max_depth': self.max_depth,
+            'min_child_samples': self.min_child_samples,
+            'min_child_weight': self.min_child_weight,
             'min_split_gain': self.min_split_gain,
-            'n_jobs': 1,
+            'num_leaves': self.num_leaves,
+            'n_jobs': self.n_jobs,
+            'reg_alpha': self.reg_alpha,
+            'reg_lambda': self.reg_lambda,
             'seed': seed,
+            'subsample': self.subsample,
+            'subsample_freq': self.subsample_freq,
             'subsample_for_bin': self.subsample_for_bin,
             'verbose': -1
         }
@@ -357,10 +402,12 @@ class _BaseOGBMModel(BaseEstimator):
             self.encoder_ = LabelEncoder()
 
             y = self.encoder_.fit_transform(y)
-            n_classes = len(self.encoder_.classes_)
 
-            if n_classes > 2:
-                params['num_classes'] = n_classes
+            self._classes = self.encoder_.classes_
+            self._n_classes = len(self.encoder_.classes_)
+
+            if self._n_classes > 2:
+                params['num_classes'] = self._n_classes
                 params['objective'] = 'multiclass'
             else:
                 params['objective'] = 'binary'
@@ -418,45 +465,86 @@ class _BaseOGBMModel(BaseEstimator):
         self.study_.optimize(
             objective,
             catch=(),
-            n_jobs=self.n_jobs,
             n_trials=self.n_trials,
             timeout=self.timeout
         )
 
-        self.n_iter_ = self.study_.user_attrs['best_iteration']
+        self.best_params_ = {**params, **self.study_.best_params}
+        self._best_iteration = self.study_.user_attrs['best_iteration']
 
-        if self.refit:
-            params.update(self.study_.best_params)
+        try:  # lightgbm<=2.2.3
+            boosters = [
+                lgb.Booster(
+                    params={'model_str': model_str}
+                ) for model_str
+                in self.study_.user_attrs['representations']
+            ]
+        except TypeError:
+            boosters = [
+                lgb.Booster(
+                    model_str=model_str,
+                    silent=True
+                ) for model_str
+                in self.study_.user_attrs['representations']
+            ]
 
-            params['n_jobs'] = 0
+        weights = np.array([
+            np.sum(sample_weight[train]) for train, _ in cv.split(X, y)
+        ])
 
-            booster = lgb.train(params, dataset, num_boost_round=self.n_iter_)
+        self._Booster = _VotingBooster(boosters, weights=weights)
 
-            booster.free_dataset()
+        return self
 
-            self.boosters_ = [booster]
-            self.weights_ = np.ones(1)
+    def refit(
+        self,
+        X: TWO_DIM_ARRAYLIKE_TYPE,
+        y: ONE_DIM_ARRAYLIKE_TYPE,
+        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
+        callbacks: Optional[List[Callable]] = None,
+        categorical_feature: Union[List[int], List[str], str] = 'auto',
+        feature_name: Union[List[str], str] = 'auto'
+    ) -> '_BaseOGBMModel':
+        """Refit the estimator with the best found hyperparameters.
 
-        else:
-            try:  # lightgbm<=2.2.3
-                self.boosters_ = [
-                    lgb.Booster(
-                        params={'model_str': model_str}
-                    ) for model_str
-                    in self.study_.user_attrs['representations']
-                ]
-            except TypeError:
-                self.boosters_ = [
-                    lgb.Booster(
-                        model_str=model_str,
-                        silent=True
-                    ) for model_str
-                    in self.study_.user_attrs['representations']
-                ]
+        Parameters
+        ----------
+        X
+            Training data.
 
-            self.weights_ = np.array([
-                np.sum(sample_weight[train]) for train, _ in cv.split(X, y)
-            ])
+        y
+            Target.
+
+        sample_weight
+            Weights of training data.
+
+        callbacks
+            List of callback functions that are applied at each iteration.
+
+        categorical_feature
+            Categorical features.
+
+        feature_name
+            Feature names.
+
+        Returns
+        -------
+        self
+            Return self.
+        """
+        self._check_is_fitted()
+
+        params = self.best_params_.copy()
+        dataset = lgb.Dataset(X, label=y, weight=sample_weight)
+        booster = lgb.train(
+            params,
+            dataset,
+            num_boost_round=self._best_iteration
+        )
+
+        booster.free_dataset()
+
+        self._Booster = booster
 
         return self
 
@@ -466,8 +554,64 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     Parameters
     ----------
+    boosting_type
+        Boosting type.
+
+    num_leaves
+        Maximum tree leaves for base learners.
+
+    max_depth
+        Maximum depth of each tree.
+
+    learning_rate
+        Learning rate.
+
+    n_estimators
+        Maximum number of iterations of the boosting process. a.k.a.
+        `num_boost_round`.
+
+    subsample_for_bin
+        Number of samples for constructing bins.
+
+    objective
+        Learning objective.
+
     class_weight
         Weights associated with classes.
+
+    min_split_gain
+        Minimum loss reduction required to make a further partition on a leaf
+        node of the tree.
+
+    min_child_weight
+        Minimum sum of instance weight (hessian) needed in a child (leaf).
+
+    min_child_samples
+        Minimum number of data needed in a child (leaf).
+
+    subsample
+        Subsample ratio of the training instance.
+
+    subsample_freq
+        Frequence of subsample.
+
+    colsample_bytree
+        Subsample ratio of columns when constructing each tree.
+
+    reg_alpha
+        L1 regularization term on weights.
+
+    reg_lambda
+        L2 regularization term on weights.
+
+    random_state
+        Seed of the pseudo random number generator.
+
+    n_jobs
+        Number of parallel jobs.
+
+    importance_type
+        Type of feature importances.
 
     cv
         Cross-validation strategy.
@@ -475,54 +619,25 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     enable_pruning
         Used to activate pruning.
 
-    importance_type
-        Type of feature importances.
-
-    learning_rate
-        Learning rate.
-
-    max_depth
-        Maximum depth of each tree.
-
-    min_split_gain
-        Minimum loss reduction required to make a further partition on a leaf
-        node of the tree.
-
-    n_estimators
-        Maximum number of iterations of the boosting process. a.k.a.
-        `num_boost_round`.
-
-    n_jobs
-        Number of parallel jobs.
-
     n_trials
         Number of trials.
-
-    objective
-        Learning objective.
 
     param_distributions
         Dictionary where keys are parameters and values are distributions.
 
-    random_state
-        Seed of the pseudo random number generator.
-
-    refit
-        If True, refit the estimator with the best found hyperparameters.
-
     study
         Study that corresponds to the optimization task.
-
-    subsample_for_bin
-        Number of samples for constructing bins.
 
     timeout
         Time limit in seconds for the search of appropriate models.
 
     Attributes
     ----------
-    boosters_
-        Trained boosters of CV.
+    best_iteration_
+        Number of iterations as selected by early stopping.
+
+    booster_
+        Trained booster.
 
     encoder_
         Label encoder.
@@ -530,15 +645,8 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     n_features_
         Number of features of fitted model.
 
-    n_iter_
-        Number of iterations as selected by early stopping. a.k.a.
-        `best_iteration_`.
-
     study_
         Actual study.
-
-    weights_
-        Weights to weight the occurrences of predicted values before averaging.
 
     Examples
     --------
@@ -557,7 +665,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         """Class labels."""
         self._check_is_fitted()
 
-        return self.encoder_.classes_
+        return self._classes
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
         """Predict using the fitted model.
@@ -601,17 +709,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
             estimator=self,
             force_all_finite=False
         )
-        n_classes = len(self.encoder_.classes_)
-        results = []
+        preds = self._Booster.predict(X)
 
-        for b in self.boosters_:
-            result = b.predict(X)
-
-            results.append(result)
-
-        preds = np.average(results, axis=0, weights=self.weights_)
-
-        if n_classes > 2:
+        if self._n_classes > 2:
             return preds
 
         else:
@@ -625,73 +725,93 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     Parameters
     ----------
+    boosting_type
+        Boosting type.
+
+    num_leaves
+        Maximum tree leaves for base learners.
+
+    max_depth
+        Maximum depth of each tree.
+
+    learning_rate
+        Learning rate.
+
+    n_estimators
+        Maximum number of iterations of the boosting process. a.k.a.
+        `num_boost_round`.
+
+    subsample_for_bin
+        Number of samples for constructing bins.
+
+    objective
+        Learning objective.
+
+    min_split_gain
+        Minimum loss reduction required to make a further partition on a leaf
+        node of the tree.
+
+    min_child_weight
+        Minimum sum of instance weight (hessian) needed in a child (leaf).
+
+    min_child_samples
+        Minimum number of data needed in a child (leaf).
+
+    subsample
+        Subsample ratio of the training instance.
+
+    subsample_freq
+        Frequence of subsample.
+
+    colsample_bytree
+        Subsample ratio of columns when constructing each tree.
+
+    reg_alpha
+        L1 regularization term on weights.
+
+    reg_lambda
+        L2 regularization term on weights.
+
+    random_state
+        Seed of the pseudo random number generator.
+
+    n_jobs
+        Number of parallel jobs.
+
+    importance_type
+        Type of feature importances.
+
     cv
         Cross-validation strategy.
 
     enable_pruning
         Used to activate pruning.
 
-    importance_type
-        Type of feature importances.
-
-    learning_rate
-        Learning rate.
-
-    max_depth
-        Maximum depth of each tree.
-
-    min_split_gain
-        Minimum loss reduction required to make a further partition on a leaf
-        node of the tree.
-
-    n_estimators
-        Maximum number of iterations of the boosting process. a.k.a.
-        `num_boost_round`.
-
-    n_jobs
-        Number of parallel jobs.
-
     n_trials
         Number of trials.
-
-    objective
-        Learning objective.
 
     param_distributions
         Dictionary where keys are parameters and values are distributions.
 
-    random_state
-        Seed of the pseudo random number generator.
-
-    refit
-        If True, refit the estimator with the best found hyperparameters.
-
     study
         Study that corresponds to the optimization task.
-
-    subsample_for_bin
-        Number of samples for constructing bins.
 
     timeout
         Time limit in seconds for the search of appropriate models.
 
     Attributes
     ----------
-    boosters_
-        Trained boosters of CV.
+    best_iteration_
+        Number of iterations as selected by early stopping.
+
+    booster_
+        Trained booster.
 
     n_features_
         Number of features of fitted model.
 
-    n_iter_
-        Number of iterations as selected by early stopping. a.k.a.
-        `best_iteration_`.
-
     study_
         Actual study.
-
-    weights_
-        Weights to weight the occurrences of predicted values before averaging.
 
     Examples
     --------
@@ -707,39 +827,55 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     def __init__(
         self,
+        boosting_type: str = 'gbdt',
+        num_leaves: int = 31,
+        max_depth: int = -1,
+        learning_rate: float = 0.1,
+        n_estimators: int = 1_000,
+        subsample_for_bin: int = 200_000,
+        objective: Optional[str] = None,
+        min_split_gain: float = 0.0,
+        min_child_weight: float = 1e-03,
+        min_child_samples: int = 20,
+        subsample: float = 1.0,
+        subsample_freq: int = 0,
+        colsample_bytree: float = 1.0,
+        reg_alpha: float = 0.0,
+        reg_lambda: float = 0.0,
+        random_state: Optional[RANDOM_STATE_TYPE] = None,
+        n_jobs: int = 1,
+        importance_type: str = 'split',
         cv: Union[BaseCrossValidator, int] = 5,
         enable_pruning: bool = False,
-        importance_type: str = 'split',
-        learning_rate: float = 0.1,
-        max_depth: int = -1,
-        min_split_gain: float = 0.0,
-        n_estimators: int = 1_000,
-        n_jobs: int = 1,
         n_trials: int = 25,
-        objective: Optional[str] = None,
         param_distributions:
-            Optional[Dict[str, optuna.distributions.BaseDistribution]] = None,
-        random_state: Optional[RANDOM_STATE_TYPE] = None,
-        refit: bool = False,
+            Optional[Dict[optuna.distributions.BaseDistribution, str]] = None,
         study: Optional[optuna.study.Study] = None,
-        subsample_for_bin: int = 200_000,
         timeout: Optional[float] = None
     ) -> None:
         super().__init__(
+            boosting_type=boosting_type,
+            colsample_bytree=colsample_bytree,
             cv=cv,
             enable_pruning=enable_pruning,
             importance_type=importance_type,
             learning_rate=learning_rate,
             max_depth=max_depth,
+            min_child_samples=min_child_samples,
+            min_child_weight=min_child_weight,
             min_split_gain=min_split_gain,
+            num_leaves=num_leaves,
             n_estimators=n_estimators,
             n_jobs=n_jobs,
             n_trials=n_trials,
             objective=objective,
             param_distributions=param_distributions,
             random_state=random_state,
-            refit=refit,
+            reg_alpha=reg_alpha,
+            reg_lambda=reg_lambda,
             study=study,
+            subsample=subsample,
+            subsample_freq=subsample_freq,
             subsample_for_bin=subsample_for_bin,
             timeout=timeout
         )
@@ -765,11 +901,5 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             estimator=self,
             force_all_finite=False
         )
-        results = []
 
-        for b in self.boosters_:
-            result = b.predict(X)
-
-            results.append(result)
-
-        return np.average(results, axis=0, weights=self.weights_)
+        return self._Booster.predict(X)
