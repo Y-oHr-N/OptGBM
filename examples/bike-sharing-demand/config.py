@@ -8,7 +8,7 @@ from optgbm.sklearn import OGBMRegressor
 from pretools.estimators import CalendarFeatures
 # from pretools.estimators import ClippedFeatures
 from pretools.estimators import CombinedFeatures
-from pretools.estimators import DiffFeatures
+# from pretools.estimators import DiffFeatures
 from pretools.estimators import ModifiedSelectFromModel
 from pretools.estimators import Profiler
 from pretools.estimators import RowStatistics
@@ -36,14 +36,10 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
         include_unixtime=True
     )
     # clipped_features = ClippedFeatures()
-    combined_features = CombinedFeatures()
-    diff_features = DiffFeatures()
-    profiler = Profiler(label_col=label_col)
+    # diff_features = DiffFeatures()
     row_statistics = RowStatistics(dtype='float32')
 
     X['datetime'] = X.index
-
-    profiler.fit(X, y)
 
     numerical_cols = get_numerical_cols(X)
     time_cols = get_time_cols(X)
@@ -57,8 +53,7 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
         [
             data,
             calendar_features.fit_transform(X.loc[:, time_cols]),
-            combined_features.fit_transform(X),
-            diff_features.fit_transform(X.loc[:, numerical_cols]),
+            # diff_features.fit_transform(X.loc[:, numerical_cols]),
             row_statistics.fit_transform(X)
         ],
         axis=1
@@ -96,9 +91,11 @@ c.Recipe.transform_batch = transform_batch
 
 c.Recipe.model_instance = TransformedTargetRegressor(
     regressor=make_pipeline(
+        Profiler(label_col=label_col),
+        CombinedFeatures(include_data=True),
         ModifiedSelectFromModel(
             lgb.LGBMRegressor(importance_type='gain', random_state=0),
-            threshold=1e-06
+            # threshold=1e-06
         ),
         OGBMRegressor(
             cv=TimeSeriesSplit(5),
