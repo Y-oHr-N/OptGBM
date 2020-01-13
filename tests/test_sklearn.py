@@ -64,6 +64,26 @@ def test_refit() -> None:
     clf.refit(X, y)
 
 
+@pytest.mark.parametrize('n_jobs', [-1, 1])
+def test_fit_twice_without_study(n_jobs: int) -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier(n_jobs=n_jobs, random_state=0)
+
+    clf.fit(X, y)
+
+    y_pred = clf.predict(X)
+
+    assert isinstance(y_pred, np.ndarray)
+    assert y.shape == y_pred.shape
+
+    clf = OGBMClassifier(n_jobs=n_jobs, random_state=0)
+
+    clf.fit(X, y)
+
+    assert np.array_equal(y_pred, clf.predict(X))
+
+
 @pytest.mark.parametrize('storage', [None, 'sqlite:///:memory:'])
 def test_fit_twice_with_study(storage: Optional[str]) -> None:
     X, y = load_breast_cancer(return_X_y=True)
@@ -79,19 +99,6 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
     clf.fit(X, y)
 
     assert len(study.trials) == 2 * n_trials
-
-
-@pytest.mark.parametrize('n_jobs', [-1, 1])
-def test_predict(n_jobs: int) -> None:
-    X, y = load_breast_cancer(return_X_y=True)
-
-    clf = OGBMClassifier(n_jobs=n_jobs)
-
-    clf.fit(X, y)
-
-    y_pred = clf.predict(X)
-
-    assert y.shape == y_pred.shape
 
 
 def test_score() -> None:
@@ -129,20 +136,3 @@ def test_plot_importance(n_jobs: int) -> None:
     assert isinstance(clf.feature_importances_, np.ndarray)
 
     lgb.plot_importance(clf)
-
-
-@pytest.mark.parametrize('n_jobs', [-1, 1])
-def test_reproducibility(n_jobs: int) -> None:
-    X, y = load_breast_cancer(return_X_y=True)
-
-    clf = OGBMClassifier(n_jobs=n_jobs, random_state=0)
-
-    clf.fit(X, y)
-
-    probas = clf.predict_proba(X)
-
-    clf = OGBMClassifier(n_jobs=n_jobs, random_state=0)
-
-    clf.fit(X, y)
-
-    assert np.array_equal(probas, clf.predict_proba(X))
