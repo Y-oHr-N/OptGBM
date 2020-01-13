@@ -9,6 +9,7 @@ import numpy as np
 import optuna
 import pytest
 
+from sklearn.datasets import load_boston
 from sklearn.datasets import load_breast_cancer
 from sklearn.datasets import load_digits
 from sklearn.datasets import load_iris
@@ -41,10 +42,13 @@ def test_ogbm_regressor() -> None:
     check_estimator(OGBMRegressor)
 
 
-def test_set_other_params() -> None:
-    reg = OGBMRegressor()
+@pytest.mark.parametrize('reg_sqrt', [False, True])
+def test_fit_with_params(reg_sqrt: bool) -> None:
+    X, y = load_boston(return_X_y=True)
 
-    reg.set_params(reg_sqrt=True)
+    reg = OGBMRegressor(reg_sqrt=reg_sqrt)
+
+    reg.fit(X, y)
 
 
 @pytest.mark.parametrize('callbacks', [None, [callback]])
