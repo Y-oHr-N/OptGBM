@@ -284,7 +284,8 @@ class _BaseOGBMModel(lgb.LGBMModel):
         param_distributions:
             Optional[Dict[optuna.distributions.BaseDistribution, str]] = None,
         study: Optional[optuna.study.Study] = None,
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
+        **kwargs: Any
     ) -> None:
         super().__init__(
             boosting_type=boosting_type,
@@ -305,7 +306,8 @@ class _BaseOGBMModel(lgb.LGBMModel):
             reg_lambda=reg_lambda,
             subsample=subsample,
             subsample_for_bin=subsample_for_bin,
-            subsample_freq=subsample_freq
+            subsample_freq=subsample_freq,
+            **kwargs
         )
 
         self.cv = cv
@@ -379,24 +381,20 @@ class _BaseOGBMModel(lgb.LGBMModel):
 
         seed = self._random_state
 
-        params: Dict[str, Any] = {
-            'boosting_type': self.boosting_type,
-            'colsample_bytree': self.colsample_bytree,
-            'learning_rate': self.learning_rate,
-            'max_depth': self.max_depth,
-            'min_child_samples': self.min_child_samples,
-            'min_child_weight': self.min_child_weight,
-            'min_split_gain': self.min_split_gain,
-            'num_leaves': self.num_leaves,
-            'n_jobs': self.n_jobs,
-            'reg_alpha': self.reg_alpha,
-            'reg_lambda': self.reg_lambda,
-            'seed': seed,
-            'subsample': self.subsample,
-            'subsample_freq': self.subsample_freq,
-            'subsample_for_bin': self.subsample_for_bin,
-            'verbose': -1
-        }
+        params = self.get_params()
+
+        params.pop('class_weight', None)
+        params.pop('cv')
+        params.pop('enable_pruning')
+        params.pop('importance_type')
+        params.pop('n_estimators')
+        params.pop('n_trials')
+        params.pop('param_distributions')
+        params.pop('study')
+        params.pop('timeout')
+
+        params['random_state'] = seed
+        params['verbose'] = -1
 
         if is_classifier:
             self.encoder_ = LabelEncoder()
@@ -631,6 +629,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     timeout
         Time limit in seconds for the search of appropriate models.
 
+    **kwargs
+        Other parameters for the model.
+
     Attributes
     ----------
     best_iteration_
@@ -799,6 +800,9 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     timeout
         Time limit in seconds for the search of appropriate models.
 
+    **kwargs
+        Other parameters for the model.
+
     Attributes
     ----------
     best_iteration_
@@ -851,7 +855,8 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         param_distributions:
             Optional[Dict[optuna.distributions.BaseDistribution, str]] = None,
         study: Optional[optuna.study.Study] = None,
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
+        **kwargs: Any
     ) -> None:
         super().__init__(
             boosting_type=boosting_type,
@@ -877,7 +882,8 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             subsample=subsample,
             subsample_freq=subsample_freq,
             subsample_for_bin=subsample_for_bin,
-            timeout=timeout
+            timeout=timeout,
+            **kwargs
         )
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
