@@ -54,16 +54,6 @@ def test_fit_with_fit_params(
     clf.fit(X, y, callbacks=callbacks, eval_metric=eval_metric)
 
 
-def test_refit() -> None:
-    X, y = load_breast_cancer(return_X_y=True)
-
-    clf = OGBMClassifier()
-
-    clf.fit(X, y)
-
-    clf.refit(X, y)
-
-
 @pytest.mark.parametrize('n_jobs', [-1, 1])
 def test_fit_twice_without_study(n_jobs: int) -> None:
     X, y = load_breast_cancer(return_X_y=True)
@@ -99,6 +89,16 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
     clf.fit(X, y)
 
     assert len(study.trials) == 2 * n_trials
+
+
+def test_refit() -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier()
+
+    clf.fit(X, y)
+
+    clf.refit(X, y)
 
 
 def test_score() -> None:
