@@ -5,12 +5,14 @@ import numpy as np
 import pandas as pd
 
 from optgbm.sklearn import OGBMRegressor
+from pretools.estimators import Astype
 from pretools.estimators import CalendarFeatures
 from pretools.estimators import ClippedFeatures
 from pretools.estimators import CombinedFeatures
 from pretools.estimators import DropCollinearFeatures
 from pretools.estimators import ModifiedColumnTransformer
 from pretools.estimators import ModifiedSelectFromModel
+from pretools.estimators import NUniqueThreshold
 from pretools.estimators import Profiler
 from pretools.estimators import RowStatistics
 from sklearn.compose import make_column_selector
@@ -65,18 +67,20 @@ c.Recipe.transform_batch = transform_batch
 c.Recipe.model_instance = TransformedTargetRegressor(
     regressor=make_pipeline(
         Profiler(label_col=label_col),
+        Astype(),
+        NUniqueThreshold(max_freq=None),
         ModifiedColumnTransformer(
             [
                 (
                     'categoricaltransformer',
-                    'passthrough',
+                    NUniqueThreshold(),
                     make_column_selector(dtype_include='category')
                 ),
                 (
                     'numericaltransformer',
                     make_pipeline(
-                        ClippedFeatures(),
-                        DropCollinearFeatures()
+                        DropCollinearFeatures(method='spearman'),
+                        ClippedFeatures()
                     ),
                     make_column_selector(dtype_include='number')
                 ),
