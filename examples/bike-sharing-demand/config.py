@@ -79,7 +79,10 @@ c.Recipe.model_instance = TransformedTargetRegressor(
                 (
                     'numericaltransformer',
                     make_pipeline(
-                        DropCollinearFeatures(method='spearman', random_state=0),
+                        DropCollinearFeatures(
+                            method='spearman',
+                            random_state=0
+                        ),
                         ClippedFeatures()
                     ),
                     make_column_selector(dtype_include='number')
@@ -98,7 +101,11 @@ c.Recipe.model_instance = TransformedTargetRegressor(
         ),
         CombinedFeatures(include_data=True),
         ModifiedSelectFromModel(
-            lgb.LGBMRegressor(importance_type='gain', n_jobs=-1, random_state=0),
+            lgb.LGBMRegressor(
+                importance_type='gain',
+                n_jobs=-1,
+                random_state=0
+            ),
             random_state=0,
             # threshold=1e-06
         ),
