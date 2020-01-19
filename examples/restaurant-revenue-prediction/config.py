@@ -14,19 +14,12 @@ from pretools.estimators import ModifiedSelectFromModel
 from pretools.estimators import NUniqueThreshold
 from pretools.estimators import Profiler
 from pretools.estimators import RowStatistics
+from pretools.estimators import SortSamples
 from sklearn.compose import make_column_selector
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.pipeline import make_pipeline
 
 label_col = 'revenue'
-
-
-def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
-    """User-defined preprocessing."""
-    if train:
-        data = data.sort_values('Open Date')
-
-    return data
 
 
 c = get_config()  # noqa
@@ -37,11 +30,11 @@ c.Recipe.read_params = {
     'index_col': 'Id',
     'parse_dates': ['Open Date']
 }
-c.Recipe.transform_batch = transform_batch
 
 c.Recipe.model_instance = make_pipeline(
     Profiler(label_col=label_col),
     Astype(),
+    SortSamples(),
     NUniqueThreshold(max_freq=None),
     ModifiedColumnTransformer(
         [

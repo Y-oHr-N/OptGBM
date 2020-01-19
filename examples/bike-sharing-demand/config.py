@@ -15,6 +15,7 @@ from pretools.estimators import ModifiedSelectFromModel
 from pretools.estimators import NUniqueThreshold
 from pretools.estimators import Profiler
 from pretools.estimators import RowStatistics
+from pretools.estimators import SortSamples
 from sklearn.compose import make_column_selector
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.model_selection import TimeSeriesSplit
@@ -25,12 +26,7 @@ label_col = 'count'
 
 def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
     """User-defined preprocessing."""
-    data = data.copy()
-
-    if train:
-        data = data.sort_index()
-
-    data['datetime'] = data.index
+    data['datetime_feature'] = data.index
 
     return data
 
@@ -68,6 +64,7 @@ c.Recipe.model_instance = TransformedTargetRegressor(
     regressor=make_pipeline(
         Profiler(label_col=label_col),
         Astype(),
+        SortSamples(),
         NUniqueThreshold(max_freq=None),
         ModifiedColumnTransformer(
             [
