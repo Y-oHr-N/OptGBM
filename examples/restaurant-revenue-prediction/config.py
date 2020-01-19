@@ -1,8 +1,7 @@
 """Config."""
 
-import pandas as pd
+import numpy as np
 
-from optgbm.sklearn import OGBMRegressor
 from pretools.estimators import Astype
 from pretools.estimators import CalendarFeatures
 from pretools.estimators import ClippedFeatures
@@ -15,7 +14,9 @@ from pretools.estimators import NUniqueThreshold
 from pretools.estimators import Profiler
 from pretools.estimators import RowStatistics
 from pretools.estimators import SortSamples
+from scipy.stats import uniform
 from sklearn.compose import make_column_selector
+from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.pipeline import make_pipeline
 
@@ -65,10 +66,20 @@ c.Recipe.model_instance = make_pipeline(
     ),
     CombinedFeatures(include_data=True),
     ModifiedSelectFromModel(
-        ModifiedCatBoostRegressor(random_state=0),
+        ModifiedCatBoostRegressor(has_time=True, random_state=0, verbose=0),
         random_state=0,
         # threshold=1e-06
     ),
-    ModifiedCatBoostRegressor(random_state=0)
+    RandomizedSearchCV(
+        ModifiedCatBoostRegressor(has_time=True, random_state=0, verbose=0),
+        param_distributions={
+            'bagging_temperature': uniform(0.0, 10.0),
+            'max_depth': np.arange(1, 7),
+            'reg_lambda': uniform(1e-06, 10.0)
+        },
+        cv=TimeSeriesSplit(5),
+        n_jobs=-1,
+        random_state=0
+    )
 )
 c.Recipe.model_path = 'examples/restaurant-revenue-prediction/model.pkl'
