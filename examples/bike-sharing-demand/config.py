@@ -69,42 +69,68 @@ c.Recipe.model_instance = TransformedTargetRegressor(
         ModifiedColumnTransformer(
             [
                 (
-                    'categoricaltransformer',
+                    'categorical_featrues',
                     NUniqueThreshold(),
                     make_column_selector(dtype_include='category')
                 ),
                 (
-                    'numericaltransformer',
+                    'numerical_features',
                     make_pipeline(
                         DropCollinearFeatures(
                             method='spearman',
-                            random_state=0
+                            shuffle=False
                         ),
                         ClippedFeatures()
                     ),
                     make_column_selector(dtype_include='number')
                 ),
                 (
-                    'timetransformer',
-                    CalendarFeatures(dtype='float32', include_unixtime=True),
+                    'time_features',
+                    CalendarFeatures(
+                        dtype='float32',
+                        encode=True,
+                        include_unixtime=True
+                    ),
                     make_column_selector(dtype_include='datetime64')
-                ),
-                (
-                    'othertransformer',
-                    RowStatistics(dtype='float32'),
-                    make_column_selector()
                 )
             ]
         ),
-        CombinedFeatures(include_data=True),
         ModifiedSelectFromModel(
             lgb.LGBMRegressor(
                 importance_type='gain',
                 n_jobs=-1,
                 random_state=0
             ),
-            random_state=0,
-            # threshold=1e-06
+            shuffle=False,
+            threshold=1e-06
+        ),
+        ModifiedColumnTransformer(
+            [
+                (
+                    'original_features',
+                    'passthrough',
+                    make_column_selector()
+                ),
+                (
+                    'combined_features',
+                    CombinedFeatures(),
+                    make_column_selector(pattern=r'^.*(?<!_(sin|cos))$')
+                ),
+                (
+                    'row_statistics',
+                    RowStatistics(dtype='float32'),
+                    make_column_selector()
+                )
+            ]
+        ),
+        ModifiedSelectFromModel(
+            lgb.LGBMRegressor(
+                importance_type='gain',
+                n_jobs=-1,
+                random_state=0
+            ),
+            shuffle=False,
+            threshold=1e-06
         ),
         OGBMRegressor(
             cv=TimeSeriesSplit(5),
