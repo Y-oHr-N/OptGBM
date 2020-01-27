@@ -280,7 +280,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         ] = None,
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         super().__init__(
             boosting_type=boosting_type,
@@ -302,7 +302,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
             subsample=subsample,
             subsample_for_bin=subsample_for_bin,
             subsample_freq=subsample_freq,
-            **kwargs
+            **kwargs,
         )
 
         self.cv = cv
@@ -378,18 +378,18 @@ class _BaseOGBMModel(lgb.LGBMModel):
 
         params = self.get_params()
 
-        params.pop('class_weight', None)
-        params.pop('cv')
-        params.pop('enable_pruning')
-        params.pop('importance_type')
-        params.pop('n_estimators')
-        params.pop('n_trials')
-        params.pop('param_distributions')
-        params.pop('study')
-        params.pop('timeout')
+        params.pop("class_weight", None)
+        params.pop("cv")
+        params.pop("enable_pruning")
+        params.pop("importance_type")
+        params.pop("n_estimators")
+        params.pop("n_trials")
+        params.pop("param_distributions")
+        params.pop("study")
+        params.pop("timeout")
 
-        params['random_state'] = seed
-        params['verbose'] = -1
+        params["random_state"] = seed
+        params["verbose"] = -1
 
         if is_classifier:
             self.encoder_ = LabelEncoder()
@@ -838,7 +838,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         ] = None,
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         super().__init__(
             boosting_type=boosting_type,
@@ -865,7 +865,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             subsample_freq=subsample_freq,
             subsample_for_bin=subsample_for_bin,
             timeout=timeout,
-            **kwargs
+            **kwargs,
         )
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
