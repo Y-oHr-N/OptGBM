@@ -26,10 +26,9 @@ callback = lgb.reset_parameter(
 
 
 def zero_one_loss(
-    y_true: np.ndarray,
-    y_pred: np.ndarray
+    y_true: np.ndarray, y_pred: np.ndarray
 ) -> Tuple[str, float, bool]:
-    return 'zero_one_loss', np.mean(y_true != y_pred), False
+    return "zero_one_loss", np.mean(y_true != y_pred), False
 
 
 @pytest.mark.skip
@@ -42,7 +41,7 @@ def test_ogbm_regressor() -> None:
     check_estimator(OGBMRegressor)
 
 
-@pytest.mark.parametrize('reg_sqrt', [False, True])
+@pytest.mark.parametrize("reg_sqrt", [False, True])
 def test_fit_with_params(reg_sqrt: bool) -> None:
     X, y = load_boston(return_X_y=True)
 
@@ -51,11 +50,10 @@ def test_fit_with_params(reg_sqrt: bool) -> None:
     reg.fit(X, y)
 
 
-@pytest.mark.parametrize('callbacks', [None, [callback]])
-@pytest.mark.parametrize('eval_metric', ['auc', zero_one_loss])
+@pytest.mark.parametrize("callbacks", [None, [callback]])
+@pytest.mark.parametrize("eval_metric", ["auc", zero_one_loss])
 def test_fit_with_fit_params(
-    callbacks: Optional[List[Callable]],
-    eval_metric: Union[Callable, str]
+    callbacks: Optional[List[Callable]], eval_metric: Union[Callable, str]
 ) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
@@ -64,7 +62,7 @@ def test_fit_with_fit_params(
     clf.fit(X, y, callbacks=callbacks, eval_metric=eval_metric)
 
 
-@pytest.mark.parametrize('n_jobs', [-1, 1])
+@pytest.mark.parametrize("n_jobs", [-1, 1])
 def test_fit_twice_without_study(n_jobs: int) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
@@ -84,7 +82,7 @@ def test_fit_twice_without_study(n_jobs: int) -> None:
     assert np.array_equal(y_pred, clf.predict(X))
 
 
-@pytest.mark.parametrize('storage', [None, 'sqlite:///:memory:'])
+@pytest.mark.parametrize("storage", [None, "sqlite:///:memory:"])
 def test_fit_twice_with_study(storage: Optional[str]) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
@@ -117,9 +115,7 @@ def test_score() -> None:
     for load_function in load_functions:
         X, y = load_function(return_X_y=True)
         X_train, X_test, y_train, y_test = train_test_split(
-            X,
-            y,
-            random_state=0
+            X, y, random_state=0
         )
 
         clf = lgb.LGBMClassifier(random_state=0)
@@ -135,7 +131,7 @@ def test_score() -> None:
         assert score <= clf.score(X_test, y_test)
 
 
-@pytest.mark.parametrize('n_jobs', [-1, 1])
+@pytest.mark.parametrize("n_jobs", [-1, 1])
 def test_plot_importance(n_jobs: int) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 

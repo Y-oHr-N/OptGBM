@@ -36,7 +36,7 @@ TWO_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.DataFrame]
 def check_cv(
     cv: Union[BaseCrossValidator, int] = 5,
     y: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
-    classifier: bool = False
+    classifier: bool = False,
 ) -> BaseCrossValidator:
     """Check `cv`.
 
@@ -90,13 +90,12 @@ def check_X(
         X = check_array(X, **kwargs)
 
     _, actual_n_features = X.shape
-    expected_n_features = getattr(estimator, 'n_features_', actual_n_features)
+    expected_n_features = getattr(estimator, "n_features_", actual_n_features)
 
     if actual_n_features != expected_n_features:
         raise ValueError(
-            '`n_features` must be {} but was {}.'.format(
-                expected_n_features,
-                actual_n_features
+            "`n_features` must be {} but was {}.".format(
+                expected_n_features, actual_n_features
             )
         )
 
@@ -110,9 +109,7 @@ def check_fit_params(
     estimator: Optional[BaseEstimator] = None,
     **kwargs: Any
 ) -> Tuple[
-    TWO_DIM_ARRAYLIKE_TYPE,
-    ONE_DIM_ARRAYLIKE_TYPE,
-    ONE_DIM_ARRAYLIKE_TYPE
+    TWO_DIM_ARRAYLIKE_TYPE, ONE_DIM_ARRAYLIKE_TYPE, ONE_DIM_ARRAYLIKE_TYPE
 ]:
     """Check `X`, `y` and `sample_weight`.
 
@@ -160,7 +157,7 @@ def check_fit_params(
 
     sample_weight = np.asarray(sample_weight)
 
-    class_weight = getattr(estimator, 'class_weight', None)
+    class_weight = getattr(estimator, "class_weight", None)
 
     if class_weight is not None:
         sample_weight *= compute_sample_weight(class_weight, y)
