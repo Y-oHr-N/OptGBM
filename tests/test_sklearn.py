@@ -9,6 +9,7 @@ import numpy as np
 import optuna
 import pytest
 
+from sklearn.datasets import load_boston
 from sklearn.datasets import load_breast_cancer
 from sklearn.datasets import load_digits
 from sklearn.datasets import load_iris
@@ -40,6 +41,15 @@ def test_ogbm_regressor() -> None:
     check_estimator(OGBMRegressor)
 
 
+@pytest.mark.parametrize("reg_sqrt", [False, True])
+def test_fit_with_params(reg_sqrt: bool) -> None:
+    X, y = load_boston(return_X_y=True)
+
+    reg = OGBMRegressor(reg_sqrt=reg_sqrt)
+
+    reg.fit(X, y)
+
+
 @pytest.mark.parametrize("callbacks", [None, [callback]])
 @pytest.mark.parametrize("eval_metric", ["auc", zero_one_loss])
 def test_fit_with_fit_params(
@@ -52,14 +62,24 @@ def test_fit_with_fit_params(
     clf.fit(X, y, callbacks=callbacks, eval_metric=eval_metric)
 
 
-def test_refit() -> None:
+@pytest.mark.parametrize("n_jobs", [-1, 1])
+def test_fit_twice_without_study(n_jobs: int) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
-    clf = OGBMClassifier()
+    clf = OGBMClassifier(n_jobs=n_jobs, random_state=0)
 
     clf.fit(X, y)
 
-    clf.refit(X, y)
+    y_pred = clf.predict(X)
+
+    assert isinstance(y_pred, np.ndarray)
+    assert y.shape == y_pred.shape
+
+    clf = OGBMClassifier(n_jobs=n_jobs, random_state=0)
+
+    clf.fit(X, y)
+
+    assert np.array_equal(y_pred, clf.predict(X))
 
 
 @pytest.mark.parametrize("storage", [None, "sqlite:///:memory:"])
@@ -79,17 +99,14 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
     assert len(study.trials) == 2 * n_trials
 
 
-@pytest.mark.parametrize("n_jobs", [-1, 1])
-def test_predict(n_jobs: int) -> None:
+def test_refit() -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
-    clf = OGBMClassifier(n_jobs=n_jobs)
+    clf = OGBMClassifier()
 
     clf.fit(X, y)
 
-    y_pred = clf.predict(X)
-
-    assert y.shape == y_pred.shape
+    clf.refit(X, y)
 
 
 def test_score() -> None:
@@ -115,7 +132,7 @@ def test_score() -> None:
 
 
 @pytest.mark.parametrize("n_jobs", [-1, 1])
-def test_feature_importances(n_jobs: int) -> None:
+def test_plot_importance(n_jobs: int) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
     clf = OGBMClassifier(n_jobs=n_jobs)
@@ -124,29 +141,4 @@ def test_feature_importances(n_jobs: int) -> None:
 
     assert isinstance(clf.feature_importances_, np.ndarray)
 
-
-def test_plot_importance() -> None:
-    X, y = load_breast_cancer(return_X_y=True)
-
-    clf = OGBMClassifier()
-
-    clf.fit(X, y)
-
     lgb.plot_importance(clf)
-
-
-@pytest.mark.parametrize("n_jobs", [-1, 1])
-def test_reproducibility(n_jobs: int) -> None:
-    X, y = load_breast_cancer(return_X_y=True)
-
-    clf = OGBMClassifier(n_jobs=n_jobs, random_state=0)
-
-    clf.fit(X, y)
-
-    probas = clf.predict_proba(X)
-
-    clf = OGBMClassifier(n_jobs=n_jobs, random_state=0)
-
-    clf.fit(X, y)
-
-    assert np.array_equal(probas, clf.predict_proba(X))
