@@ -12,6 +12,7 @@ from pretools.estimators import CombinedFeatures
 from pretools.estimators import DropCollinearFeatures
 from pretools.estimators import ModifiedColumnTransformer
 from pretools.estimators import ModifiedSelectFromModel
+from pretools.estimators import ModifiedStandardScaler
 from pretools.estimators import NUniqueThreshold
 from pretools.estimators import Profiler
 from pretools.estimators import RowStatistics
@@ -77,9 +78,12 @@ c.Recipe.model_instance = TransformedTargetRegressor(
                     "numerical_features",
                     make_pipeline(
                         DropCollinearFeatures(
-                            method="spearman", shuffle=False
+                            method="spearman",
+                            # random_state=0,
+                            shuffle=False,
                         ),
                         ClippedFeatures(),
+                        ModifiedStandardScaler(),
                     ),
                     make_column_selector(dtype_include="number"),
                 ),
@@ -96,6 +100,7 @@ c.Recipe.model_instance = TransformedTargetRegressor(
             lgb.LGBMRegressor(
                 importance_type="gain", n_jobs=-1, random_state=0
             ),
+            # random_state=0,
             shuffle=False,
             threshold=1e-06,
         ),
@@ -118,6 +123,7 @@ c.Recipe.model_instance = TransformedTargetRegressor(
             lgb.LGBMRegressor(
                 importance_type="gain", n_jobs=-1, random_state=0
             ),
+            # random_state=0,
             shuffle=False,
             threshold=1e-06,
         ),
