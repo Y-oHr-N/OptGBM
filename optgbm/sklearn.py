@@ -21,8 +21,7 @@ from sklearn.utils import check_random_state
 from sklearn.utils.validation import check_is_fitted
 
 try:  # lightgbm<=2.2.3
-    from lightgbm.sklearn import _eval_function_wrapper \
-        as _EvalFunctionWrapper
+    from lightgbm.sklearn import _eval_function_wrapper as _EvalFunctionWrapper
 except ImportError:
     from lightgbm.sklearn import _EvalFunctionWrapper
 
@@ -38,58 +37,57 @@ MAX_INT = np.iinfo(np.int32).max
 
 OBJECTIVE2METRIC = {
     # classification
-    'binary': 'binary_logloss',
-    'multiclass': 'multi_logloss',
-    'softmax': 'multi_logloss',
-    'multiclassova': 'multi_logloss',
-    'multiclass_ova': 'multi_logloss',
-    'ova': 'multi_logloss',
-    'ovr': 'multi_logloss',
+    "binary": "binary_logloss",
+    "multiclass": "multi_logloss",
+    "softmax": "multi_logloss",
+    "multiclassova": "multi_logloss",
+    "multiclass_ova": "multi_logloss",
+    "ova": "multi_logloss",
+    "ovr": "multi_logloss",
     # regression
-    'mean_absoluter_error': 'l1',
-    'mae': 'l1',
-    'regression_l1': 'l1',
-    'l2_root': 'l2',
-    'mean_squared_error': 'l2',
-    'mse': 'l2',
-    'regression': 'l2',
-    'regression_l2': 'l2',
-    'root_mean_squared_error': 'l2',
-    'rmse': 'l2',
-    'huber': 'huber',
-    'fair': 'fair',
-    'poisson': 'poisson',
-    'quantile': 'quantile',
-    'mean_absolute_percentage_error': 'mape',
-    'mape': 'mape',
-    'gamma': 'gamma',
-    'tweedie': 'tweedie'
+    "mean_absoluter_error": "l1",
+    "mae": "l1",
+    "regression_l1": "l1",
+    "l2_root": "l2",
+    "mean_squared_error": "l2",
+    "mse": "l2",
+    "regression": "l2",
+    "regression_l2": "l2",
+    "root_mean_squared_error": "l2",
+    "rmse": "l2",
+    "huber": "huber",
+    "fair": "fair",
+    "poisson": "poisson",
+    "quantile": "quantile",
+    "mean_absolute_percentage_error": "mape",
+    "mape": "mape",
+    "gamma": "gamma",
+    "tweedie": "tweedie",
 }
 
 DEFAULT_PARAM_DISTRIBUTIONS = {
-    # 'boosting_type':
-    #     optuna.distributions.CategoricalDistribution(['gbdt', 'rf']),
-    'colsample_bytree':
-        optuna.distributions.DiscreteUniformDistribution(0.1, 1.0, 0.05),
-    'min_child_samples':
-        optuna.distributions.IntUniformDistribution(1, 100),
-    # 'min_child_weight':
-    #     optuna.distributions.LogUniformDistribution(1e-03, 10.0),
-    'num_leaves':
-        optuna.distributions.IntUniformDistribution(2, 127),
-    'reg_alpha':
-        optuna.distributions.LogUniformDistribution(1e-06, 10.0),
-    'reg_lambda':
-        optuna.distributions.LogUniformDistribution(1e-06, 10.0),
-    'subsample':
-        optuna.distributions.DiscreteUniformDistribution(0.5, 0.95, 0.05),
-    'subsample_freq':
-        optuna.distributions.IntUniformDistribution(1, 10)
+    # "boosting_type": optuna.distributions.CategoricalDistribution(
+    #     ["gbdt", "rf"]
+    # ),
+    "colsample_bytree": optuna.distributions.DiscreteUniformDistribution(
+        0.1, 1.0, 0.05
+    ),
+    "min_child_samples": optuna.distributions.IntUniformDistribution(1, 100),
+    # "min_child_weight": optuna.distributions.LogUniformDistribution(
+    #     1e-03, 10.0
+    # ),
+    "num_leaves": optuna.distributions.IntUniformDistribution(2, 127),
+    "reg_alpha": optuna.distributions.LogUniformDistribution(1e-06, 10.0),
+    "reg_lambda": optuna.distributions.LogUniformDistribution(1e-06, 10.0),
+    "subsample": optuna.distributions.DiscreteUniformDistribution(
+        0.5, 0.95, 0.05
+    ),
+    "subsample_freq": optuna.distributions.IntUniformDistribution(1, 10),
 }
 
 
 def _is_higher_better(metric: str) -> bool:
-    return metric in ['auc']
+    return metric in ["auc"]
 
 
 class _LightGBMExtractionCallback(object):
@@ -111,13 +109,13 @@ class _Objective(object):
         eval_name: str,
         is_higher_better: bool,
         callbacks: Optional[List[Callable]] = None,
-        categorical_feature: Union[List[int], List[str], str] = 'auto',
+        categorical_feature: Union[List[int], List[str], str] = "auto",
         cv: Optional[BaseCrossValidator] = None,
         early_stopping_rounds: Optional[int] = None,
         enable_pruning: bool = False,
-        feature_name: Union[List[str], str] = 'auto',
+        feature_name: Union[List[str], str] = "auto",
         feval: Optional[Callable] = None,
-        n_estimators: int = 100
+        n_estimators: int = 100,
     ) -> None:
         self.callbacks = callbacks
         self.categorical_feature = categorical_feature
@@ -146,14 +144,15 @@ class _Objective(object):
             feature_name=self.feature_name,
             feval=self.feval,
             folds=self.cv,
-            num_boost_round=self.n_estimators
+            num_boost_round=self.n_estimators,
         )
-        value: float = eval_hist[f'{self.eval_name}-mean'][-1]
+        value: float = eval_hist[f"{self.eval_name}-mean"][-1]
         is_best_trial: bool = True
 
         try:
-            is_best_trial = (value < trial.study.best_value) \
-                ^ self.is_higher_better
+            is_best_trial = (
+                value < trial.study.best_value
+            ) ^ self.is_higher_better
         except ValueError:
             pass
 
@@ -167,8 +166,8 @@ class _Objective(object):
                 b.free_dataset()
                 representations.append(b.model_to_string())
 
-            trial.study.set_user_attr('best_iteration', best_iteration)
-            trial.study.set_user_attr('representations', representations)
+            trial.study.set_user_attr("best_iteration", best_iteration)
+            trial.study.set_user_attr("representations", representations)
 
         return value
 
@@ -180,8 +179,7 @@ class _Objective(object):
         if self.enable_pruning:
             pruning_callback: optuna.integration.LightGBMPruningCallback = \
                 optuna.integration.LightGBMPruningCallback(
-                    trial,
-                    self.eval_name
+                    trial, self.eval_name
                 )
 
             callbacks.append(pruning_callback)
@@ -206,17 +204,13 @@ class _VotingBooster(object):
         return self.boosters[0].feature_name
 
     def __init__(
-        self,
-        boosters: List[lgb.Booster],
-        weights: Optional[np.ndarray] = None
+        self, boosters: List[lgb.Booster], weights: Optional[np.ndarray] = None
     ) -> None:
         self.boosters = boosters
         self.weights = weights
 
     def predict(
-        self,
-        X: TWO_DIM_ARRAYLIKE_TYPE,
-        **kwargs: Any
+        self, X: TWO_DIM_ARRAYLIKE_TYPE, **kwargs: Any
     ) -> TWO_DIM_ARRAYLIKE_TYPE:
         results = []
 
@@ -241,7 +235,7 @@ class _VotingBooster(object):
 class _BaseOGBMModel(lgb.LGBMModel):
     @property
     def _param_distributions(
-        self
+        self,
     ) -> Dict[str, optuna.distributions.BaseDistribution]:
         if self.param_distributions is None:
             return DEFAULT_PARAM_DISTRIBUTIONS
@@ -259,7 +253,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
 
     def __init__(
         self,
-        boosting_type: str = 'gbdt',
+        boosting_type: str = "gbdt",
         num_leaves: int = 31,
         max_depth: int = -1,
         learning_rate: float = 0.1,
@@ -277,15 +271,16 @@ class _BaseOGBMModel(lgb.LGBMModel):
         reg_lambda: float = 0.0,
         random_state: Optional[RANDOM_STATE_TYPE] = None,
         n_jobs: int = 1,
-        importance_type: str = 'split',
+        importance_type: str = "split",
         cv: Union[BaseCrossValidator, int] = 5,
         enable_pruning: bool = False,
         n_trials: int = 25,
-        param_distributions:
-            Optional[Dict[optuna.distributions.BaseDistribution, str]] = None,
+        param_distributions: Optional[
+            Dict[optuna.distributions.BaseDistribution, str]
+        ] = None,
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         super().__init__(
             boosting_type=boosting_type,
@@ -307,7 +302,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
             subsample=subsample,
             subsample_for_bin=subsample_for_bin,
             subsample_freq=subsample_freq,
-            **kwargs
+            **kwargs,
         )
 
         self.cv = cv
@@ -318,7 +313,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         self.timeout = timeout
 
     def _check_is_fitted(self) -> None:
-        check_is_fitted(self, 'n_features_')
+        check_is_fitted(self, "n_features_")
 
     def fit(
         self,
@@ -326,11 +321,11 @@ class _BaseOGBMModel(lgb.LGBMModel):
         y: ONE_DIM_ARRAYLIKE_TYPE,
         sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
         callbacks: Optional[List[Callable]] = None,
-        categorical_feature: Union[List[int], List[str], str] = 'auto',
+        categorical_feature: Union[List[int], List[str], str] = "auto",
         early_stopping_rounds: Optional[int] = 10,
         eval_metric: Optional[Union[Callable, str]] = None,
-        feature_name: Union[List[str], str] = 'auto'
-    ) -> '_BaseOGBMModel':
+        feature_name: Union[List[str], str] = "auto",
+    ) -> "_BaseOGBMModel":
         """Fit the model according to the given training data.
 
         Parameters
@@ -371,30 +366,30 @@ class _BaseOGBMModel(lgb.LGBMModel):
             accept_sparse=True,
             ensure_min_samples=2,
             estimator=self,
-            force_all_finite=False
+            force_all_finite=False,
         )
 
         _, self._n_features = X.shape
 
-        is_classifier = self._estimator_type == 'classifier'
+        is_classifier = self._estimator_type == "classifier"
         cv = check_cv(self.cv, y, is_classifier)
 
         seed = self._random_state
 
         params = self.get_params()
 
-        params.pop('class_weight', None)
-        params.pop('cv')
-        params.pop('enable_pruning')
-        params.pop('importance_type')
-        params.pop('n_estimators')
-        params.pop('n_trials')
-        params.pop('param_distributions')
-        params.pop('study')
-        params.pop('timeout')
+        params.pop("class_weight", None)
+        params.pop("cv")
+        params.pop("enable_pruning")
+        params.pop("importance_type")
+        params.pop("n_estimators")
+        params.pop("n_trials")
+        params.pop("param_distributions")
+        params.pop("study")
+        params.pop("timeout")
 
-        params['random_state'] = seed
-        params['verbose'] = -1
+        params["random_state"] = seed
+        params["verbose"] = -1
 
         if is_classifier:
             self.encoder_ = LabelEncoder()
@@ -405,38 +400,38 @@ class _BaseOGBMModel(lgb.LGBMModel):
             self._n_classes = len(self.encoder_.classes_)
 
             if self._n_classes > 2:
-                params['num_classes'] = self._n_classes
-                params['objective'] = 'multiclass'
+                params["num_classes"] = self._n_classes
+                params["objective"] = "multiclass"
             else:
-                params['objective'] = 'binary'
+                params["objective"] = "binary"
 
         else:
-            params['objective'] = 'regression'
+            params["objective"] = "regression"
 
         if self.objective is not None:
-            params['objective'] = self.objective
+            params["objective"] = self.objective
 
         if callable(eval_metric):
-            params['metric'] = 'None'
+            params["metric"] = "None"
             feval = _EvalFunctionWrapper(eval_metric)
             eval_name, _, is_higher_better = eval_metric(y, y)
 
         else:
             if eval_metric is None:
-                params['metric'] = OBJECTIVE2METRIC[params['objective']]
+                params["metric"] = OBJECTIVE2METRIC[params["objective"]]
             else:
-                params['metric'] = eval_metric
+                params["metric"] = eval_metric
 
             feval = None
-            eval_name = params['metric']
-            is_higher_better = _is_higher_better(params['metric'])
+            eval_name = params["metric"]
+            is_higher_better = _is_higher_better(params["metric"])
 
         if self.study is None:
             sampler = optuna.samplers.TPESampler(seed=seed)
 
             self.study_ = optuna.create_study(
-                direction='maximize' if is_higher_better else 'minimize',
-                sampler=sampler
+                direction="maximize" if is_higher_better else "minimize",
+                sampler=sampler,
             )
 
         else:
@@ -457,38 +452,30 @@ class _BaseOGBMModel(lgb.LGBMModel):
             enable_pruning=self.enable_pruning,
             feature_name=feature_name,
             feval=feval,
-            n_estimators=self.n_estimators
+            n_estimators=self.n_estimators,
         )
 
         self.study_.optimize(
-            objective,
-            catch=(),
-            n_trials=self.n_trials,
-            timeout=self.timeout
+            objective, catch=(), n_trials=self.n_trials, timeout=self.timeout
         )
 
         self.best_params_ = {**params, **self.study_.best_params}
-        self._best_iteration = self.study_.user_attrs['best_iteration']
+        self._best_iteration = self.study_.user_attrs["best_iteration"]
 
         try:  # lightgbm<=2.2.3
             boosters = [
-                lgb.Booster(
-                    params={'model_str': model_str}
-                ) for model_str
-                in self.study_.user_attrs['representations']
+                lgb.Booster(params={"model_str": model_str})
+                for model_str in self.study_.user_attrs["representations"]
             ]
         except TypeError:
             boosters = [
-                lgb.Booster(
-                    model_str=model_str,
-                    silent=True
-                ) for model_str
-                in self.study_.user_attrs['representations']
+                lgb.Booster(model_str=model_str, silent=True)
+                for model_str in self.study_.user_attrs["representations"]
             ]
 
-        weights = np.array([
-            np.sum(sample_weight[train]) for train, _ in cv.split(X, y)
-        ])
+        weights = np.array(
+            [np.sum(sample_weight[train]) for train, _ in cv.split(X, y)]
+        )
 
         self._Booster = _VotingBooster(boosters, weights=weights)
 
@@ -500,9 +487,9 @@ class _BaseOGBMModel(lgb.LGBMModel):
         y: ONE_DIM_ARRAYLIKE_TYPE,
         sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
         callbacks: Optional[List[Callable]] = None,
-        categorical_feature: Union[List[int], List[str], str] = 'auto',
-        feature_name: Union[List[str], str] = 'auto'
-    ) -> '_BaseOGBMModel':
+        categorical_feature: Union[List[int], List[str], str] = "auto",
+        feature_name: Union[List[str], str] = "auto",
+    ) -> "_BaseOGBMModel":
         """Refit the estimator with the best found hyperparameters.
 
         Parameters
@@ -535,9 +522,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         params = self.best_params_.copy()
         dataset = lgb.Dataset(X, label=y, weight=sample_weight)
         booster = lgb.train(
-            params,
-            dataset,
-            num_boost_round=self._best_iteration
+            params, dataset, num_boost_round=self._best_iteration
         )
 
         booster.free_dataset()
@@ -687,8 +672,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         return self.encoder_.inverse_transform(class_index)
 
     def predict_proba(
-        self,
-        X: TWO_DIM_ARRAYLIKE_TYPE
+        self, X: TWO_DIM_ARRAYLIKE_TYPE
     ) -> TWO_DIM_ARRAYLIKE_TYPE:
         """Predict class probabilities for data.
 
@@ -705,10 +689,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         self._check_is_fitted()
 
         X = check_X(
-            X,
-            accept_sparse=True,
-            estimator=self,
-            force_all_finite=False
+            X, accept_sparse=True, estimator=self, force_all_finite=False
         )
         preds = self._Booster.predict(X)
 
@@ -831,7 +812,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     def __init__(
         self,
-        boosting_type: str = 'gbdt',
+        boosting_type: str = "gbdt",
         num_leaves: int = 31,
         max_depth: int = -1,
         learning_rate: float = 0.1,
@@ -848,15 +829,16 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         reg_lambda: float = 0.0,
         random_state: Optional[RANDOM_STATE_TYPE] = None,
         n_jobs: int = 1,
-        importance_type: str = 'split',
+        importance_type: str = "split",
         cv: Union[BaseCrossValidator, int] = 5,
         enable_pruning: bool = False,
         n_trials: int = 25,
-        param_distributions:
-            Optional[Dict[optuna.distributions.BaseDistribution, str]] = None,
+        param_distributions: Optional[
+            Dict[optuna.distributions.BaseDistribution, str]
+        ] = None,
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         super().__init__(
             boosting_type=boosting_type,
@@ -883,7 +865,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             subsample_freq=subsample_freq,
             subsample_for_bin=subsample_for_bin,
             timeout=timeout,
-            **kwargs
+            **kwargs,
         )
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
@@ -902,10 +884,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         self._check_is_fitted()
 
         X = check_X(
-            X,
-            accept_sparse=True,
-            estimator=self,
-            force_all_finite=False
+            X, accept_sparse=True, estimator=self, force_all_finite=False
         )
 
         return self._Booster.predict(X)
