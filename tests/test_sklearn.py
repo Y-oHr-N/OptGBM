@@ -102,11 +102,23 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
 def test_refit() -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
-    clf = OGBMClassifier()
+    clf = OGBMClassifier(random_state=0)
+
+    clf.fit(X, y)
+    clf.refit(X, y)
+
+    y_pred = clf.predict(X)
+
+    assert isinstance(y_pred, np.ndarray)
+    assert y.shape == y_pred.shape
+
+    y_pred = clf.predict(X)
+
+    clf = lgb.LGBMClassifier(**clf.best_params_)
 
     clf.fit(X, y)
 
-    clf.refit(X, y)
+    assert np.array_equal(y_pred, clf.predict(X))
 
 
 def test_score() -> None:
