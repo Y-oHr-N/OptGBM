@@ -42,7 +42,10 @@ def train(config_path: str) -> None:
 @click.option("--output-path", "-o", default=None, type=click.Path())
 @click.option("--label-col", "-l", default=None)
 def predict(
-    config_path: str, input_path: str, output_path: str, label_col: str
+    config_path: str,
+    input_path: str,
+    output_path: Optional[str],
+    label_col: Optional[str],
 ) -> None:
     """Predict using the fitted model."""
     predictor = Predictor(config_path)
@@ -61,7 +64,9 @@ def predict(
 @click.argument("config-path", type=click.Path(exists=True))
 @click.argument("input-path", type=click.Path(exists=True))
 @click.option("--output-path", "-o", default=None, type=click.Path())
-def predict_proba(config_path: str, input_path: str, output_path: str) -> None:
+def predict_proba(
+    config_path: str, input_path: str, output_path: Optional[str]
+) -> None:
     """Predict class probabilities for data."""
     predictor = Predictor(config_path)
 
