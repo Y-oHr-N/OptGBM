@@ -1,7 +1,14 @@
 """Config."""
 
+import os
+
 import lightgbm as lgb
 import pandas as pd
+
+root_dir_path = "examples/digit-recognizer"
+
+n_jobs = -1
+random_state = 0
 
 
 def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
@@ -15,8 +22,10 @@ def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
 
 c = get_config()  # noqa
 
-c.Recipe.data_path = "examples/digit-recognizer/train.csv.gz"
+c.Recipe.data_path = os.path.join(root_dir_path, "train.csv.gz")
 c.Recipe.transform_batch = transform_batch
 
-c.Recipe.model_instance = lgb.LGBMClassifier(n_jobs=-1, random_state=0)
-c.Recipe.model_path = "examples/digit-recognizer/model.pkl"
+c.Recipe.model_instance = lgb.LGBMClassifier(
+    n_jobs=n_jobs, random_state=random_state
+)
+c.Recipe.model_path = os.path.join(root_dir_path, "model.pkl")

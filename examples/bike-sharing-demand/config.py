@@ -24,6 +24,23 @@ from sklearn.pipeline import make_pipeline
 
 label_col = "count"
 
+cv = TimeSeriesSplit(5)
+dtype = "float32"
+enable_pruning = False
+encode = True
+importance_type = "gain"
+include_unixtime = True
+method = "spearman"
+n_jobs = -1
+n_estimators = 100_000
+n_trials = 100
+random_state = 0
+subsample = 0.5
+shuffle = True
+threshold = 1e-06
+
+early_stopping_rounds = 30
+
 
 def transform_batch(data: pd.DataFrame, train: bool = True) -> pd.DataFrame:
     """User-defined preprocessing."""
@@ -56,7 +73,7 @@ c.Recipe.read_params = {
         "weather",
         "windspeed",
         "workingday",
-        "count",
+        label_col,
     ],
 }
 c.Recipe.transform_batch = transform_batch
@@ -78,9 +95,9 @@ c.Recipe.model_instance = TransformedTargetRegressor(
                     "numerical_features",
                     make_pipeline(
                         DropCollinearFeatures(
-                            method="spearman",
-                            # random_state=0,
-                            shuffle=False,
+                            method=method,
+                            random_state=random_state,
+                            shuffle=shuffle,
                         ),
                         ClippedFeatures(),
                         ModifiedStandardScaler(),
@@ -90,7 +107,9 @@ c.Recipe.model_instance = TransformedTargetRegressor(
                 (
                     "time_features",
                     CalendarFeatures(
-                        dtype="float32", encode=True, include_unixtime=True
+                        dtype=dtype,
+                        encode=encode,
+                        include_unixtime=include_unixtime,
                     ),
                     make_column_selector(dtype_include="datetime64"),
                 ),
@@ -98,11 +117,13 @@ c.Recipe.model_instance = TransformedTargetRegressor(
         ),
         ModifiedSelectFromModel(
             lgb.LGBMRegressor(
-                importance_type="gain", n_jobs=-1, random_state=0
+                importance_type=importance_type,
+                n_jobs=n_jobs,
+                random_state=random_state,
             ),
-            # random_state=0,
-            shuffle=False,
-            threshold=1e-06,
+            random_state=random_state,
+            shuffle=shuffle,
+            threshold=threshold,
         ),
         ModifiedColumnTransformer(
             [
@@ -121,22 +142,28 @@ c.Recipe.model_instance = TransformedTargetRegressor(
         ),
         ModifiedSelectFromModel(
             lgb.LGBMRegressor(
-                importance_type="gain", n_jobs=-1, random_state=0
+                importance_type=importance_type,
+                n_jobs=n_jobs,
+                random_state=random_state,
             ),
-            # random_state=0,
-            shuffle=False,
-            threshold=1e-06,
+            random_state=random_state,
+            shuffle=shuffle,
+            threshold=threshold,
         ),
         OGBMRegressor(
-            cv=TimeSeriesSplit(5),
-            n_estimators=100_000,
-            n_jobs=-1,
-            n_trials=100,
-            random_state=0,
+            cv=cv,
+            enable_pruning=enable_pruning,
+            importance_type=importance_type,
+            n_estimators=n_estimators,
+            n_jobs=n_jobs,
+            n_trials=n_trials,
+            random_state=random_state,
         ),
     ),
     func=np.log1p,
     inverse_func=np.expm1,
 )
-c.Recipe.fit_params = {"ogbmregressor__early_stopping_rounds": 30}
+c.Recipe.fit_params = {
+    "ogbmregressor__early_stopping_rounds": early_stopping_rounds
+}
 c.Recipe.model_path = "examples/bike-sharing-demand/model.pkl"

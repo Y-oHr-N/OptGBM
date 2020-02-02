@@ -1,5 +1,7 @@
 """Config."""
 
+import os
+
 import lightgbm as lgb
 import numpy as np
 
@@ -21,12 +23,29 @@ from sklearn.compose import TransformedTargetRegressor
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.pipeline import make_pipeline
 
+root_dir_path = "examples/nyc-taxi-trip-duration"
 label_col = "trip_duration"
 
+cv = TimeSeriesSplit(5)
+dtype = "float32"
+enable_pruning = True
+encode = True
+importance_type = "gain"
+include_unixtime = True
+method = "spearman"
+n_jobs = -1
+n_estimators = 100_000
+n_trials = 100
+random_state = 0
+subsample = 0.5
+shuffle = True
+threshold = 1e-06
+
+early_stopping_rounds = 30
 
 c = get_config()  # noqa
 
-c.Recipe.data_path = "examples/nyc-taxi-trip-duration/train.csv.gz"
+c.Recipe.data_path = os.path.join(root_dir_path, "train.csv.gz")
 c.Recipe.label_col = label_col
 c.Recipe.read_params = {
     "dtype": {"vendor_id": "category"},
@@ -42,7 +61,7 @@ c.Recipe.read_params = {
         "dropoff_longitude",
         "dropoff_latitude",
         "store_and_fwd_flag",
-        "trip_duration",
+        label_col,
     ],
 }
 
@@ -63,9 +82,9 @@ c.Recipe.model_instance = TransformedTargetRegressor(
                     "numerical_features",
                     make_pipeline(
                         DropCollinearFeatures(
-                            method="spearman",
-                            # random_state=0,
-                            shuffle=False,
+                            method=method,
+                            random_state=random_state,
+                            shuffle=shuffle,
                         ),
                         ClippedFeatures(),
                         ModifiedStandardScaler(),
@@ -75,7 +94,9 @@ c.Recipe.model_instance = TransformedTargetRegressor(
                 (
                     "time_features",
                     CalendarFeatures(
-                        dtype="float32", encode=True, include_unixtime=True
+                        dtype=dtype,
+                        encode=encode,
+                        include_unixtime=include_unixtime,
                     ),
                     make_column_selector(dtype_include="datetime64"),
                 ),
@@ -83,11 +104,13 @@ c.Recipe.model_instance = TransformedTargetRegressor(
         ),
         ModifiedSelectFromModel(
             lgb.LGBMRegressor(
-                importance_type="gain", n_jobs=-1, random_state=0
+                importance_type=importance_type,
+                n_jobs=n_jobs,
+                random_state=random_state,
             ),
-            # random_state=0,
-            shuffle=False,
-            threshold=1e-06,
+            random_state=random_state,
+            shuffle=shuffle,
+            threshold=threshold,
         ),
         ModifiedColumnTransformer(
             [
@@ -106,23 +129,28 @@ c.Recipe.model_instance = TransformedTargetRegressor(
         ),
         ModifiedSelectFromModel(
             lgb.LGBMRegressor(
-                importance_type="gain", n_jobs=-1, random_state=0
+                importance_type=importance_type,
+                n_jobs=n_jobs,
+                random_state=random_state,
             ),
-            # random_state=0,
-            shuffle=False,
-            threshold=1e-06,
+            random_state=random_state,
+            shuffle=shuffle,
+            threshold=threshold,
         ),
         OGBMRegressor(
-            cv=TimeSeriesSplit(5),
-            enable_pruning=True,
-            n_estimators=100_000,
-            n_jobs=-1,
-            n_trials=100,
-            random_state=0,
+            cv=cv,
+            enable_pruning=enable_pruning,
+            importance_type=importance_type,
+            n_estimators=n_estimators,
+            n_jobs=n_jobs,
+            n_trials=n_trials,
+            random_state=random_state,
         ),
     ),
     func=np.log1p,
     inverse_func=np.expm1,
 )
-c.Recipe.fit_params = {"ogbmregressor__early_stopping_rounds": 30}
-c.Recipe.model_path = "examples/nyc-taxi-trip-duration/model.pkl"
+c.Recipe.fit_params = {
+    "ogbmregressor__early_stopping_rounds": early_stopping_rounds
+}
+c.Recipe.model_path = os.path.join(root_dir_path, "model.pkl")

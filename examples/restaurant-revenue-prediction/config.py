@@ -23,6 +23,22 @@ from sklearn.pipeline import make_pipeline
 
 label_col = "revenue"
 
+cv = TimeSeriesSplit(5)
+encode = True
+dtype = "float32"
+has_time = True
+include_unixtime = True
+method = "spearman"
+n_jobs = -1
+param_distributions = {
+    "bagging_temperature": uniform(0.0, 10.0),
+    "max_depth": np.arange(1, 7),
+    "reg_lambda": uniform(1e-06, 10.0),
+}
+random_state = 0
+shuffle = False
+threshold = 1e-06
+verbose = 0
 
 c = get_config()  # noqa
 
@@ -47,7 +63,9 @@ c.Recipe.model_instance = TransformedTargetRegressor(
                     "numerical_features",
                     make_pipeline(
                         DropCollinearFeatures(
-                            method="spearman", shuffle=False
+                            method=method,
+                            random_state=random_state,
+                            shuffle=shuffle,
                         ),
                         ClippedFeatures(),
                     ),
@@ -56,7 +74,9 @@ c.Recipe.model_instance = TransformedTargetRegressor(
                 (
                     "time_features",
                     CalendarFeatures(
-                        dtype="float32", encode=True, include_unixtime=True
+                        dtype=dtype,
+                        encode=encode,
+                        include_unixtime=include_unixtime,
                     ),
                     make_column_selector(dtype_include="datetime64"),
                 ),
@@ -64,10 +84,11 @@ c.Recipe.model_instance = TransformedTargetRegressor(
         ),
         ModifiedSelectFromModel(
             ModifiedCatBoostRegressor(
-                has_time=True, random_state=0, verbose=0
+                has_time=has_time, random_state=random_state, verbose=verbose
             ),
-            shuffle=False,
-            threshold=1e-06,
+            random_state=random_state,
+            shuffle=shuffle,
+            threshold=threshold,
         ),
         ModifiedColumnTransformer(
             [
@@ -86,24 +107,21 @@ c.Recipe.model_instance = TransformedTargetRegressor(
         ),
         ModifiedSelectFromModel(
             ModifiedCatBoostRegressor(
-                has_time=True, random_state=0, verbose=0
+                has_time=has_time, random_state=random_state, verbose=verbose
             ),
-            shuffle=False,
-            threshold=1e-06,
+            random_state=random_state,
+            shuffle=shuffle,
+            threshold=threshold,
         ),
         Profiler(label_col=label_col),
         RandomizedSearchCV(
             ModifiedCatBoostRegressor(
-                has_time=True, random_state=0, verbose=0
+                has_time=has_time, random_state=random_state, verbose=verbose
             ),
-            param_distributions={
-                "bagging_temperature": uniform(0.0, 10.0),
-                "max_depth": np.arange(1, 7),
-                "reg_lambda": uniform(1e-06, 10.0),
-            },
-            cv=TimeSeriesSplit(5),
-            n_jobs=-1,
-            random_state=0,
+            param_distributions=param_distributions,
+            cv=cv,
+            n_jobs=n_jobs,
+            random_state=random_state,
         ),
     ),
     func=np.log1p,
