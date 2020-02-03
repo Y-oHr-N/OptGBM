@@ -77,8 +77,8 @@ DEFAULT_PARAM_DISTRIBUTIONS = {
     #     1e-03, 10.0
     # ),
     "num_leaves": optuna.distributions.IntUniformDistribution(2, 127),
-    "reg_alpha": optuna.distributions.LogUniformDistribution(1e-06, 10.0),
-    "reg_lambda": optuna.distributions.LogUniformDistribution(1e-06, 10.0),
+    "reg_alpha": optuna.distributions.LogUniformDistribution(1e-09, 10.0),
+    "reg_lambda": optuna.distributions.LogUniformDistribution(1e-09, 10.0),
     "subsample": optuna.distributions.DiscreteUniformDistribution(
         0.5, 0.95, 0.05
     ),
@@ -274,7 +274,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         importance_type: str = "split",
         cv: Union[BaseCrossValidator, int] = 5,
         enable_pruning: bool = False,
-        n_trials: int = 25,
+        n_trials: int = 10,
         param_distributions: Optional[
             Dict[optuna.distributions.BaseDistribution, str]
         ] = None,
@@ -832,7 +832,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         importance_type: str = "split",
         cv: Union[BaseCrossValidator, int] = 5,
         enable_pruning: bool = False,
-        n_trials: int = 25,
+        n_trials: int = 10,
         param_distributions: Optional[
             Dict[optuna.distributions.BaseDistribution, str]
         ] = None,
