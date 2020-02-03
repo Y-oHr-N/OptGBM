@@ -121,26 +121,24 @@ def test_refit() -> None:
     assert np.array_equal(y_pred, clf.predict(X))
 
 
-def test_score() -> None:
-    load_functions = [load_breast_cancer, load_digits, load_iris, load_wine]
+@pytest.mark.parametrize(
+    "load_function", [load_breast_cancer, load_digits, load_iris, load_wine]
+)
+def test_score(load_function: Callable) -> None:
+    X, y = load_function(return_X_y=True)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
 
-    for load_function in load_functions:
-        X, y = load_function(return_X_y=True)
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, random_state=0
-        )
+    clf = lgb.LGBMClassifier(random_state=0)
 
-        clf = lgb.LGBMClassifier(random_state=0)
+    clf.fit(X_train, y_train)
 
-        clf.fit(X_train, y_train)
+    score = clf.score(X_test, y_test)
 
-        score = clf.score(X_test, y_test)
+    clf = OGBMClassifier(random_state=0)
 
-        clf = OGBMClassifier(random_state=0)
+    clf.fit(X_train, y_train)
 
-        clf.fit(X_train, y_train)
-
-        assert score <= clf.score(X_test, y_test)
+    assert score <= clf.score(X_test, y_test)
 
 
 @pytest.mark.parametrize("n_jobs", [-1, 1])
