@@ -1,6 +1,6 @@
 # OptGBM
 
-[![CircleCI](https://img.shields.io/circleci/build/github/Y-oHr-N/OptGBM)](https://circleci.com/gh/Y-oHr-N/OptGBM)
+![Python package](https://github.com/Y-oHr-N/OptGBM/workflows/Python%20package/badge.svg?branch=master)
 [![PyPI](https://img.shields.io/pypi/v/OptGBM)](https://pypi.org/project/OptGBM/)
 [![PyPI - License](https://img.shields.io/pypi/l/OptGBM)](https://pypi.org/project/OptGBM/)
 [![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/Y-oHr-N/OptGBM/master)
