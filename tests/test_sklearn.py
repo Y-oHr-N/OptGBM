@@ -15,7 +15,9 @@ from sklearn.datasets import load_digits
 from sklearn.datasets import load_iris
 from sklearn.datasets import load_wine
 from sklearn.model_selection import train_test_split
-from sklearn.utils.estimator_checks import check_estimator
+
+# from sklearn.utils.estimator_checks import check_estimator
+from sklearn.utils.estimator_checks import check_set_params
 
 from optgbm.sklearn import OGBMClassifier
 from optgbm.sklearn import OGBMRegressor
@@ -31,14 +33,22 @@ def zero_one_loss(
     return "zero_one_loss", np.mean(y_true != y_pred), False
 
 
-@pytest.mark.skip
 def test_ogbm_classifier() -> None:
-    check_estimator(OGBMClassifier)
+    clf = OGBMClassifier()
+    name = clf.__class__.__name__
+
+    # check_estimator(clf)
+
+    check_set_params(name, clf)
 
 
-@pytest.mark.skip
 def test_ogbm_regressor() -> None:
-    check_estimator(OGBMRegressor)
+    reg = OGBMRegressor()
+    name = reg.__class__.__name__
+
+    # check_estimator(reg)
+
+    check_set_params(name, reg)
 
 
 @pytest.mark.parametrize("reg_sqrt", [False, True])

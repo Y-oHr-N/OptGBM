@@ -233,24 +233,6 @@ class _VotingBooster(object):
 
 
 class _BaseOGBMModel(lgb.LGBMModel):
-    @property
-    def _param_distributions(
-        self,
-    ) -> Dict[str, optuna.distributions.BaseDistribution]:
-        if self.param_distributions is None:
-            return DEFAULT_PARAM_DISTRIBUTIONS
-
-        return self.param_distributions
-
-    @property
-    def _random_state(self) -> Optional[int]:
-        if self.random_state is None or isinstance(self.random_state, int):
-            return self.random_state
-
-        random_state = check_random_state(self.random_state)
-
-        return random_state.randint(0, MAX_INT)
-
     def __init__(
         self,
         boosting_type: str = "gbdt",
@@ -315,6 +297,22 @@ class _BaseOGBMModel(lgb.LGBMModel):
     def _check_is_fitted(self) -> None:
         check_is_fitted(self, "n_features_")
 
+    def _get_param_distributions(
+        self,
+    ) -> Dict[str, optuna.distributions.BaseDistribution]:
+        if self.param_distributions is None:
+            return DEFAULT_PARAM_DISTRIBUTIONS
+
+        return self.param_distributions
+
+    def _get_random_state(self) -> Optional[int]:
+        if self.random_state is None or isinstance(self.random_state, int):
+            return self.random_state
+
+        random_state = check_random_state(self.random_state)
+
+        return random_state.randint(0, MAX_INT)
+
     def fit(
         self,
         X: TWO_DIM_ARRAYLIKE_TYPE,
@@ -374,7 +372,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         is_classifier = self._estimator_type == "classifier"
         cv = check_cv(self.cv, y, is_classifier)
 
-        seed = self._random_state
+        seed = self._get_random_state()
 
         params = self.get_params()
 
@@ -442,7 +440,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         objective = _Objective(
             params,
             dataset,
-            self._param_distributions,
+            self._get_param_distributions(),
             eval_name,
             is_higher_better,
             callbacks=callbacks,
