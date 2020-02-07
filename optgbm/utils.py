@@ -87,7 +87,7 @@ def check_X(
         Converted and validated data.
     """
     if not isinstance(X, pd.DataFrame):
-        X = check_array(X, **kwargs)
+        X = check_array(X, estimator=estimator, **kwargs)
 
     _, actual_n_features = X.shape
     expected_n_features = getattr(estimator, "n_features_", actual_n_features)
