@@ -1,6 +1,7 @@
 """scikit-learn compatible models."""
 
 import copy
+import logging
 
 from typing import Any
 from typing import Callable
@@ -459,6 +460,10 @@ class _BaseOGBMModel(lgb.LGBMModel):
 
         self.best_params_ = {**params, **self.study_.best_params}
         self._best_iteration = self.study_.user_attrs["best_iteration"]
+
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"The best_iteration is {self._best_iteration}.")
 
         try:  # lightgbm<=2.2.3
             boosters = [

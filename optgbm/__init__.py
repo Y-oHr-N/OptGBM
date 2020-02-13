@@ -1,5 +1,7 @@
 """OptGBM package."""
 
+import logging
+
 from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
 
@@ -11,3 +13,10 @@ except DistributionNotFound:
 
 from . import sklearn  # noqa
 from . import utils  # noqa
+
+logger = logging.getLogger(__name__)
+handler = logging.StreamHandler()
+
+logger.addHandler(handler)
+
+logger.setLevel(logging.INFO)
