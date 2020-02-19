@@ -9,7 +9,6 @@ import numpy as np
 import optuna
 import pytest
 
-from sklearn.datasets import load_boston
 from sklearn.datasets import load_breast_cancer
 from sklearn.datasets import load_digits
 from sklearn.datasets import load_iris
@@ -25,6 +24,14 @@ from optgbm.sklearn import OGBMRegressor
 callback = lgb.reset_parameter(
     learning_rate=lambda iteration: 0.05 * (0.99 ** iteration)
 )
+
+
+def log_likelihood(
+    y_true: np.ndarray, y_pred: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
+    y_pred = 1.0 / (1.0 + np.exp(-y_pred))
+
+    return y_pred - y_true, y_pred * (1.0 - y_pred)
 
 
 def zero_one_loss(
@@ -51,13 +58,16 @@ def test_ogbm_regressor() -> None:
     check_set_params(name, reg)
 
 
-@pytest.mark.parametrize("reg_sqrt", [False, True])
-def test_fit_with_params(reg_sqrt: bool) -> None:
-    X, y = load_boston(return_X_y=True)
+@pytest.mark.parametrize("is_unbalance", [False, True])
+@pytest.mark.parametrize("objective", [None, log_likelihood])
+def test_fit_with_params(
+    is_unbalance: bool, objective: Optional[Union[Callable, str]],
+) -> None:
+    X, y = load_breast_cancer(return_X_y=True)
 
-    reg = OGBMRegressor(reg_sqrt=reg_sqrt)
+    clf = OGBMClassifier(is_unbalance=is_unbalance, objective=objective)
 
-    reg.fit(X, y)
+    clf.fit(X, y)
 
 
 @pytest.mark.parametrize("callbacks", [None, [callback]])
