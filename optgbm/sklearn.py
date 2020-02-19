@@ -318,6 +318,17 @@ class _BaseOGBMModel(lgb.LGBMModel):
     def _check_is_fitted(self) -> None:
         check_is_fitted(self, "n_features_")
 
+    def _get_objective(self) -> str:
+        if self.objective is None:
+            if self._n_classes is None:
+                return "regression"
+            elif self._n_classes > 2:
+                return "multiclass"
+            else:
+                return "binary"
+
+        return self.objective
+
     def _get_param_distributions(
         self,
     ) -> Dict[str, optuna.distributions.BaseDistribution]:
@@ -421,14 +432,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
             if self._n_classes > 2:
                 params["num_classes"] = self._n_classes
 
-        if self.objective is None:
-            if is_classifier:
-                if self._n_classes > 2:
-                    self._objective = "multiclass"
-                else:
-                    self._objective = "binary"
-            else:
-                self._objective = "regression"
+        self._objective = self._get_objective()
 
         params["objective"] = self._objective
 
