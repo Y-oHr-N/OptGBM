@@ -19,6 +19,7 @@ from sklearn.base import RegressorMixin
 from sklearn.model_selection import BaseCrossValidator
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
+from sklearn.utils import safe_indexing
 from sklearn.utils.validation import check_is_fitted
 
 try:  # lightgbm<=2.2.3
@@ -357,6 +358,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         X: TWO_DIM_ARRAYLIKE_TYPE,
         y: ONE_DIM_ARRAYLIKE_TYPE,
         sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
+        groups: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
         callbacks: Optional[List[Callable]] = None,
         categorical_feature: Union[List[int], List[str], str] = "auto",
         early_stopping_rounds: Optional[int] = 10,
@@ -375,6 +377,10 @@ class _BaseOGBMModel(lgb.LGBMModel):
 
         sample_weight
             Weights of training data.
+
+        groups
+            Group labels for the samples used while splitting the dataset into
+            train/test set.
 
         callbacks
             List of callback functions that are applied at each iteration.
@@ -474,7 +480,17 @@ class _BaseOGBMModel(lgb.LGBMModel):
         else:
             self.study_ = self.study
 
-        dataset = lgb.Dataset(X, label=y, weight=sample_weight)
+        if groups is None:
+            group = None
+        else:
+            indices = np.argsort(groups)
+            X = safe_indexing(X, indices)
+            y = safe_indexing(y, indices)
+            sample_weight = safe_indexing(sample_weight, indices)
+            groups = safe_indexing(groups, indices)
+            _, group = np.unique(groups, return_counts=True)
+
+        dataset = lgb.Dataset(X, label=y, group=group, weight=sample_weight)
 
         objective = _Objective(
             params,
@@ -505,7 +521,10 @@ class _BaseOGBMModel(lgb.LGBMModel):
         logger.info(f"The best_iteration is {self._best_iteration}.")
 
         weights = np.array(
-            [np.sum(sample_weight[train]) for train, _ in cv.split(X, y)]
+            [
+                np.sum(sample_weight[train])
+                for train, _ in cv.split(X, y, groups=groups)
+            ]
         )
 
         self._Booster = _VotingBooster.from_representations(
