@@ -130,10 +130,9 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
 def test_refit(early_stopping_rounds: Optional[int]) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
-    clf = OGBMClassifier(random_state=0)
+    clf = OGBMClassifier(random_state=0, refit=True)
 
     clf.fit(X, y, early_stopping_rounds=early_stopping_rounds)
-    clf.refit(X, y)
 
     y_pred = clf.predict(X)
 

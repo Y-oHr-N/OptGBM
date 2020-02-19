@@ -278,6 +278,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         subsample: float = 1.0,
         subsample_freq: int = 0,
         colsample_bytree: float = 1.0,
+        refit: bool = False,
         reg_alpha: float = 0.0,
         reg_lambda: float = 0.0,
         random_state: Optional[RANDOM_STATE_TYPE] = None,
@@ -320,6 +321,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         self.enable_pruning = enable_pruning
         self.n_trials = n_trials
         self.param_distributions = param_distributions
+        self.refit = refit
         self.study = study
         self.timeout = timeout
 
@@ -352,6 +354,54 @@ class _BaseOGBMModel(lgb.LGBMModel):
         random_state = check_random_state(self.random_state)
 
         return random_state.randint(0, MAX_INT)
+
+    def _train_booster(
+        self,
+        X: TWO_DIM_ARRAYLIKE_TYPE,
+        y: ONE_DIM_ARRAYLIKE_TYPE,
+        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
+        callbacks: Optional[List[Callable]] = None,
+        categorical_feature: Union[List[int], List[str], str] = "auto",
+        feature_name: Union[List[str], str] = "auto",
+    ) -> lgb.Booster:
+        """Refit the estimator with the best found hyperparameters.
+
+        Parameters
+        ----------
+        X
+            Training data.
+
+        y
+            Target.
+
+        sample_weight
+            Weights of training data.
+
+        callbacks
+            List of callback functions that are applied at each iteration.
+
+        categorical_feature
+            Categorical features.
+
+        feature_name
+            Feature names.
+
+        Returns
+        -------
+        booster
+            Trained booster.
+        """
+        self._check_is_fitted()
+
+        params = self.best_params_.copy()
+        dataset = lgb.Dataset(X, label=y, weight=sample_weight)
+        booster = lgb.train(
+            params, dataset, num_boost_round=self._best_iteration
+        )
+
+        booster.free_dataset()
+
+        return booster
 
     def fit(
         self,
@@ -527,59 +577,21 @@ class _BaseOGBMModel(lgb.LGBMModel):
             ]
         )
 
-        self._Booster = _VotingBooster.from_representations(
-            self.study_.user_attrs["representations"], weights=weights
-        )
+        self._Booster: Union[lgb.Booster, _VotingBooster]
 
-        return self
-
-    def refit(
-        self,
-        X: TWO_DIM_ARRAYLIKE_TYPE,
-        y: ONE_DIM_ARRAYLIKE_TYPE,
-        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
-        callbacks: Optional[List[Callable]] = None,
-        categorical_feature: Union[List[int], List[str], str] = "auto",
-        feature_name: Union[List[str], str] = "auto",
-    ) -> "_BaseOGBMModel":
-        """Refit the estimator with the best found hyperparameters.
-
-        Parameters
-        ----------
-        X
-            Training data.
-
-        y
-            Target.
-
-        sample_weight
-            Weights of training data.
-
-        callbacks
-            List of callback functions that are applied at each iteration.
-
-        categorical_feature
-            Categorical features.
-
-        feature_name
-            Feature names.
-
-        Returns
-        -------
-        self
-            Return self.
-        """
-        self._check_is_fitted()
-
-        params = self.best_params_.copy()
-        dataset = lgb.Dataset(X, label=y, weight=sample_weight)
-        booster = lgb.train(
-            params, dataset, num_boost_round=self._best_iteration
-        )
-
-        booster.free_dataset()
-
-        self._Booster = booster
+        if self.refit:
+            self._Booster = self._train_booster(
+                X,
+                y,
+                sample_weight=sample_weight,
+                callbacks=callbacks,
+                categorical_feature=categorical_feature,
+                feature_name=feature_name,
+            )
+        else:
+            self._Booster = _VotingBooster.from_representations(
+                self.study_.user_attrs["representations"], weights=weights
+            )
 
         return self
 
@@ -659,6 +671,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     param_distributions
         Dictionary where keys are parameters and values are distributions.
+
+    refit
+        If True, refit the estimator with the best found hyperparameters.
 
     study
         Study that corresponds to the optimization task.
@@ -827,6 +842,9 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     param_distributions
         Dictionary where keys are parameters and values are distributions.
 
+    refit
+        If True, refit the estimator with the best found hyperparameters.
+
     study
         Study that corresponds to the optimization task.
 
@@ -888,6 +906,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         param_distributions: Optional[
             Dict[optuna.distributions.BaseDistribution, str]
         ] = None,
+        refit: bool = False,
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None,
         **kwargs: Any,
@@ -910,6 +929,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             objective=objective,
             param_distributions=param_distributions,
             random_state=random_state,
+            refit=refit,
             reg_alpha=reg_alpha,
             reg_lambda=reg_lambda,
             study=study,
