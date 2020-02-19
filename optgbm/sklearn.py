@@ -159,8 +159,9 @@ class _Objective(object):
 
         if is_best_trial:
             best_iteration: int = callbacks[0]._best_iteration  # type: ignore
-            boosters: List[lgb.Booster] = \
+            boosters: List[lgb.Booster] = (
                 callbacks[0]._boosters  # type: ignore
+            )
             representations: List[str] = []
 
             for b in boosters:
@@ -173,15 +174,17 @@ class _Objective(object):
         return value
 
     def _get_callbacks(self, trial: optuna.trial.Trial) -> List[Callable]:
-        extraction_callback: _LightGBMExtractionCallback = \
+        extraction_callback: _LightGBMExtractionCallback = (
             _LightGBMExtractionCallback()
+        )
         callbacks: List[Callable] = [extraction_callback]
 
         if self.enable_pruning:
-            pruning_callback: optuna.integration.LightGBMPruningCallback = \
+            pruning_callback: optuna.integration.LightGBMPruningCallback = (
                 optuna.integration.LightGBMPruningCallback(
                     trial, self.eval_name
                 )
+            )
 
             callbacks.append(pruning_callback)
 
