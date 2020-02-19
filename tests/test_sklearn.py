@@ -13,6 +13,8 @@ from sklearn.datasets import load_breast_cancer
 from sklearn.datasets import load_digits
 from sklearn.datasets import load_iris
 from sklearn.datasets import load_wine
+from sklearn.model_selection import BaseCrossValidator
+from sklearn.model_selection import GroupKFold
 from sklearn.model_selection import train_test_split
 
 # from sklearn.utils.estimator_checks import check_estimator
@@ -58,16 +60,21 @@ def test_ogbm_regressor() -> None:
     check_set_params(name, reg)
 
 
+@pytest.mark.parametrize("cv", [5, GroupKFold(5)])
 @pytest.mark.parametrize("is_unbalance", [False, True])
 @pytest.mark.parametrize("objective", [None, log_likelihood])
 def test_fit_with_params(
-    is_unbalance: bool, objective: Optional[Union[Callable, str]],
+    cv: Union[BaseCrossValidator, int],
+    is_unbalance: bool,
+    objective: Optional[Union[Callable, str]],
 ) -> None:
     X, y = load_breast_cancer(return_X_y=True)
+    n_samples, _ = X.shape
+    groups = np.random.choice(10, size=n_samples)
 
-    clf = OGBMClassifier(is_unbalance=is_unbalance, objective=objective)
+    clf = OGBMClassifier(cv=cv, is_unbalance=is_unbalance, objective=objective)
 
-    clf.fit(X, y)
+    clf.fit(X, y, groups=groups)
 
 
 @pytest.mark.parametrize("callbacks", [None, [callback]])
