@@ -420,15 +420,17 @@ class _BaseOGBMModel(lgb.LGBMModel):
 
             if self._n_classes > 2:
                 params["num_classes"] = self._n_classes
-                params["objective"] = "multiclass"
+
+        if self.objective is None:
+            if is_classifier:
+                if self._n_classes > 2:
+                    self._objective = "multiclass"
+                else:
+                    self._objective = "binary"
             else:
-                params["objective"] = "binary"
+                self._objective = "regression"
 
-        else:
-            params["objective"] = "regression"
-
-        if self.objective is not None:
-            params["objective"] = self.objective
+        params["objective"] = self._objective
 
         if callable(eval_metric):
             params["metric"] = "None"
