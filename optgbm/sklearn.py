@@ -23,8 +23,12 @@ from sklearn.utils.validation import check_is_fitted
 
 try:  # lightgbm<=2.2.3
     from lightgbm.sklearn import _eval_function_wrapper as _EvalFunctionWrapper
+    from lightgbm.sklearn import (
+        _objective_function_wrapper as _ObjectiveFunctionWrapper,
+    )
 except ImportError:
     from lightgbm.sklearn import _EvalFunctionWrapper
+    from lightgbm.sklearn import _ObjectiveFunctionWrapper
 
 from .utils import check_cv
 from .utils import check_fit_params
@@ -116,6 +120,7 @@ class _Objective(object):
         enable_pruning: bool = False,
         feature_name: Union[List[str], str] = "auto",
         feval: Optional[Callable] = None,
+        fobj: Optional[Callable] = None,
         n_estimators: int = 100,
     ) -> None:
         self.callbacks = callbacks
@@ -125,8 +130,9 @@ class _Objective(object):
         self.early_stopping_rounds = early_stopping_rounds
         self.enable_pruning = enable_pruning
         self.eval_name = eval_name
-        self.feval = feval
         self.feature_name = feature_name
+        self.feval = feval
+        self.fobj = fobj
         self.is_higher_better = is_higher_better
         self.n_estimators = n_estimators
         self.params = params
@@ -144,6 +150,7 @@ class _Objective(object):
             early_stopping_rounds=self.early_stopping_rounds,
             feature_name=self.feature_name,
             feval=self.feval,
+            fobj=self.fobj,
             folds=self.cv,
             num_boost_round=self.n_estimators,
         )
@@ -262,7 +269,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         learning_rate: float = 0.1,
         n_estimators: int = 1_000,
         subsample_for_bin: int = 200_000,
-        objective: Optional[str] = None,
+        objective: Optional[Union[Callable, str]] = None,
         class_weight: Optional[Union[Dict[str, float], str]] = None,
         min_split_gain: float = 0.0,
         min_child_weight: float = 1e-03,
@@ -319,15 +326,15 @@ class _BaseOGBMModel(lgb.LGBMModel):
         check_is_fitted(self, "n_features_")
 
     def _get_objective(self) -> str:
-        if self.objective is None:
-            if self._n_classes is None:
-                return "regression"
-            elif self._n_classes > 2:
-                return "multiclass"
-            else:
-                return "binary"
+        if isinstance(self.objective, str):
+            return self.objective
 
-        return self.objective
+        if self._n_classes is None:
+            return "regression"
+        elif self._n_classes > 2:
+            return "multiclass"
+        else:
+            return "binary"
 
     def _get_param_distributions(
         self,
@@ -432,6 +439,11 @@ class _BaseOGBMModel(lgb.LGBMModel):
             if self._n_classes > 2:
                 params["num_classes"] = self._n_classes
 
+        if callable(self.objective):
+            fobj = _ObjectiveFunctionWrapper(self.objective)
+        else:
+            fobj = None
+
         self._objective = self._get_objective()
 
         params["objective"] = self._objective
@@ -477,6 +489,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
             enable_pruning=self.enable_pruning,
             feature_name=feature_name,
             feval=feval,
+            fobj=fobj,
             n_estimators=self.n_estimators,
         )
 
@@ -838,7 +851,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         learning_rate: float = 0.1,
         n_estimators: int = 1_000,
         subsample_for_bin: int = 200_000,
-        objective: Optional[str] = None,
+        objective: Optional[Union[Callable, str]] = None,
         min_split_gain: float = 0.0,
         min_child_weight: float = 1e-03,
         min_child_samples: int = 20,
