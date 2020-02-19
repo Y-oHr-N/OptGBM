@@ -213,6 +213,23 @@ class _VotingBooster(object):
         self.boosters = boosters
         self.weights = weights
 
+    @classmethod
+    def from_representations(
+        cls, representations: List[str], weights: Optional[np.ndarray] = None
+    ) -> "_VotingBooster":
+        try:  # lightgbm<=2.2.3
+            boosters = [
+                lgb.Booster(params={"model_str": model_str})
+                for model_str in representations
+            ]
+        except TypeError:
+            boosters = [
+                lgb.Booster(model_str=model_str, silent=True)
+                for model_str in representations
+            ]
+
+        return cls(boosters, weights=weights)
+
     def predict(
         self, X: TWO_DIM_ARRAYLIKE_TYPE, **kwargs: Any
     ) -> TWO_DIM_ARRAYLIKE_TYPE:
@@ -468,22 +485,13 @@ class _BaseOGBMModel(lgb.LGBMModel):
 
         logger.info(f"The best_iteration is {self._best_iteration}.")
 
-        try:  # lightgbm<=2.2.3
-            boosters = [
-                lgb.Booster(params={"model_str": model_str})
-                for model_str in self.study_.user_attrs["representations"]
-            ]
-        except TypeError:
-            boosters = [
-                lgb.Booster(model_str=model_str, silent=True)
-                for model_str in self.study_.user_attrs["representations"]
-            ]
-
         weights = np.array(
             [np.sum(sample_weight[train]) for train, _ in cv.split(X, y)]
         )
 
-        self._Booster = _VotingBooster(boosters, weights=weights)
+        self._Booster = _VotingBooster.from_representations(
+            self.study_.user_attrs["representations"], weights=weights
+        )
 
         return self
 
