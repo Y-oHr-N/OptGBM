@@ -107,11 +107,19 @@ class _LightGBMExtractionCallback(object):
 
 
 class _Objective(object):
+    @property
+    def _param_distributions(
+        self,
+    ) -> Dict[str, optuna.distributions.BaseDistribution]:
+        if self.param_distributions is None:
+            return DEFAULT_PARAM_DISTRIBUTIONS
+
+        return self.param_distributions
+
     def __init__(
         self,
         params: Dict[str, Any],
         dataset: lgb.Dataset,
-        param_distributions: Dict[str, optuna.distributions.BaseDistribution],
         eval_name: str,
         is_higher_better: bool,
         callbacks: Optional[List[Callable]] = None,
@@ -123,6 +131,9 @@ class _Objective(object):
         feval: Optional[Callable] = None,
         fobj: Optional[Callable] = None,
         n_estimators: int = 100,
+        param_distributions: Optional[
+            Dict[str, optuna.distributions.BaseDistribution]
+        ] = None,
     ) -> None:
         self.callbacks = callbacks
         self.categorical_feature = categorical_feature
@@ -204,7 +215,7 @@ class _Objective(object):
     def _get_params(self, trial: optuna.trial.Trial) -> Dict[str, Any]:
         params: Dict[str, Any] = self.params.copy()
 
-        for name, distribution in self.param_distributions.items():
+        for name, distribution in self._param_distributions.items():
             params[name] = trial._suggest(name, distribution)
 
         return params
@@ -338,14 +349,6 @@ class _BaseOGBMModel(lgb.LGBMModel):
             return "multiclass"
         else:
             return "binary"
-
-    def _get_param_distributions(
-        self,
-    ) -> Dict[str, optuna.distributions.BaseDistribution]:
-        if self.param_distributions is None:
-            return DEFAULT_PARAM_DISTRIBUTIONS
-
-        return self.param_distributions
 
     def _get_random_state(self) -> Optional[int]:
         if self.random_state is None or isinstance(self.random_state, int):
@@ -545,7 +548,6 @@ class _BaseOGBMModel(lgb.LGBMModel):
         objective = _Objective(
             params,
             dataset,
-            self._get_param_distributions(),
             eval_name,
             is_higher_better,
             callbacks=callbacks,
@@ -557,6 +559,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
             feval=feval,
             fobj=fobj,
             n_estimators=self.n_estimators,
+            param_distributions=self.param_distributions,
         )
 
         self.study_.optimize(
