@@ -249,25 +249,15 @@ class _VotingBooster(object):
 
         return cls(boosters, weights=weights)
 
-    def predict(
-        self, X: TWO_DIM_ARRAYLIKE_TYPE, **kwargs: Any
-    ) -> TWO_DIM_ARRAYLIKE_TYPE:
-        results = []
-
-        for b in self.boosters:
-            result = b.predict(X, **kwargs)
-
-            results.append(result)
+    def feature_importance(self, **kwargs: Any) -> np.ndarray:
+        results = [b.feature_importance(**kwargs) for b in self.boosters]
 
         return np.average(results, axis=0, weights=self.weights)
 
-    def feature_importance(self, **kwargs: Any) -> np.ndarray:
-        results = []
-
-        for b in self.boosters:
-            result = b.feature_importance(**kwargs)
-
-            results.append(result)
+    def predict(
+        self, X: TWO_DIM_ARRAYLIKE_TYPE, **kwargs: Any
+    ) -> TWO_DIM_ARRAYLIKE_TYPE:
+        results = [b.predict(X, **kwargs) for b in self.boosters]
 
         return np.average(results, axis=0, weights=self.weights)
 
