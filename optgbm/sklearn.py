@@ -288,7 +288,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         enable_pruning: bool = False,
         n_trials: int = 10,
         param_distributions: Optional[
-            Dict[optuna.distributions.BaseDistribution, str]
+            Dict[str, optuna.distributions.BaseDistribution]
         ] = None,
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None,
@@ -904,7 +904,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         enable_pruning: bool = False,
         n_trials: int = 10,
         param_distributions: Optional[
-            Dict[optuna.distributions.BaseDistribution, str]
+            Dict[str, optuna.distributions.BaseDistribution]
         ] = None,
         refit: bool = False,
         study: Optional[optuna.study.Study] = None,
