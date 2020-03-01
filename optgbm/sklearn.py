@@ -722,6 +722,11 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
         return self._classes
 
+    @property
+    def n_classes_(self) -> int:
+        """Number of classes."""
+        return self._n_classes
+
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
         """Predict using the fitted model.
 
