@@ -263,6 +263,11 @@ class _VotingBooster(object):
 
 
 class _BaseOGBMModel(lgb.LGBMModel):
+    @property
+    def best_index_(self) -> int:
+        """Index which corresponds to the best candidate parameter setting."""
+        return self.study_.best_trial.number
+
     def __init__(
         self,
         boosting_type: str = "gbdt",
