@@ -563,6 +563,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
 
         self.best_params_ = {**params, **self.study_.best_params}
         self._best_iteration = self.study_.user_attrs["best_iteration"]
+        self.n_splits_ = cv.get_n_splits(X, y, groups=groups)
 
         logger = logging.getLogger(__name__)
 
@@ -695,6 +696,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     n_features_
         Number of features of fitted model.
+
+    n_splits_:
+        Number of cross-validation splits.
 
     study_
         Actual study.
@@ -862,6 +866,9 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     n_features_
         Number of features of fitted model.
+
+    n_splits_:
+        Number of cross-validation splits.
 
     study_
         Actual study.
