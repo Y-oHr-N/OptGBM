@@ -688,6 +688,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     best_iteration_
         Number of iterations as selected by early stopping.
 
+    best_params_
+        Parameters of the best trial in the `Study`.
+
     booster_
         Trained booster.
 
@@ -865,6 +868,9 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     ----------
     best_iteration_
         Number of iterations as selected by early stopping.
+
+    best_params_
+        Parameters of the best trial in the `Study`.
 
     booster_
         Trained booster.
