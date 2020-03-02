@@ -265,7 +265,7 @@ class _VotingBooster(object):
 class _BaseOGBMModel(lgb.LGBMModel):
     @property
     def best_index_(self) -> int:
-        """Index which corresponds to the best candidate parameter setting."""
+        """Get the best trial's number."""
         return self.study_.best_trial.number
 
     def __init__(
@@ -720,14 +720,14 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     @property
     def classes_(self) -> np.ndarray:
-        """Class labels."""
+        """Get the class labels."""
         self._check_is_fitted()
 
         return self._classes
 
     @property
     def n_classes_(self) -> int:
-        """Number of classes."""
+        """Get the number of classes."""
         return self._n_classes
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
