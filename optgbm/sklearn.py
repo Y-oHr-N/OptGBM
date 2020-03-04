@@ -406,12 +406,13 @@ class _BaseOGBMModel(lgb.LGBMModel):
         X: TWO_DIM_ARRAYLIKE_TYPE,
         y: ONE_DIM_ARRAYLIKE_TYPE,
         sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
-        groups: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
-        callbacks: Optional[List[Callable]] = None,
-        categorical_feature: Union[List[int], List[str], str] = "auto",
-        early_stopping_rounds: Optional[int] = 10,
+        group: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
         eval_metric: Optional[Union[Callable, str]] = None,
+        early_stopping_rounds: Optional[int] = 10,
         feature_name: Union[List[str], str] = "auto",
+        categorical_feature: Union[List[int], List[str], str] = "auto",
+        callbacks: Optional[List[Callable]] = None,
+        groups: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
     ) -> "_BaseOGBMModel":
         """Fit the model according to the given training data.
 
@@ -426,24 +427,27 @@ class _BaseOGBMModel(lgb.LGBMModel):
         sample_weight
             Weights of training data.
 
-        groups
-            Group labels for the samples used while splitting the dataset into
-            train/test set.
-
-        callbacks
-            List of callback functions that are applied at each iteration.
-
-        categorical_feature
-            Categorical features.
-
-        early_stopping_rounds
-            Used to activate early stopping.
+        group
+            Group data of training data.
 
         eval_metric
             Evaluation metric.
 
+        early_stopping_rounds
+            Used to activate early stopping.
+
         feature_name
             Feature names.
+
+        categorical_feature
+            Categorical features.
+
+        callbacks
+            List of callback functions that are applied at each iteration.
+
+        groups
+            Group labels for the samples used while splitting the dataset into
+            train/test set. If `group` is not None, this parameter is ignored.
 
         Returns
         -------
@@ -528,9 +532,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         else:
             self.study_ = self.study
 
-        if groups is None:
-            group = None
-        else:
+        if group is None and groups is not None:
             indices = np.argsort(groups)
             X = safe_indexing(X, indices)
             y = safe_indexing(y, indices)
