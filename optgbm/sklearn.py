@@ -716,8 +716,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     >>> X, y = load_iris(return_X_y=True)
     >>> clf.fit(X, y)
     OGBMClassifier(...)
-    >>> clf.score(X, y)
-    0.9...
+    >>> y_pred = clf.predict(X)
     """
 
     @property
@@ -894,8 +893,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     >>> X, y = load_boston(return_X_y=True)
     >>> reg.fit(X, y)
     OGBMRegressor(...)
-    >>> reg.score(X, y)
-    0.9...
+    >>> y_pred = reg.predict(X)
     """
 
     def __init__(
