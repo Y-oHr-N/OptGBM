@@ -71,26 +71,6 @@ OBJECTIVE2METRIC = {
     "tweedie": "tweedie",
 }
 
-DEFAULT_PARAM_DISTRIBUTIONS = {
-    # "boosting_type": optuna.distributions.CategoricalDistribution(
-    #     ["gbdt", "rf"]
-    # ),
-    "colsample_bytree": optuna.distributions.DiscreteUniformDistribution(
-        0.1, 1.0, 0.05
-    ),
-    "min_child_samples": optuna.distributions.IntUniformDistribution(1, 100),
-    # "min_child_weight": optuna.distributions.LogUniformDistribution(
-    #     1e-03, 10.0
-    # ),
-    "num_leaves": optuna.distributions.IntUniformDistribution(2, 127),
-    "reg_alpha": optuna.distributions.LogUniformDistribution(1e-09, 10.0),
-    "reg_lambda": optuna.distributions.LogUniformDistribution(1e-09, 10.0),
-    "subsample": optuna.distributions.DiscreteUniformDistribution(
-        0.5, 0.95, 0.05
-    ),
-    "subsample_freq": optuna.distributions.IntUniformDistribution(1, 10),
-}
-
 
 def _is_higher_better(metric: str) -> bool:
     return metric in ["auc"]
@@ -107,15 +87,6 @@ class _LightGBMExtractionCallback(object):
 
 
 class _Objective(object):
-    @property
-    def _param_distributions(
-        self,
-    ) -> Dict[str, optuna.distributions.BaseDistribution]:
-        if self.param_distributions is None:
-            return DEFAULT_PARAM_DISTRIBUTIONS
-
-        return self.param_distributions
-
     def __init__(
         self,
         params: Dict[str, Any],
@@ -215,7 +186,33 @@ class _Objective(object):
     def _get_params(self, trial: optuna.trial.Trial) -> Dict[str, Any]:
         params: Dict[str, Any] = self.params.copy()
 
-        for name, distribution in self._param_distributions.items():
+        if self.param_distributions is None:
+            params["colsample_bytree"] = trial.suggest_discrete_uniform(
+                "colsample_bytree", 0.1, 1.0, 0.05
+            )
+            params["max_depth"] = trial.suggest_int("max_depth", 1, 7)
+            params["min_child_samples"] = trial.suggest_int(
+                "min_child_samples", 1, 100
+            )
+            params["num_leaves"] = trial.suggest_int(
+                "num_leaves", 2, 2 ** params["max_depth"]
+            )
+            params["reg_alpha"] = trial.suggest_loguniform(
+                "reg_alpha", 1e-09, 10.0
+            )
+            params["reg_lambda"] = trial.suggest_loguniform(
+                "reg_lambda", 1e-09, 10.0
+            )
+            params["subsample"] = trial.suggest_discrete_uniform(
+                "subsample", 0.5, 0.95, 0.05
+            )
+            params["subsample_freq"] = trial.suggest_int(
+                "subsample_freq", 1, 10
+            )
+
+            return params
+
+        for name, distribution in self.param_distributions.items():
             params[name] = trial._suggest(name, distribution)
 
         return params
