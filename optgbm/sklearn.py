@@ -78,8 +78,8 @@ def _is_higher_better(metric: str) -> bool:
 
 class _LightGBMExtractionCallback(object):
     def __init__(self) -> None:
-        self._best_iteration: Optional[int] = None
-        self._boosters: Optional[List[lgb.Booster]] = None
+        self._best_iteration = None  # type: Optional[int]
+        self._boosters = None  # type: Optional[List[lgb.Booster]]
 
     def __call__(self, env: LightGBMCallbackEnv) -> None:
         self._best_iteration = env.iteration + 1
@@ -124,10 +124,10 @@ class _Objective(object):
         self.param_distributions = param_distributions
 
     def __call__(self, trial: optuna.trial.Trial) -> float:
-        params: Dict[str, Any] = self._get_params(trial)
+        params = self._get_params(trial)  # type: Dict[str, Any]
         dataset = copy.copy(self.dataset)
-        callbacks: List[Callable] = self._get_callbacks(trial)
-        eval_hist: Dict[str, List[float]] = lgb.cv(
+        callbacks = self._get_callbacks(trial)  # type: List[Callable]
+        eval_hist = lgb.cv(
             params,
             dataset,
             callbacks=callbacks,
@@ -138,9 +138,9 @@ class _Objective(object):
             fobj=self.fobj,
             folds=self.cv,
             num_boost_round=self.n_estimators,
-        )
-        value: float = eval_hist[f"{self.eval_name}-mean"][-1]
-        is_best_trial: bool = True
+        )  # Dict[str, List[float]]
+        value = eval_hist["{}-mean".format(self.eval_name)][-1]  # type: float
+        is_best_trial = True  # type: bool
 
         try:
             is_best_trial = (
@@ -150,11 +150,11 @@ class _Objective(object):
             pass
 
         if is_best_trial:
-            best_iteration: int = callbacks[0]._best_iteration  # type: ignore
-            boosters: List[lgb.Booster] = (
+            best_iteration = callbacks[0]._best_iteration  # type: ignore
+            boosters = (
                 callbacks[0]._boosters  # type: ignore
-            )
-            representations: List[str] = []
+            )  # type: List[lgb.Booster]
+            representations = []  # type: List[str]
 
             for b in boosters:
                 b.free_dataset()
@@ -166,17 +166,17 @@ class _Objective(object):
         return value
 
     def _get_callbacks(self, trial: optuna.trial.Trial) -> List[Callable]:
-        extraction_callback: _LightGBMExtractionCallback = (
+        extraction_callback = (
             _LightGBMExtractionCallback()
-        )
-        callbacks: List[Callable] = [extraction_callback]
+        )  # type: _LightGBMExtractionCallback
+        callbacks = [extraction_callback]  # type: List[Callable]
 
         if self.enable_pruning:
-            pruning_callback: optuna.integration.LightGBMPruningCallback = (
+            pruning_callback = (
                 optuna.integration.LightGBMPruningCallback(
                     trial, self.eval_name
                 )
-            )
+            )  # type: optuna.integration.LightGBMPruningCallback
 
             callbacks.append(pruning_callback)
 
@@ -186,7 +186,7 @@ class _Objective(object):
         return callbacks
 
     def _get_params(self, trial: optuna.trial.Trial) -> Dict[str, Any]:
-        params: Dict[str, Any] = self.params.copy()
+        params = self.params.copy()  # type: Dict[str, Any]
 
         if self.param_distributions is None:
             params["colsample_bytree"] = trial.suggest_discrete_uniform(
@@ -275,8 +275,8 @@ class _BaseOGBMModel(lgb.LGBMModel):
         num_leaves: int = 31,
         max_depth: int = -1,
         learning_rate: float = 0.1,
-        n_estimators: int = 1_000,
-        subsample_for_bin: int = 200_000,
+        n_estimators: int = 1000,
+        subsample_for_bin: int = 200000,
         objective: Optional[Union[Callable, str]] = None,
         class_weight: Optional[Union[Dict[str, float], str]] = None,
         min_split_gain: float = 0.0,
@@ -299,7 +299,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         ] = None,
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None,
-        **kwargs: Any,
+        **kwargs: Any
     ) -> None:
         super().__init__(
             boosting_type=boosting_type,
@@ -321,7 +321,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
             subsample=subsample,
             subsample_for_bin=subsample_for_bin,
             subsample_freq=subsample_freq,
-            **kwargs,
+            **kwargs
         )
 
         self.cv = cv
@@ -571,7 +571,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
 
         logger = logging.getLogger(__name__)
 
-        logger.info(f"The best_iteration is {self._best_iteration}.")
+        logger.info("The best_iteration is {}.".format(self._best_iteration))
 
         weights = np.array(
             [
@@ -579,8 +579,6 @@ class _BaseOGBMModel(lgb.LGBMModel):
                 for train, _ in cv.split(X, y, groups=groups)
             ]
         )
-
-        self._Booster: Union[lgb.Booster, _VotingBooster]
 
         if self.refit:
             self._Booster = self._train_booster(
@@ -904,8 +902,8 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         num_leaves: int = 31,
         max_depth: int = -1,
         learning_rate: float = 0.1,
-        n_estimators: int = 1_000,
-        subsample_for_bin: int = 200_000,
+        n_estimators: int = 1000,
+        subsample_for_bin: int = 200000,
         objective: Optional[Union[Callable, str]] = None,
         min_split_gain: float = 0.0,
         min_child_weight: float = 1e-03,
@@ -927,7 +925,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         refit: bool = False,
         study: Optional[optuna.study.Study] = None,
         timeout: Optional[float] = None,
-        **kwargs: Any,
+        **kwargs: Any
     ) -> None:
         super().__init__(
             boosting_type=boosting_type,
@@ -955,7 +953,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             subsample_freq=subsample_freq,
             subsample_for_bin=subsample_for_bin,
             timeout=timeout,
-            **kwargs,
+            **kwargs
         )
 
     def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
