@@ -571,7 +571,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
 
         logger = logging.getLogger(__name__)
 
-        logger.info(f"The best_iteration is {self._best_iteration}.")
+        logger.info("The best_iteration is {}.".format(self._best_iteration))
 
         weights = np.array(
             [
