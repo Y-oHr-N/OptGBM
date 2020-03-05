@@ -93,6 +93,7 @@ class _Objective(object):
         dataset: lgb.Dataset,
         eval_name: str,
         is_higher_better: bool,
+        n_samples: int,
         callbacks: Optional[List[Callable]] = None,
         categorical_feature: Union[List[int], List[str], str] = "auto",
         cv: Optional[BaseCrossValidator] = None,
@@ -118,6 +119,7 @@ class _Objective(object):
         self.fobj = fobj
         self.is_higher_better = is_higher_better
         self.n_estimators = n_estimators
+        self.n_samples = n_samples
         self.params = params
         self.param_distributions = param_distributions
 
@@ -191,11 +193,13 @@ class _Objective(object):
                 "colsample_bytree", 0.1, 1.0, 0.05
             )
             params["max_depth"] = trial.suggest_int("max_depth", 1, 7)
-            params["min_child_samples"] = trial.suggest_int(
-                "min_child_samples", 1, 100
-            )
             params["num_leaves"] = trial.suggest_int(
                 "num_leaves", 2, 2 ** params["max_depth"]
+            )
+            params["min_child_samples"] = trial.suggest_int(
+                "min_child_samples",
+                1,
+                max(1, int(self.n_samples / params["num_leaves"])),
             )
             params["reg_alpha"] = trial.suggest_loguniform(
                 "reg_alpha", 1e-09, 10.0
@@ -289,7 +293,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         importance_type: str = "split",
         cv: Union[BaseCrossValidator, int] = 5,
         enable_pruning: bool = False,
-        n_trials: int = 10,
+        n_trials: int = 20,
         param_distributions: Optional[
             Dict[str, optuna.distributions.BaseDistribution]
         ] = None,
@@ -461,7 +465,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
             force_all_finite=False,
         )
 
-        _, self._n_features = X.shape
+        n_samples, self._n_features = X.shape
 
         is_classifier = self._estimator_type == "classifier"
         cv = check_cv(self.cv, y, is_classifier)
@@ -544,6 +548,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
             dataset,
             eval_name,
             is_higher_better,
+            n_samples,
             callbacks=callbacks,
             categorical_feature=categorical_feature,
             cv=cv,
@@ -915,7 +920,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         importance_type: str = "split",
         cv: Union[BaseCrossValidator, int] = 5,
         enable_pruning: bool = False,
-        n_trials: int = 10,
+        n_trials: int = 20,
         param_distributions: Optional[
             Dict[str, optuna.distributions.BaseDistribution]
         ] = None,
