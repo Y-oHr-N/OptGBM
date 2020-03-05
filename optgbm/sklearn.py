@@ -580,8 +580,6 @@ class _BaseOGBMModel(lgb.LGBMModel):
             ]
         )
 
-        self._Booster: Union[lgb.Booster, _VotingBooster]
-
         if self.refit:
             self._Booster = self._train_booster(
                 X,
