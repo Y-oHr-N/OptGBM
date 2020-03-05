@@ -17,10 +17,6 @@ from sklearn.model_selection import BaseCrossValidator
 from sklearn.model_selection import GroupKFold
 from sklearn.model_selection import train_test_split
 
-# from sklearn.utils.estimator_checks import check_estimator
-from sklearn.utils.estimator_checks import check_estimators_pickle
-from sklearn.utils.estimator_checks import check_set_params
-
 from optgbm.sklearn import OGBMClassifier
 from optgbm.sklearn import OGBMRegressor
 
@@ -44,6 +40,12 @@ def zero_one_loss(
 
 
 def test_ogbm_classifier() -> None:
+    pytest.importorskip("sklearn", minversion="0.20.0")
+
+    # from sklearn.utils.estimator_checks import check_estimator
+    from sklearn.utils.estimator_checks import check_estimators_pickle
+    from sklearn.utils.estimator_checks import check_set_params
+
     clf = OGBMClassifier()
     name = clf.__class__.__name__
 
@@ -54,6 +56,12 @@ def test_ogbm_classifier() -> None:
 
 
 def test_ogbm_regressor() -> None:
+    pytest.importorskip("sklearn", minversion="0.20.0")
+
+    # from sklearn.utils.estimator_checks import check_estimator
+    from sklearn.utils.estimator_checks import check_estimators_pickle
+    from sklearn.utils.estimator_checks import check_set_params
+
     reg = OGBMRegressor()
     name = reg.__class__.__name__
 
