@@ -145,6 +145,19 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
     assert len(study.trials) == 2 * n_trials
 
 
+def test_predict_with_unused_fit_params() -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier()
+
+    clf.fit(X, y, eval_set=None)
+
+    y_pred = clf.predict(X, pred_leaf=False)
+
+    assert isinstance(y_pred, np.ndarray)
+    assert y.shape == y_pred.shape
+
+
 @pytest.mark.parametrize("early_stopping_rounds", [None, 10])
 def test_refit(early_stopping_rounds: Optional[int]) -> None:
     X, y = load_breast_cancer(return_X_y=True)
