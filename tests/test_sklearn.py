@@ -100,6 +100,14 @@ def test_fit_with_fit_params(
     clf.fit(X, y, callbacks=callbacks, eval_metric=eval_metric)
 
 
+def test_fit_with_unused_fit_params() -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier()
+
+    clf.fit(X, y, eval_set=None)
+
+
 @pytest.mark.parametrize("n_jobs", [-1, 1])
 def test_fit_twice_without_study(n_jobs: int) -> None:
     X, y = load_breast_cancer(return_X_y=True)

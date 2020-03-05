@@ -414,6 +414,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         categorical_feature: Union[List[int], List[str], str] = "auto",
         callbacks: Optional[List[Callable]] = None,
         groups: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
+        **fit_params: Any
     ) -> "_BaseOGBMModel":
         """Fit the model according to the given training data.
 
@@ -449,6 +450,9 @@ class _BaseOGBMModel(lgb.LGBMModel):
         groups
             Group labels for the samples used while splitting the dataset into
             train/test set. If `group` is not None, this parameter is ignored.
+
+        **fit_params
+            Always ignored, exists for compatibility.
 
         Returns
         -------
