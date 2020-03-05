@@ -735,7 +735,11 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         """Get the number of classes."""
         return self._n_classes
 
-    def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
+    def predict(
+        self,
+        X: TWO_DIM_ARRAYLIKE_TYPE,
+        **predict_params: Any
+    ) -> ONE_DIM_ARRAYLIKE_TYPE:
         """Predict using the fitted model.
 
         Parameters
@@ -743,18 +747,23 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         X
             Data.
 
+        **predict_params
+            Always ignored, exists for compatibility.
+
         Returns
         -------
         y_pred
             Predicted values.
         """
-        probas = self.predict_proba(X)
+        probas = self.predict_proba(X, **predict_params)
         class_index = np.argmax(probas, axis=1)
 
         return self.encoder_.inverse_transform(class_index)
 
     def predict_proba(
-        self, X: TWO_DIM_ARRAYLIKE_TYPE
+        self,
+        X: TWO_DIM_ARRAYLIKE_TYPE,
+        **predict_params: Any
     ) -> TWO_DIM_ARRAYLIKE_TYPE:
         """Predict class probabilities for data.
 
@@ -762,6 +771,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         ----------
         X
             Data.
+
+        **predict_params
+            Always ignored, exists for compatibility.
 
         Returns
         -------
@@ -960,13 +972,20 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             **kwargs
         )
 
-    def predict(self, X: TWO_DIM_ARRAYLIKE_TYPE) -> ONE_DIM_ARRAYLIKE_TYPE:
+    def predict(
+        self,
+        X: TWO_DIM_ARRAYLIKE_TYPE,
+        **predict_params: Any
+    ) -> ONE_DIM_ARRAYLIKE_TYPE:
         """Predict using the fitted model.
 
         Parameters
         ----------
         X
             Data.
+
+        **predict_params
+            Always ignored, exists for compatibility.
 
         Returns
         -------
