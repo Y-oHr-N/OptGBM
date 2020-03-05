@@ -139,7 +139,7 @@ class _Objective(object):
             folds=self.cv,
             num_boost_round=self.n_estimators,
         )  # Dict[str, List[float]]
-        value = eval_hist[f"{self.eval_name}-mean"][-1]  # type: float
+        value = eval_hist["{}-mean".format(self.eval_name)][-1]  # type: float
         is_best_trial = True  # type: bool
 
         try:
