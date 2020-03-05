@@ -32,6 +32,18 @@ RANDOM_STATE_TYPE = Union[int, np.random.RandomState]
 ONE_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.Series]
 TWO_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.DataFrame]
 
+LightGBMCallbackEnv = NamedTuple(
+    "LightGBMCallbackEnv",
+    [
+        ("model", _CVBooster),
+        ("params", Dict[str, Any]),
+        ("iteration", int),
+        ("begin_iteration", int),
+        ("end_iteration", int),
+        ("evaluation_result_list", List),
+    ],
+)
+
 
 def check_cv(
     cv: Union[BaseCrossValidator, int] = 5,
@@ -165,14 +177,3 @@ def check_fit_params(
     check_consistent_length(X, y, sample_weight)
 
     return X, y, sample_weight
-
-
-class LightGBMCallbackEnv(NamedTuple):
-    """Callback environment used by callbacks."""
-
-    model: _CVBooster
-    params: Dict[str, Any]
-    iteration: int
-    begin_iteration: int
-    end_iteration: int
-    evaluation_result_list: List
