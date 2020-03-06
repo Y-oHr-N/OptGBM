@@ -207,12 +207,14 @@ class _Objective(object):
             params["reg_lambda"] = trial.suggest_loguniform(
                 "reg_lambda", 1e-09, 10.0
             )
-            params["subsample"] = trial.suggest_discrete_uniform(
-                "subsample", 0.5, 0.95, 0.05
-            )
-            params["subsample_freq"] = trial.suggest_int(
-                "subsample_freq", 1, 10
-            )
+
+            if params["boosting_type"] != "goss":
+                params["subsample"] = trial.suggest_discrete_uniform(
+                    "subsample", 0.5, 0.95, 0.05
+                )
+                params["subsample_freq"] = trial.suggest_int(
+                    "subsample_freq", 1, 10
+                )
 
             return params
 

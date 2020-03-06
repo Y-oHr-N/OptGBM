@@ -71,10 +71,12 @@ def test_ogbm_regressor() -> None:
     check_set_params(name, reg)
 
 
+@pytest.mark.parametrize("boosting_type", ["dart", "gbdt", "goss"])
 @pytest.mark.parametrize("cv", [5, GroupKFold(5)])
 @pytest.mark.parametrize("is_unbalance", [False, True])
 @pytest.mark.parametrize("objective", [None, log_likelihood])
 def test_fit_with_params(
+    boosting_type: str,
     cv: Union[BaseCrossValidator, int],
     is_unbalance: bool,
     objective: Optional[Union[Callable, str]],
@@ -83,7 +85,12 @@ def test_fit_with_params(
     n_samples, _ = X.shape
     groups = np.random.choice(10, size=n_samples)
 
-    clf = OGBMClassifier(cv=cv, is_unbalance=is_unbalance, objective=objective)
+    clf = OGBMClassifier(
+        boosting_type=boosting_type,
+        cv=cv,
+        is_unbalance=is_unbalance,
+        objective=objective,
+    )
 
     clf.fit(X, y, groups=groups)
 
