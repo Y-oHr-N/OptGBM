@@ -572,6 +572,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
 
         self.best_params_ = {**params, **self.study_.best_params}
         self._best_iteration = self.study_.user_attrs["best_iteration"]
+        self._best_score = self.study_.best_value
         self.n_splits_ = cv.get_n_splits(X, y, groups=groups)
 
         logger = logging.getLogger(__name__)
@@ -699,6 +700,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     best_params_
         Parameters of the best trial in the `Study`.
+
+    best_score_
+        Mean cross-validated score of the best estimator.
 
     booster_
         Trained booster.
@@ -894,6 +898,9 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     best_params_
         Parameters of the best trial in the `Study`.
+
+    best_score_
+        Mean cross-validated score of the best estimator.
 
     booster_
         Trained booster.
