@@ -738,6 +738,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     def predict(
         self,
         X: TWO_DIM_ARRAYLIKE_TYPE,
+        num_iteration: Optional[int] = None,
         **predict_params: Any
     ) -> ONE_DIM_ARRAYLIKE_TYPE:
         """Predict using the fitted model.
@@ -747,6 +748,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         X
             Data.
 
+        num_iteration
+            Limit number of iterations in the prediction.
+
         **predict_params
             Always ignored, exists for compatibility.
 
@@ -755,7 +759,11 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         y_pred
             Predicted values.
         """
-        probas = self.predict_proba(X, **predict_params)
+        probas = self.predict_proba(
+            X,
+            num_iteration=num_iteration,
+            **predict_params
+        )
         class_index = np.argmax(probas, axis=1)
 
         return self.encoder_.inverse_transform(class_index)
@@ -763,6 +771,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     def predict_proba(
         self,
         X: TWO_DIM_ARRAYLIKE_TYPE,
+        num_iteration: Optional[int] = None,
         **predict_params: Any
     ) -> TWO_DIM_ARRAYLIKE_TYPE:
         """Predict class probabilities for data.
@@ -771,6 +780,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         ----------
         X
             Data.
+
+        num_iteration
+            Limit number of iterations in the prediction.
 
         **predict_params
             Always ignored, exists for compatibility.
@@ -785,7 +797,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         X = check_X(
             X, accept_sparse=True, estimator=self, force_all_finite=False
         )
-        preds = self._Booster.predict(X)
+        preds = self._Booster.predict(X, num_iteration=num_iteration)
 
         if self._n_classes > 2:
             return preds
@@ -975,6 +987,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     def predict(
         self,
         X: TWO_DIM_ARRAYLIKE_TYPE,
+        num_iteration: Optional[int] = None,
         **predict_params: Any
     ) -> ONE_DIM_ARRAYLIKE_TYPE:
         """Predict using the fitted model.
@@ -983,6 +996,9 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         ----------
         X
             Data.
+
+        num_iteration
+            Limit number of iterations in the prediction.
 
         **predict_params
             Always ignored, exists for compatibility.
@@ -998,4 +1014,4 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             X, accept_sparse=True, estimator=self, force_all_finite=False
         )
 
-        return self._Booster.predict(X)
+        return self._Booster.predict(X, num_iteration=num_iteration)
