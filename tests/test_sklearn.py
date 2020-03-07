@@ -72,7 +72,7 @@ def test_ogbm_regressor() -> None:
 
 
 @pytest.mark.parametrize("is_unbalance", [False, True])
-@pytest.mark.parametrize("objective", [None, log_likelihood])
+@pytest.mark.parametrize("objective", [None, "binary", log_likelihood])
 def test_fit_with_params(
     is_unbalance: bool,
     objective: Optional[Union[Callable, str]],
@@ -89,7 +89,7 @@ def test_fit_with_params(
 
 
 @pytest.mark.parametrize("callbacks", [None, [callback]])
-@pytest.mark.parametrize("eval_metric", ["auc", zero_one_loss])
+@pytest.mark.parametrize("eval_metric", [None, "auc", zero_one_loss])
 def test_fit_with_fit_params(
     callbacks: Optional[List[Callable]], eval_metric: Union[Callable, str]
 ) -> None:
