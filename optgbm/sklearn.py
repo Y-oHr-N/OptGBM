@@ -757,6 +757,8 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     @property
     def n_classes_(self) -> int:
         """Get the number of classes."""
+        self._check_is_fitted()
+
         return self._n_classes
 
     def predict(
