@@ -2,6 +2,7 @@
 
 import copy
 import logging
+import time
 
 from typing import Any
 from typing import Callable
@@ -585,6 +586,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         )
 
         if self.refit:
+            start_time = time.perf_counter()
             self._Booster = self._train_booster(
                 X,
                 y,
@@ -593,6 +595,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
                 categorical_feature=categorical_feature,
                 feature_name=feature_name,
             )
+            self.refit_time_ = time.perf_counter() - start_time
         else:
             self._Booster = _VotingBooster.from_representations(
                 self.study_.user_attrs["representations"], weights=weights
@@ -711,6 +714,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     study_
         Actual study.
+
+    refit_time_
+        Time for refitting the best estimator.
 
     Examples
     --------
@@ -900,6 +906,9 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     study_
         Actual study.
+
+    refit_time_
+        Time for refitting the best estimator.
 
     Examples
     --------
