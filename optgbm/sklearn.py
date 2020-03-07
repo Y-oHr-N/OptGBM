@@ -584,13 +584,6 @@ class _BaseOGBMModel(lgb.LGBMModel):
 
         logger.info("The best_iteration is {}.".format(self._best_iteration))
 
-        weights = np.array(
-            [
-                np.sum(sample_weight[train])
-                for train, _ in cv.split(X, y, groups=groups)
-            ]
-        )
-
         if self.refit:
             logger.info("Refitting the estimator...")
 
@@ -612,6 +605,13 @@ class _BaseOGBMModel(lgb.LGBMModel):
             )
 
         else:
+            weights = np.array(
+                [
+                    np.sum(sample_weight[train])
+                    for train, _ in cv.split(X, y, groups=groups)
+                ]
+            )
+
             self._Booster = _VotingBooster.from_representations(
                 self.study_.user_attrs["representations"], weights=weights
             )
