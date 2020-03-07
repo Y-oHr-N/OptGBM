@@ -72,6 +72,44 @@ def test_ogbm_regressor() -> None:
     check_set_params(name, reg)
 
 
+@pytest.mark.parametrize("refit", [False, True])
+def test_hasattr(refit: bool) -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier(
+        n_estimators=n_estimators, n_trials=n_trials, refit=refit
+    )
+
+    attrs = (
+        "classes_",
+        "best_index_",
+        "best_iteration_",
+        "best_params_",
+        "best_score_",
+        "booster_",
+        "encoder_",
+        "feature_importances_",
+        "n_classes_",
+        "n_features_",
+        "n_splits_",
+        "study_",
+    )
+
+    for attr in attrs:
+        with pytest.raises(AttributeError):
+            getattr(clf, attr)
+
+    clf.fit(X, y)
+
+    for attr in attrs:
+        assert hasattr(clf, attr)
+
+    if refit:
+        assert hasattr(clf, "refit_time_")
+    else:
+        assert not hasattr(clf, "refit_time_")
+
+
 @pytest.mark.parametrize("is_unbalance", [False, True])
 @pytest.mark.parametrize("objective", [None, "binary", log_likelihood])
 def test_fit_with_params(
