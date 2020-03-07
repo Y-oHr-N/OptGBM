@@ -13,7 +13,6 @@ from sklearn.datasets import load_breast_cancer
 from sklearn.datasets import load_digits
 from sklearn.datasets import load_iris
 from sklearn.datasets import load_wine
-from sklearn.model_selection import BaseCrossValidator
 from sklearn.model_selection import GroupKFold
 from sklearn.model_selection import train_test_split
 
@@ -72,26 +71,21 @@ def test_ogbm_regressor() -> None:
     check_set_params(name, reg)
 
 
-@pytest.mark.parametrize("cv", [5, GroupKFold(5)])
 @pytest.mark.parametrize("is_unbalance", [False, True])
 @pytest.mark.parametrize("objective", [None, log_likelihood])
 def test_fit_with_params(
-    cv: Union[BaseCrossValidator, int],
     is_unbalance: bool,
     objective: Optional[Union[Callable, str]],
 ) -> None:
     X, y = load_breast_cancer(return_X_y=True)
-    n_samples, _ = X.shape
-    groups = np.random.choice(10, size=n_samples)
 
     clf = OGBMClassifier(
-        cv=cv,
         is_unbalance=is_unbalance,
         n_trials=n_trials,
         objective=objective,
     )
 
-    clf.fit(X, y, groups=groups)
+    clf.fit(X, y)
 
 
 @pytest.mark.parametrize("callbacks", [None, [callback]])
@@ -112,6 +106,18 @@ def test_fit_with_unused_fit_params() -> None:
     clf = OGBMClassifier(n_trials=n_trials)
 
     clf.fit(X, y, eval_set=None)
+
+
+def test_fit_with_group_k_fold() -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    cv = GroupKFold(5)
+    clf = OGBMClassifier(cv=cv, n_trials=n_trials)
+
+    n_samples, _ = X.shape
+    groups = np.random.choice(10, size=n_samples)
+
+    clf.fit(X, y, groups=groups)
 
 
 @pytest.mark.parametrize("n_jobs", [-1, 1])
