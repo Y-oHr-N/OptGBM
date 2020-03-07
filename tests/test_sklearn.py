@@ -122,6 +122,26 @@ def test_fit_with_group_k_fold() -> None:
     clf.fit(X, y, groups=groups)
 
 
+def test_fit_with_pruning() -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    enable_pruning = True
+    clf = OGBMClassifier(enable_pruning=enable_pruning)
+
+    clf.fit(X, y)
+
+    if hasattr(clf.study_, "get_trials"):
+        trials = clf.study_.get_trials()
+    else:
+        trials = clf.study_.trials
+
+    pruned_trials = [
+        t for t in trials if t.state == optuna.structs.TrialState.PRUNED
+    ]
+
+    assert len(pruned_trials) > 0
+
+
 @pytest.mark.parametrize("n_jobs", [-1, 1])
 def test_fit_twice_without_study(n_jobs: int) -> None:
     X, y = load_breast_cancer(return_X_y=True)
