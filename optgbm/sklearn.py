@@ -566,16 +566,20 @@ class _BaseOGBMModel(lgb.LGBMModel):
             param_distributions=self.param_distributions,
         )
 
+        logger = logging.getLogger(__name__)
+
+        logger.info("Searching the best hyperparameters...")
+
         self.study_.optimize(
             objective, catch=(), n_trials=self.n_trials, timeout=self.timeout
         )
+
+        logger.info("Finished hyperparemeter search!")
 
         self.best_params_ = {**params, **self.study_.best_params}
         self._best_iteration = self.study_.user_attrs["best_iteration"]
         self._best_score = self.study_.best_value
         self.n_splits_ = cv.get_n_splits(X, y, groups=groups)
-
-        logger = logging.getLogger(__name__)
 
         logger.info("The best_iteration is {}.".format(self._best_iteration))
 
@@ -587,7 +591,10 @@ class _BaseOGBMModel(lgb.LGBMModel):
         )
 
         if self.refit:
+            logger.info("Refitting the estimator...")
+
             start_time = time.perf_counter()
+
             self._Booster = self._train_booster(
                 X,
                 y,
@@ -597,6 +604,12 @@ class _BaseOGBMModel(lgb.LGBMModel):
                 feature_name=feature_name,
             )
             self.refit_time_ = time.perf_counter() - start_time
+
+            logger.info(
+                "Finished refitting! "
+                "(elapsed time: {:.3f} sec.)".format(self.refit_time_)
+            )
+
         else:
             self._Booster = _VotingBooster.from_representations(
                 self.study_.user_attrs["representations"], weights=weights
