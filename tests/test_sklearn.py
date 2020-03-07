@@ -170,7 +170,7 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
     assert len(study.trials) == 2 * n_trials
 
 
-def test_predict_with_unused_fit_params() -> None:
+def test_predict_with_unused_predict_params() -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
     clf = OGBMClassifier(n_estimators=n_estimators, n_trials=n_trials)
