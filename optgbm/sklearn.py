@@ -486,6 +486,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         params.pop("n_estimators")
         params.pop("n_trials")
         params.pop("param_distributions")
+        params.pop("refit")
         params.pop("study")
         params.pop("timeout")
 
