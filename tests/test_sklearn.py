@@ -228,6 +228,20 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
     assert len(study.trials) == 2 * n_trials
 
 
+@pytest.mark.parametrize("num_iteration", [None, 3])
+def test_predict_with_predict_params(num_iteration: Optional[int]) -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier(n_estimators=n_estimators, n_trials=n_trials)
+
+    clf.fit(X, y)
+
+    y_pred = clf.predict(X, num_iteration=num_iteration)
+
+    assert isinstance(y_pred, np.ndarray)
+    assert y.shape == y_pred.shape
+
+
 def test_predict_with_unused_predict_params() -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
