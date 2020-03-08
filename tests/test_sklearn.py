@@ -113,22 +113,30 @@ def test_hasattr(refit: bool) -> None:
         assert not hasattr(clf, "refit_time_")
 
 
+@pytest.mark.parametrize("boosting_type", ["dart", "gbdt", "goss", "rf"])
 @pytest.mark.parametrize("is_unbalance", [False, True])
 @pytest.mark.parametrize("objective", [None, "binary", log_likelihood])
 def test_fit_with_params(
+    boosting_type: str,
     is_unbalance: bool,
     objective: Optional[Union[Callable, str]],
 ) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
     clf = OGBMClassifier(
+        boosting_type=boosting_type,
         is_unbalance=is_unbalance,
         n_estimators=n_estimators,
         n_trials=n_trials,
         objective=objective,
     )
 
-    clf.fit(X, y)
+    if boosting_type == "rf" and callable(objective):
+        # https://github.com/microsoft/LightGBM/issues/2328
+        with pytest.raises(lgb.basic.LightGBMError):
+            clf.fit(X, y)
+    else:
+        clf.fit(X, y)
 
 
 @pytest.mark.parametrize("callbacks", [None, [callback]])
