@@ -13,13 +13,14 @@ from sklearn.datasets import load_breast_cancer
 from sklearn.datasets import load_digits
 from sklearn.datasets import load_iris
 from sklearn.datasets import load_wine
-from sklearn.model_selection import BaseCrossValidator
 from sklearn.model_selection import GroupKFold
 from sklearn.model_selection import train_test_split
 
 from optgbm.sklearn import OGBMClassifier
 from optgbm.sklearn import OGBMRegressor
 
+n_estimators = 10
+n_trials = 5
 callback = lgb.reset_parameter(
     learning_rate=lambda iteration: 0.05 * (0.99 ** iteration)
 )
@@ -71,31 +72,70 @@ def test_ogbm_regressor() -> None:
     check_set_params(name, reg)
 
 
-@pytest.mark.parametrize("cv", [5, GroupKFold(5)])
+@pytest.mark.parametrize("refit", [False, True])
+def test_hasattr(refit: bool) -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier(
+        n_estimators=n_estimators, n_trials=n_trials, refit=refit
+    )
+
+    attrs = (
+        "classes_",
+        "best_index_",
+        "best_iteration_",
+        "best_params_",
+        "best_score_",
+        "booster_",
+        "encoder_",
+        "feature_importances_",
+        "n_classes_",
+        "n_features_",
+        "n_splits_",
+        "study_",
+    )
+
+    for attr in attrs:
+        with pytest.raises(AttributeError):
+            getattr(clf, attr)
+
+    clf.fit(X, y)
+
+    for attr in attrs:
+        assert hasattr(clf, attr)
+
+    if refit:
+        assert hasattr(clf, "refit_time_")
+    else:
+        assert not hasattr(clf, "refit_time_")
+
+
 @pytest.mark.parametrize("is_unbalance", [False, True])
-@pytest.mark.parametrize("objective", [None, log_likelihood])
+@pytest.mark.parametrize("objective", [None, "binary", log_likelihood])
 def test_fit_with_params(
-    cv: Union[BaseCrossValidator, int],
     is_unbalance: bool,
     objective: Optional[Union[Callable, str]],
 ) -> None:
     X, y = load_breast_cancer(return_X_y=True)
-    n_samples, _ = X.shape
-    groups = np.random.choice(10, size=n_samples)
 
-    clf = OGBMClassifier(cv=cv, is_unbalance=is_unbalance, objective=objective)
+    clf = OGBMClassifier(
+        is_unbalance=is_unbalance,
+        n_estimators=n_estimators,
+        n_trials=n_trials,
+        objective=objective,
+    )
 
-    clf.fit(X, y, groups=groups)
+    clf.fit(X, y)
 
 
 @pytest.mark.parametrize("callbacks", [None, [callback]])
-@pytest.mark.parametrize("eval_metric", ["auc", zero_one_loss])
+@pytest.mark.parametrize("eval_metric", [None, "auc", zero_one_loss])
 def test_fit_with_fit_params(
     callbacks: Optional[List[Callable]], eval_metric: Union[Callable, str]
 ) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
-    clf = OGBMClassifier()
+    clf = OGBMClassifier(n_estimators=n_estimators, n_trials=n_trials)
 
     clf.fit(X, y, callbacks=callbacks, eval_metric=eval_metric)
 
@@ -103,16 +143,53 @@ def test_fit_with_fit_params(
 def test_fit_with_unused_fit_params() -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
-    clf = OGBMClassifier()
+    clf = OGBMClassifier(n_estimators=n_estimators, n_trials=n_trials)
 
     clf.fit(X, y, eval_set=None)
+
+
+def test_fit_with_group_k_fold() -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    cv = GroupKFold(5)
+    clf = OGBMClassifier(cv=cv, n_estimators=n_estimators, n_trials=n_trials)
+
+    n_samples, _ = X.shape
+    groups = np.random.choice(10, size=n_samples)
+
+    clf.fit(X, y, groups=groups)
+
+
+def test_fit_with_pruning() -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    enable_pruning = True
+    clf = OGBMClassifier(enable_pruning=enable_pruning)
+
+    clf.fit(X, y)
+
+    if hasattr(clf.study_, "get_trials"):
+        trials = clf.study_.get_trials()
+    else:
+        trials = clf.study_.trials
+
+    pruned_trials = [
+        t for t in trials if t.state == optuna.structs.TrialState.PRUNED
+    ]
+
+    assert len(pruned_trials) > 0
 
 
 @pytest.mark.parametrize("n_jobs", [-1, 1])
 def test_fit_twice_without_study(n_jobs: int) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
-    clf = OGBMClassifier(n_jobs=n_jobs, random_state=0)
+    clf = OGBMClassifier(
+        n_estimators=n_estimators,
+        n_jobs=n_jobs,
+        n_trials=n_trials,
+        random_state=0,
+    )
 
     clf.fit(X, y)
 
@@ -121,7 +198,12 @@ def test_fit_twice_without_study(n_jobs: int) -> None:
     assert isinstance(y_pred, np.ndarray)
     assert y.shape == y_pred.shape
 
-    clf = OGBMClassifier(n_jobs=n_jobs, random_state=0)
+    clf = OGBMClassifier(
+        n_estimators=n_estimators,
+        n_jobs=n_jobs,
+        n_trials=n_trials,
+        random_state=0
+    )
 
     clf.fit(X, y)
 
@@ -132,9 +214,10 @@ def test_fit_twice_without_study(n_jobs: int) -> None:
 def test_fit_twice_with_study(storage: Optional[str]) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
-    n_trials = 5
     study = optuna.create_study(storage=storage)
-    clf = OGBMClassifier(n_trials=n_trials, study=study)
+    clf = OGBMClassifier(
+        n_estimators=n_estimators, n_trials=n_trials, study=study
+    )
 
     clf.fit(X, y)
 
@@ -145,10 +228,10 @@ def test_fit_twice_with_study(storage: Optional[str]) -> None:
     assert len(study.trials) == 2 * n_trials
 
 
-def test_predict_with_unused_fit_params() -> None:
+def test_predict_with_unused_predict_params() -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
-    clf = OGBMClassifier()
+    clf = OGBMClassifier(n_estimators=n_estimators, n_trials=n_trials)
 
     clf.fit(X, y, eval_set=None)
 
@@ -162,7 +245,12 @@ def test_predict_with_unused_fit_params() -> None:
 def test_refit(early_stopping_rounds: Optional[int]) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
-    clf = OGBMClassifier(random_state=0, refit=True)
+    clf = OGBMClassifier(
+        n_estimators=n_estimators,
+        n_trials=n_trials,
+        random_state=0,
+        refit=True,
+    )
 
     clf.fit(X, y, early_stopping_rounds=early_stopping_rounds)
 
@@ -204,7 +292,9 @@ def test_score(load_function: Callable) -> None:
 def test_plot_importance(n_jobs: int) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
-    clf = OGBMClassifier(n_jobs=n_jobs)
+    clf = OGBMClassifier(
+        n_estimators=n_estimators, n_jobs=n_jobs, n_trials=n_trials
+    )
 
     clf.fit(X, y)
 
