@@ -481,16 +481,19 @@ class _BaseOGBMModel(lgb.LGBMModel):
 
         params = self.get_params()
 
-        params.pop("class_weight", None)
-        params.pop("cv")
-        params.pop("enable_pruning")
-        params.pop("importance_type")
-        params.pop("n_estimators")
-        params.pop("n_trials")
-        params.pop("param_distributions")
-        params.pop("refit")
-        params.pop("study")
-        params.pop("timeout")
+        for attr in (
+            "class_weight",
+            "cv",
+            "enable_pruning",
+            "importance_type",
+            "n_estimators",
+            "n_trials",
+            "param_distributions",
+            "refit",
+            "study",
+            "timeout",
+        ):
+            params.pop(attr, None)
 
         params["random_state"] = seed
         params["verbose"] = -1
