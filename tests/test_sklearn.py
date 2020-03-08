@@ -152,8 +152,9 @@ def test_fit_with_unused_fit_params() -> None:
 def test_fit_with_group_k_fold() -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
-    cv = GroupKFold(5)
-    clf = OGBMClassifier(cv=cv, n_estimators=n_estimators, n_trials=n_trials)
+    clf = OGBMClassifier(
+        cv=GroupKFold(5), n_estimators=n_estimators, n_trials=n_trials
+    )
 
     n_samples, _ = X.shape
     groups = np.random.choice(10, size=n_samples)
@@ -164,8 +165,7 @@ def test_fit_with_group_k_fold() -> None:
 def test_fit_with_pruning() -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
-    enable_pruning = True
-    clf = OGBMClassifier(enable_pruning=enable_pruning)
+    clf = OGBMClassifier(enable_pruning=True)
 
     clf.fit(X, y)
 
