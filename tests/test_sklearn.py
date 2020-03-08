@@ -270,9 +270,6 @@ def test_refit(early_stopping_rounds: Optional[int]) -> None:
 
     y_pred = clf.predict(X)
 
-    assert isinstance(y_pred, np.ndarray)
-    assert y.shape == y_pred.shape
-
     clf = lgb.LGBMClassifier(
         n_estimators=clf.best_iteration_, **clf.best_params_
     )
