@@ -15,9 +15,11 @@ from sklearn.datasets import load_iris
 from sklearn.datasets import load_wine
 from sklearn.model_selection import GroupKFold
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 
 from optgbm.sklearn import OGBMClassifier
 from optgbm.sklearn import OGBMRegressor
+from optgbm.sklearn import _VotingBooster
 
 n_estimators = 10
 n_trials = 5
@@ -81,20 +83,20 @@ def test_hasattr(refit: bool) -> None:
         n_estimators=n_estimators, n_trials=n_trials, refit=refit
     )
 
-    attrs = (
-        "classes_",
-        "best_index_",
-        "best_iteration_",
-        "best_params_",
-        "best_score_",
-        "booster_",
-        "encoder_",
-        "feature_importances_",
-        "n_classes_",
-        "n_features_",
-        "n_splits_",
-        "study_",
-    )
+    attrs = {
+        "classes_": np.ndarray,
+        "best_index_": int,
+        "best_iteration_": int,
+        "best_params_": dict,
+        "best_score_": float,
+        "booster_": (lgb.Booster, _VotingBooster),
+        "encoder_": LabelEncoder,
+        "feature_importances_": np.ndarray,
+        "n_classes_": int,
+        "n_features_": int,
+        "n_splits_": int,
+        "study_": optuna.study.Study,
+    }
 
     for attr in attrs:
         with pytest.raises(AttributeError):
@@ -102,8 +104,8 @@ def test_hasattr(refit: bool) -> None:
 
     clf.fit(X, y)
 
-    for attr in attrs:
-        assert hasattr(clf, attr)
+    for attr, klass in attrs.items():
+        assert isinstance(getattr(clf, attr), klass)
 
     if refit:
         assert hasattr(clf, "refit_time_")
@@ -311,7 +313,5 @@ def test_plot_importance(n_jobs: int) -> None:
     )
 
     clf.fit(X, y)
-
-    assert isinstance(clf.feature_importances_, np.ndarray)
 
     lgb.plot_importance(clf)
