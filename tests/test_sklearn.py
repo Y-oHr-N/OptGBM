@@ -245,7 +245,7 @@ def test_predict_with_unused_predict_params() -> None:
 
     clf = OGBMClassifier(n_estimators=n_estimators, n_trials=n_trials)
 
-    clf.fit(X, y, eval_set=None)
+    clf.fit(X, y)
 
     y_pred = clf.predict(X, pred_leaf=False)
 
