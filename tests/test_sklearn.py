@@ -113,7 +113,7 @@ def test_hasattr(refit: bool) -> None:
         assert not hasattr(clf, "refit_time_")
 
 
-@pytest.mark.parametrize("boosting_type", ["dart", "gbdt", "goss"])
+@pytest.mark.parametrize("boosting_type", ["dart", "gbdt", "goss", "rf"])
 @pytest.mark.parametrize("is_unbalance", [False, True])
 @pytest.mark.parametrize("objective", [None, "binary", log_likelihood])
 def test_fit_with_params(
@@ -131,7 +131,12 @@ def test_fit_with_params(
         objective=objective,
     )
 
-    clf.fit(X, y)
+    if boosting_type == "rf" and callable(objective):
+        # https://github.com/microsoft/LightGBM/issues/2328
+        with pytest.raises(lgb.basic.LightGBMError):
+            clf.fit(X, y)
+    else:
+        clf.fit(X, y)
 
 
 @pytest.mark.parametrize("callbacks", [None, [callback]])
