@@ -21,6 +21,7 @@ from optgbm.sklearn import OGBMRegressor
 
 n_estimators = 10
 n_trials = 5
+random_state = 0
 callback = lgb.reset_parameter(
     learning_rate=lambda iteration: 0.05 * (0.99 ** iteration)
 )
@@ -188,7 +189,7 @@ def test_fit_twice_without_study(n_jobs: int) -> None:
         n_estimators=n_estimators,
         n_jobs=n_jobs,
         n_trials=n_trials,
-        random_state=0,
+        random_state=random_state,
     )
 
     clf.fit(X, y)
@@ -202,7 +203,7 @@ def test_fit_twice_without_study(n_jobs: int) -> None:
         n_estimators=n_estimators,
         n_jobs=n_jobs,
         n_trials=n_trials,
-        random_state=0
+        random_state=random_state
     )
 
     clf.fit(X, y)
@@ -262,7 +263,7 @@ def test_refit(early_stopping_rounds: Optional[int]) -> None:
     clf = OGBMClassifier(
         n_estimators=n_estimators,
         n_trials=n_trials,
-        random_state=0,
+        random_state=random_state,
         refit=True,
     )
 
@@ -287,15 +288,17 @@ def test_refit(early_stopping_rounds: Optional[int]) -> None:
 )
 def test_score(load_function: Callable) -> None:
     X, y = load_function(return_X_y=True)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, random_state=random_state
+    )
 
-    clf = lgb.LGBMClassifier(random_state=0)
+    clf = lgb.LGBMClassifier(random_state=random_state)
 
     clf.fit(X_train, y_train)
 
     score = clf.score(X_test, y_test)
 
-    clf = OGBMClassifier(random_state=0)
+    clf = OGBMClassifier(random_state=random_state)
 
     clf.fit(X_train, y_train)
 
