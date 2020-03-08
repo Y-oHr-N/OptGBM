@@ -2,6 +2,7 @@
 
 import copy
 import logging
+import time
 
 from typing import Any
 from typing import Callable
@@ -487,6 +488,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         params.pop("n_estimators")
         params.pop("n_trials")
         params.pop("param_distributions")
+        params.pop("refit")
         params.pop("study")
         params.pop("timeout")
 
@@ -567,26 +569,28 @@ class _BaseOGBMModel(lgb.LGBMModel):
             param_distributions=self.param_distributions,
         )
 
+        logger = logging.getLogger(__name__)
+
+        logger.info("Searching the best hyperparameters...")
+
         self.study_.optimize(
             objective, catch=(), n_trials=self.n_trials, timeout=self.timeout
         )
 
+        logger.info("Finished hyperparemeter search!")
+
         self.best_params_ = {**params, **self.study_.best_params}
         self._best_iteration = self.study_.user_attrs["best_iteration"]
+        self._best_score = self.study_.best_value
         self.n_splits_ = cv.get_n_splits(X, y, groups=groups)
-
-        logger = logging.getLogger(__name__)
 
         logger.info("The best_iteration is {}.".format(self._best_iteration))
 
-        weights = np.array(
-            [
-                np.sum(sample_weight[train])
-                for train, _ in cv.split(X, y, groups=groups)
-            ]
-        )
-
         if self.refit:
+            logger.info("Refitting the estimator...")
+
+            start_time = time.perf_counter()
+
             self._Booster = self._train_booster(
                 X,
                 y,
@@ -595,7 +599,21 @@ class _BaseOGBMModel(lgb.LGBMModel):
                 categorical_feature=categorical_feature,
                 feature_name=feature_name,
             )
+            self.refit_time_ = time.perf_counter() - start_time
+
+            logger.info(
+                "Finished refitting! "
+                "(elapsed time: {:.3f} sec.)".format(self.refit_time_)
+            )
+
         else:
+            weights = np.array(
+                [
+                    np.sum(sample_weight[train])
+                    for train, _ in cv.split(X, y, groups=groups)
+                ]
+            )
+
             self._Booster = _VotingBooster.from_representations(
                 self.study_.user_attrs["representations"], weights=weights
             )
@@ -699,6 +717,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     best_params_
         Parameters of the best trial in the `Study`.
 
+    best_score_
+        Mean cross-validated score of the best estimator.
+
     booster_
         Trained booster.
 
@@ -713,6 +734,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     study_
         Actual study.
+
+    refit_time_
+        Time for refitting the best estimator.
 
     Examples
     --------
@@ -735,11 +759,14 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     @property
     def n_classes_(self) -> int:
         """Get the number of classes."""
+        self._check_is_fitted()
+
         return self._n_classes
 
     def predict(
         self,
         X: TWO_DIM_ARRAYLIKE_TYPE,
+        num_iteration: Optional[int] = None,
         **predict_params: Any
     ) -> ONE_DIM_ARRAYLIKE_TYPE:
         """Predict using the fitted model.
@@ -749,6 +776,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         X
             Data.
 
+        num_iteration
+            Limit number of iterations in the prediction.
+
         **predict_params
             Always ignored, exists for compatibility.
 
@@ -757,7 +787,11 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         y_pred
             Predicted values.
         """
-        probas = self.predict_proba(X, **predict_params)
+        probas = self.predict_proba(
+            X,
+            num_iteration=num_iteration,
+            **predict_params
+        )
         class_index = np.argmax(probas, axis=1)
 
         return self.encoder_.inverse_transform(class_index)
@@ -765,6 +799,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     def predict_proba(
         self,
         X: TWO_DIM_ARRAYLIKE_TYPE,
+        num_iteration: Optional[int] = None,
         **predict_params: Any
     ) -> TWO_DIM_ARRAYLIKE_TYPE:
         """Predict class probabilities for data.
@@ -773,6 +808,9 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         ----------
         X
             Data.
+
+        num_iteration
+            Limit number of iterations in the prediction.
 
         **predict_params
             Always ignored, exists for compatibility.
@@ -787,7 +825,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         X = check_X(
             X, accept_sparse=True, estimator=self, force_all_finite=False
         )
-        preds = self._Booster.predict(X)
+        preds = self._Booster.predict(X, num_iteration=num_iteration)
 
         if self._n_classes > 2:
             return preds
@@ -891,6 +929,9 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     best_params_
         Parameters of the best trial in the `Study`.
 
+    best_score_
+        Mean cross-validated score of the best estimator.
+
     booster_
         Trained booster.
 
@@ -902,6 +943,9 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     study_
         Actual study.
+
+    refit_time_
+        Time for refitting the best estimator.
 
     Examples
     --------
@@ -977,6 +1021,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     def predict(
         self,
         X: TWO_DIM_ARRAYLIKE_TYPE,
+        num_iteration: Optional[int] = None,
         **predict_params: Any
     ) -> ONE_DIM_ARRAYLIKE_TYPE:
         """Predict using the fitted model.
@@ -985,6 +1030,9 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         ----------
         X
             Data.
+
+        num_iteration
+            Limit number of iterations in the prediction.
 
         **predict_params
             Always ignored, exists for compatibility.
@@ -1000,4 +1048,4 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             X, accept_sparse=True, estimator=self, force_all_finite=False
         )
 
-        return self._Booster.predict(X)
+        return self._Booster.predict(X, num_iteration=num_iteration)
