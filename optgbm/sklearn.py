@@ -4,7 +4,6 @@ import copy
 import logging
 import time
 
-from pkg_resources import parse_version
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -32,7 +31,7 @@ from .utils import ONE_DIM_ARRAYLIKE_TYPE
 from .utils import RANDOM_STATE_TYPE
 from .utils import TWO_DIM_ARRAYLIKE_TYPE
 
-if parse_version(lgb.__version__) >= parse_version("2.3"):
+if lgb.__version__ >= "2.3":
     from lightgbm.sklearn import _EvalFunctionWrapper
     from lightgbm.sklearn import _ObjectiveFunctionWrapper
 else:
@@ -41,7 +40,7 @@ else:
         _objective_function_wrapper as _ObjectiveFunctionWrapper,
     )
 
-if parse_version(sklearn.__version__) >= parse_version("0.22"):
+if sklearn.__version__ >= "0.22":
     from sklearn.utils import _safe_indexing as safe_indexing
 else:
     from sklearn.utils import safe_indexing
@@ -246,7 +245,7 @@ class _VotingBooster(object):
     def from_representations(
         cls, representations: List[str], weights: Optional[np.ndarray] = None
     ) -> "_VotingBooster":
-        if parse_version(lgb.__version__) >= parse_version("2.3"):
+        if lgb.__version__ >= "2.3":
             boosters = [
                 lgb.Booster(model_str=model_str, silent=True)
                 for model_str in representations
