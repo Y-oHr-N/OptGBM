@@ -6,9 +6,10 @@ from typing import Union
 
 import lightgbm as lgb
 import numpy as np
-import optuna
 import pytest
 
+from optuna import structs
+from optuna import study as study_module
 from sklearn.datasets import load_breast_cancer
 from sklearn.datasets import load_digits
 from sklearn.datasets import load_iris
@@ -95,7 +96,7 @@ def test_hasattr(refit: bool) -> None:
         "n_classes_": int,
         "n_features_": int,
         "n_splits_": int,
-        "study_": optuna.study.Study,
+        "study_": study_module.Study,
     }
 
     for attr in attrs:
@@ -185,7 +186,7 @@ def test_fit_with_pruning() -> None:
         trials = clf.study_.trials
 
     pruned_trials = [
-        t for t in trials if t.state == optuna.structs.TrialState.PRUNED
+        t for t in trials if t.state == structs.TrialState.PRUNED
     ]
 
     assert len(pruned_trials) > 0
@@ -222,7 +223,7 @@ def test_fit_twice_without_study(n_jobs: int) -> None:
 def test_fit_twice_with_study(storage: Optional[str]) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
-    study = optuna.create_study(storage=storage)
+    study = study_module.create_study(storage=storage)
     clf = OGBMClassifier(
         n_estimators=n_estimators, n_trials=n_trials, study=study
     )

@@ -13,9 +13,13 @@ from typing import Union
 
 import lightgbm as lgb
 import numpy as np
-import optuna
 import sklearn
 
+from optuna import distributions
+from optuna import integration
+from optuna import samplers
+from optuna import study as study_module
+from optuna import trial as trial_module
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
 from sklearn.model_selection import BaseCrossValidator
@@ -118,7 +122,7 @@ class _Objective(object):
         fobj: Optional[Callable] = None,
         n_estimators: int = 100,
         param_distributions: Optional[
-            Dict[str, optuna.distributions.BaseDistribution]
+            Dict[str, distributions.BaseDistribution]
         ] = None,
     ) -> None:
         self.callbacks = callbacks
@@ -137,7 +141,7 @@ class _Objective(object):
         self.params = params
         self.param_distributions = param_distributions
 
-    def __call__(self, trial: optuna.trial.Trial) -> float:
+    def __call__(self, trial: trial_module.Trial) -> float:
         params = self._get_params(trial)  # type: Dict[str, Any]
         dataset = copy.copy(self.dataset)
         callbacks = self._get_callbacks(trial)  # type: List[Callable]
@@ -179,7 +183,7 @@ class _Objective(object):
 
         return value
 
-    def _get_callbacks(self, trial: optuna.trial.Trial) -> List[Callable]:
+    def _get_callbacks(self, trial: trial_module.Trial) -> List[Callable]:
         extraction_callback = (
             _LightGBMExtractionCallback()
         )  # type: _LightGBMExtractionCallback
@@ -187,10 +191,10 @@ class _Objective(object):
 
         if self.enable_pruning:
             pruning_callback = (
-                optuna.integration.LightGBMPruningCallback(
+                integration.LightGBMPruningCallback(
                     trial, self.eval_name
                 )
-            )  # type: optuna.integration.LightGBMPruningCallback
+            )  # type: integration.LightGBMPruningCallback
 
             callbacks.append(pruning_callback)
 
@@ -199,7 +203,7 @@ class _Objective(object):
 
         return callbacks
 
-    def _get_params(self, trial: optuna.trial.Trial) -> Dict[str, Any]:
+    def _get_params(self, trial: trial_module.Trial) -> Dict[str, Any]:
         params = self.params.copy()  # type: Dict[str, Any]
 
         if self.param_distributions is None:
@@ -313,9 +317,9 @@ class LGBMModel(lgb.LGBMModel):
         enable_pruning: bool = False,
         n_trials: int = 20,
         param_distributions: Optional[
-            Dict[str, optuna.distributions.BaseDistribution]
+            Dict[str, distributions.BaseDistribution]
         ] = None,
-        study: Optional[optuna.study.Study] = None,
+        study: Optional[study_module.Study] = None,
         timeout: Optional[float] = None,
         **kwargs: Any
     ) -> None:
@@ -565,9 +569,9 @@ class LGBMModel(lgb.LGBMModel):
             is_higher_better = _is_higher_better(params["metric"])
 
         if self.study is None:
-            sampler = optuna.samplers.TPESampler(seed=seed)
+            sampler = samplers.TPESampler(seed=seed)
 
-            self.study_ = optuna.create_study(
+            self.study_ = study_module.create_study(
                 direction="maximize" if is_higher_better else "minimize",
                 sampler=sampler,
             )
@@ -1107,10 +1111,10 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
         enable_pruning: bool = False,
         n_trials: int = 20,
         param_distributions: Optional[
-            Dict[str, optuna.distributions.BaseDistribution]
+            Dict[str, distributions.BaseDistribution]
         ] = None,
         refit: bool = False,
-        study: Optional[optuna.study.Study] = None,
+        study: Optional[study_module.Study] = None,
         timeout: Optional[float] = None,
         **kwargs: Any
     ) -> None:
