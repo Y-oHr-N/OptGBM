@@ -388,10 +388,17 @@ class _BaseOGBMModel(lgb.LGBMModel):
             List of callback functions that are applied at each iteration.
 
         categorical_feature
-            Categorical features.
+            Categorical features. If list of int, interpreted as indices. If
+            list of strings, interpreted as feature names. If 'auto' and data
+            is pandas DataFrame, pandas categorical columns are used. All
+            values in categorical features should be less than int32 max value
+            (2147483647). Large values could be memory consuming. Consider
+            using consecutive integers starting from zero. All negative values
+            in categorical features will be treated as missing values.
 
         feature_name
-            Feature names.
+            Feature names. If 'auto' and data is pandas DataFrame, data columns
+            names are used.
 
         Returns
         -------
@@ -441,16 +448,25 @@ class _BaseOGBMModel(lgb.LGBMModel):
             Group data of training data.
 
         eval_metric
-            Evaluation metric.
+            Evaluation metric. See
+            https://lightgbm.readthedocs.io/en/latest/Parameters.html#metric.
 
         early_stopping_rounds
-            Used to activate early stopping.
+            Used to activate early stopping. The model will train until the
+            validation score stops improving.
 
         feature_name
-            Feature names.
+            Feature names. If 'auto' and data is pandas DataFrame, data columns
+            names are used.
 
         categorical_feature
-            Categorical features.
+            Categorical features. If list of int, interpreted as indices. If
+            list of strings, interpreted as feature names. If 'auto' and data
+            is pandas DataFrame, pandas categorical columns are used. All
+            values in categorical features should be less than int32 max value
+            (2147483647). Large values could be memory consuming. Consider
+            using consecutive integers starting from zero. All negative values
+            in categorical features will be treated as missing values.
 
         callbacks
             List of callback functions that are applied at each iteration.
@@ -460,7 +476,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
             train/test set. If `group` is not None, this parameter is ignored.
 
         **fit_params
-            Always ignored, exists for compatibility.
+            Always ignored. This parameter exists for compatibility.
 
         Returns
         -------
@@ -638,14 +654,22 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     boosting_type
         Boosting type.
 
+        - 'dart', Dropouts meet Multiple Additive Regression Trees,
+        - 'gbdt', traditional Gradient Boosting Decision Tree,
+        - 'goss', Gradient-based One-Side Sampling,
+        - 'rf', Random Forest.
+
     num_leaves
         Maximum tree leaves for base learners.
 
     max_depth
-        Maximum depth of each tree.
+        Maximum depth of each tree. -1 means no limit.
 
     learning_rate
-        Learning rate.
+        Learning rate. You can use `callbacks` parameter of `fit` method to
+        shrink/adapt learning rate in training using `reset_parameter`
+        callback. Note, that this will ignore the `learning_rate` argument in
+        training.
 
     n_estimators
         Maximum number of iterations of the boosting process. a.k.a.
@@ -655,10 +679,19 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         Number of samples for constructing bins.
 
     objective
-        Learning objective.
+        Objective function. See
+        https://lightgbm.readthedocs.io/en/latest/Parameters.html#objective.
 
     class_weight
-        Weights associated with classes.
+        Weights associated with classes in the form `{class_label: weight}`.
+        This parameter is used only for multi-class classification task. For
+        binary classification task you may use `is_unbalance` or
+        `scale_pos_weight` parameters. The 'balanced' mode uses the values of y
+        to automatically adjust weights inversely proportional to class
+        frequencies in the input data as
+        `n_samples / (n_classes * np.bincount(y))`. If None, all classes are
+        supposed to have weight one. Note, that these weights will be
+        multiplied with `sample_weight` if `sample_weight` is specified.
 
     min_split_gain
         Minimum loss reduction required to make a further partition on a leaf
@@ -674,7 +707,7 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         Subsample ratio of the training instance.
 
     subsample_freq
-        Frequence of subsample.
+        Frequence of subsample. <=0 means no enable.
 
     colsample_bytree
         Subsample ratio of columns when constructing each tree.
@@ -686,37 +719,63 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
         L2 regularization term on weights.
 
     random_state
-        Seed of the pseudo random number generator.
+        Seed of the pseudo random number generator. If int, this is the
+        seed used by the random number generator. If `numpy.random.RandomState`
+        object, this is the random number generator. If None, the global random
+        state from `numpy.random` is used.
 
     n_jobs
-        Number of parallel jobs.
+        Number of parallel jobs. -1 means using all processors.
 
     importance_type
-        Type of feature importances.
+        Type of feature importances. If 'split', result contains numbers of
+        times the feature is used in a model. If 'gain', result contains total
+        gains of splits which use the feature.
 
     cv
-        Cross-validation strategy.
+        Cross-validation strategy. Possible inputs for cv are:
+
+        - integer to specify the number of folds in a CV splitter,
+        - a CV splitter,
+        - an iterable yielding (train, test) splits as arrays of indices.
+
+        If int, `sklearn.model_selection.StratifiedKFold` is used.
 
     enable_pruning
-        Used to activate pruning.
+        If True, pruning is performed.
 
     n_trials
-        Number of trials.
+        Number of trials. If None, there is no limitation on the number of
+        trials. If `timeout` is also set to None, the study continues to create
+        trials until it receives a termination signal such as Ctrl+C or
+        SIGTERM. This trades off runtime vs quality of the solution.
 
     param_distributions
         Dictionary where keys are parameters and values are distributions.
+        Distributions are assumed to implement the optuna distribution
+        interface. If None, `num_leaves`, `max_depth`, `min_child_samples`,
+        `subsample`, `subsample_freq`, `colsample_bytree`, `reg_alpha` and
+        `reg_lambda` are searched.
 
     refit
         If True, refit the estimator with the best found hyperparameters.
 
     study
-        Study that corresponds to the optimization task.
+        Study corresponds to the optimization task. If None, a new study is
+        created.
 
     timeout
-        Time limit in seconds for the search of appropriate models.
+        Time limit in seconds for the search of appropriate models. If None,
+        the study is executed without time limitation. If `n_trials` is also
+        set to None, the study continues to create trials until it receives a
+        termination signal such as Ctrl+C or SIGTERM. This trades off runtime
+        vs quality of the solution.
 
     **kwargs
-        Other parameters for the model.
+        Other parameters for the model. See
+        http://lightgbm.readthedocs.io/en/latest/Parameters.html for more
+        parameters. Note, that **kwargs is not supported in sklearn, so it
+        may cause unexpected issues.
 
     Attributes
     ----------
@@ -738,14 +797,18 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
     n_features_
         Number of features of fitted model.
 
-    n_splits_:
+    n_splits_
         Number of cross-validation splits.
+
+    objective_
+        Concrete objective used while fitting this model.
 
     study_
         Actual study.
 
     refit_time_
-        Time for refitting the best estimator.
+        Time for refitting the best estimator. This is present only if `refit`
+        is set to True.
 
     Examples
     --------
@@ -786,10 +849,12 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
             Data.
 
         num_iteration
-            Limit number of iterations in the prediction.
+            Limit number of iterations in the prediction. If None, if the best
+            iteration exists, it is used; otherwise, all trees are used. If
+            <=0, all trees are used (no limits).
 
         **predict_params
-            Always ignored, exists for compatibility.
+            Always ignored. This parameter exists for compatibility.
 
         Returns
         -------
@@ -819,10 +884,12 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
             Data.
 
         num_iteration
-            Limit number of iterations in the prediction.
+            Limit number of iterations in the prediction. If None, if the best
+            iteration exists, it is used; otherwise, all trees are used. If
+            <=0, all trees are used (no limits).
 
         **predict_params
-            Always ignored, exists for compatibility.
+            Always ignored. This parameter exists for compatibility.
 
         Returns
         -------
@@ -853,14 +920,22 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     boosting_type
         Boosting type.
 
+        - 'dart', Dropouts meet Multiple Additive Regression Trees,
+        - 'gbdt', traditional Gradient Boosting Decision Tree,
+        - 'goss', Gradient-based One-Side Sampling,
+        - 'rf', Random Forest.
+
     num_leaves
         Maximum tree leaves for base learners.
 
     max_depth
-        Maximum depth of each tree.
+        Maximum depth of each tree. -1 means no limit.
 
     learning_rate
-        Learning rate.
+        Learning rate. You can use `callbacks` parameter of `fit` method to
+        shrink/adapt learning rate in training using `reset_parameter`
+        callback. Note, that this will ignore the `learning_rate` argument in
+        training.
 
     n_estimators
         Maximum number of iterations of the boosting process. a.k.a.
@@ -870,7 +945,8 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         Number of samples for constructing bins.
 
     objective
-        Learning objective.
+        Objective function. See
+        https://lightgbm.readthedocs.io/en/latest/Parameters.html#objective.
 
     min_split_gain
         Minimum loss reduction required to make a further partition on a leaf
@@ -886,7 +962,7 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         Subsample ratio of the training instance.
 
     subsample_freq
-        Frequence of subsample.
+        Frequence of subsample. <=0 means no enable.
 
     colsample_bytree
         Subsample ratio of columns when constructing each tree.
@@ -898,37 +974,63 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         L2 regularization term on weights.
 
     random_state
-        Seed of the pseudo random number generator.
+        Seed of the pseudo random number generator. If int, this is the
+        seed used by the random number generator. If `numpy.random.RandomState`
+        object, this is the random number generator. If None, the global random
+        state from `numpy.random` is used.
 
     n_jobs
-        Number of parallel jobs.
+        Number of parallel jobs. -1 means using all processors.
 
     importance_type
-        Type of feature importances.
+        Type of feature importances. If 'split', result contains numbers of
+        times the feature is used in a model. If 'gain', result contains total
+        gains of splits which use the feature.
 
     cv
-        Cross-validation strategy.
+        Cross-validation strategy. Possible inputs for cv are:
+
+        - integer to specify the number of folds in a CV splitter,
+        - a CV splitter,
+        - an iterable yielding (train, test) splits as arrays of indices.
+
+        If int, `sklearn.model_selection.StratifiedKFold` is used.
 
     enable_pruning
-        Used to activate pruning.
+        If True, pruning is performed.
 
     n_trials
-        Number of trials.
+        Number of trials. If None, there is no limitation on the number of
+        trials. If `timeout` is also set to None, the study continues to create
+        trials until it receives a termination signal such as Ctrl+C or
+        SIGTERM. This trades off runtime vs quality of the solution.
 
     param_distributions
         Dictionary where keys are parameters and values are distributions.
+        Distributions are assumed to implement the optuna distribution
+        interface. If None, `num_leaves`, `max_depth`, `min_child_samples`,
+        `subsample`, `subsample_freq`, `colsample_bytree`, `reg_alpha` and
+        `reg_lambda` are searched.
 
     refit
         If True, refit the estimator with the best found hyperparameters.
 
     study
-        Study that corresponds to the optimization task.
+        Study corresponds to the optimization task. If None, a new study is
+        created.
 
     timeout
-        Time limit in seconds for the search of appropriate models.
+        Time limit in seconds for the search of appropriate models. If None,
+        the study is executed without time limitation. If `n_trials` is also
+        set to None, the study continues to create trials until it receives a
+        termination signal such as Ctrl+C or SIGTERM. This trades off runtime
+        vs quality of the solution.
 
     **kwargs
-        Other parameters for the model.
+        Other parameters for the model. See
+        http://lightgbm.readthedocs.io/en/latest/Parameters.html for more
+        parameters. Note, that **kwargs is not supported in sklearn, so it
+        may cause unexpected issues.
 
     Attributes
     ----------
@@ -947,14 +1049,18 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
     n_features_
         Number of features of fitted model.
 
-    n_splits_:
+    n_splits_
         Number of cross-validation splits.
+
+    objective_
+        Concrete objective used while fitting this model.
 
     study_
         Actual study.
 
     refit_time_
-        Time for refitting the best estimator.
+        Time for refitting the best estimator. This is present only if `refit`
+        is set to True.
 
     Examples
     --------
@@ -1041,10 +1147,12 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
             Data.
 
         num_iteration
-            Limit number of iterations in the prediction.
+            Limit number of iterations in the prediction. If None, if the best
+            iteration exists, it is used; otherwise, all trees are used. If
+            <=0, all trees are used (no limits).
 
         **predict_params
-            Always ignored, exists for compatibility.
+            Always ignored. This parameter exists for compatibility.
 
         Returns
         -------
