@@ -45,6 +45,14 @@ if sklearn.__version__ >= "0.22":
 else:
     from sklearn.utils import safe_indexing
 
+__all__ = [
+    "LGBMModel",
+    "LGBMClassifier",
+    "LGBMRegressor",
+    "OGBMClassifier",
+    "OGBMRegressor",
+]
+
 MAX_INT = np.iinfo(np.int32).max
 
 OBJECTIVE2METRIC = {
@@ -271,7 +279,9 @@ class _VotingBooster(object):
         return np.average(results, axis=0, weights=self.weights)
 
 
-class _BaseOGBMModel(lgb.LGBMModel):
+class LGBMModel(lgb.LGBMModel):
+    """Base class for models in OptGBM."""
+
     @property
     def best_index_(self) -> int:
         """Get the best trial's number."""
@@ -430,7 +440,7 @@ class _BaseOGBMModel(lgb.LGBMModel):
         callbacks: Optional[List[Callable]] = None,
         groups: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
         **fit_params: Any
-    ) -> "_BaseOGBMModel":
+    ) -> "LGBMModel":
         """Fit the model according to the given training data.
 
         Parameters
@@ -646,8 +656,8 @@ class _BaseOGBMModel(lgb.LGBMModel):
         return self
 
 
-class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
-    """OptGBM classifier.
+class LGBMClassifier(LGBMModel, ClassifierMixin):
+    """LightGBM classifier using Optuna.
 
     Parameters
     ----------
@@ -812,12 +822,12 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
 
     Examples
     --------
-    >>> from optgbm.sklearn import OGBMClassifier
+    >>> from optgbm.sklearn import LGBMClassifier
     >>> from sklearn.datasets import load_iris
-    >>> clf = OGBMClassifier(random_state=0)
+    >>> clf = LGBMClassifier(random_state=0)
     >>> X, y = load_iris(return_X_y=True)
     >>> clf.fit(X, y)
-    OGBMClassifier(...)
+    LGBMClassifier(...)
     >>> y_pred = clf.predict(X)
     """
 
@@ -912,8 +922,8 @@ class OGBMClassifier(_BaseOGBMModel, ClassifierMixin):
             return np.concatenate([1.0 - preds, preds], axis=1)
 
 
-class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
-    """OptGBM regressor.
+class LGBMRegressor(LGBMModel, RegressorMixin):
+    """LightGBM regressor using Optuna.
 
     Parameters
     ----------
@@ -1064,12 +1074,12 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
 
     Examples
     --------
-    >>> from optgbm.sklearn import OGBMRegressor
+    >>> from optgbm.sklearn import LGBMRegressor
     >>> from sklearn.datasets import load_boston
-    >>> reg = OGBMRegressor(random_state=0)
+    >>> reg = LGBMRegressor(random_state=0)
     >>> X, y = load_boston(return_X_y=True)
     >>> reg.fit(X, y)
-    OGBMRegressor(...)
+    LGBMRegressor(...)
     >>> y_pred = reg.predict(X)
     """
 
@@ -1166,3 +1176,8 @@ class OGBMRegressor(_BaseOGBMModel, RegressorMixin):
         )
 
         return self._Booster.predict(X, num_iteration=num_iteration)
+
+
+# alias classes
+OGBMClassifier = LGBMClassifier
+OGBMRegressor = LGBMRegressor

@@ -13,6 +13,7 @@ except DistributionNotFound:
 
 from . import sklearn  # noqa
 from . import utils  # noqa
+from .sklearn import *  # noqa
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler()
