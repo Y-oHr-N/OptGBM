@@ -12,6 +12,7 @@ except DistributionNotFound:
     pass
 
 from . import sklearn  # noqa
+from . import typing  # noqa
 from . import utils  # noqa
 from .sklearn import *  # noqa
 
