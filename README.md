@@ -1,6 +1,6 @@
 # OptGBM
 
-![Python package](https://github.com/Y-oHr-N/OptGBM/workflows/Python%20package/badge.svg?branch=master)
+[![Python package](https://github.com/Y-oHr-N/OptGBM/actions?query=workflow%3A%22Python+package%22)](https://github.com/Y-oHr-N/OptGBM/workflows/Python%20package/badge.svg?branch=master)
 [![PyPI](https://img.shields.io/pypi/v/OptGBM)](https://pypi.org/project/OptGBM/)
 [![PyPI - License](https://img.shields.io/pypi/l/OptGBM)](https://pypi.org/project/OptGBM/)
 [![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/Y-oHr-N/OptGBM/master)
