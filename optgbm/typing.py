@@ -11,6 +11,7 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
+from scipy.sparse import spmatrix
 from sklearn.model_selection import BaseCrossValidator
 
 if lgb.__version__ >= "2.2.2":
@@ -33,6 +34,6 @@ LightGBMCallbackEnvType = NamedTuple(
 )
 
 OneDimArrayLikeType = Union[np.ndarray, pd.Series]
-TwoDimArrayLikeType = Union[np.ndarray, pd.DataFrame]
+TwoDimArrayLikeType = Union[np.ndarray, pd.DataFrame, spmatrix]
 
 RandomStateType = Union[int, np.random.RandomState]

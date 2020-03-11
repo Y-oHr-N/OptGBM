@@ -277,7 +277,7 @@ class _VotingBooster(object):
 
     def predict(
         self, X: TwoDimArrayLikeType, **kwargs: Any
-    ) -> TwoDimArrayLikeType:
+    ) -> np.ndarray:
         results = [b.predict(X, **kwargs) for b in self.boosters]
 
         return np.average(results, axis=0, weights=self.weights)
@@ -854,7 +854,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         X: TwoDimArrayLikeType,
         num_iteration: Optional[int] = None,
         **predict_params: Any
-    ) -> OneDimArrayLikeType:
+    ) -> np.ndarray:
         """Predict using the fitted model.
 
         Parameters
@@ -889,7 +889,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         X: TwoDimArrayLikeType,
         num_iteration: Optional[int] = None,
         **predict_params: Any
-    ) -> TwoDimArrayLikeType:
+    ) -> np.ndarray:
         """Predict class probabilities for data.
 
         Parameters
@@ -1152,7 +1152,7 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
         X: TwoDimArrayLikeType,
         num_iteration: Optional[int] = None,
         **predict_params: Any
-    ) -> OneDimArrayLikeType:
+    ) -> np.ndarray:
         """Predict using the fitted model.
 
         Parameters
