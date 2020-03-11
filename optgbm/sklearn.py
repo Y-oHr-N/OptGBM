@@ -22,18 +22,18 @@ from optuna import study as study_module
 from optuna import trial as trial_module
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
-from sklearn.model_selection import BaseCrossValidator
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 from sklearn.utils.validation import check_is_fitted
 
+from .typing import CVType
+from .typing import LightGBMCallbackEnvType
+from .typing import OneDimArrayLikeType
+from .typing import RandomStateType
+from .typing import TwoDimArrayLikeType
 from .utils import check_cv
 from .utils import check_fit_params
 from .utils import check_X
-from .utils import LightGBMCallbackEnv
-from .utils import ONE_DIM_ARRAYLIKE_TYPE
-from .utils import RANDOM_STATE_TYPE
-from .utils import TWO_DIM_ARRAYLIKE_TYPE
 
 if lgb.__version__ >= "2.3":
     from lightgbm.sklearn import _EvalFunctionWrapper
@@ -99,7 +99,7 @@ class _LightGBMExtractionCallback(object):
         self._best_iteration = None  # type: Optional[int]
         self._boosters = None  # type: Optional[List[lgb.Booster]]
 
-    def __call__(self, env: LightGBMCallbackEnv) -> None:
+    def __call__(self, env: LightGBMCallbackEnvType) -> None:
         self._best_iteration = env.iteration + 1
         self._boosters = env.model.boosters
 
@@ -114,7 +114,7 @@ class _Objective(object):
         n_samples: int,
         callbacks: Optional[List[Callable]] = None,
         categorical_feature: Union[List[int], List[str], str] = "auto",
-        cv: Optional[BaseCrossValidator] = None,
+        cv: Optional[CVType] = None,
         early_stopping_rounds: Optional[int] = None,
         enable_pruning: bool = False,
         feature_name: Union[List[str], str] = "auto",
@@ -276,8 +276,8 @@ class _VotingBooster(object):
         return np.average(results, axis=0, weights=self.weights)
 
     def predict(
-        self, X: TWO_DIM_ARRAYLIKE_TYPE, **kwargs: Any
-    ) -> TWO_DIM_ARRAYLIKE_TYPE:
+        self, X: TwoDimArrayLikeType, **kwargs: Any
+    ) -> TwoDimArrayLikeType:
         results = [b.predict(X, **kwargs) for b in self.boosters]
 
         return np.average(results, axis=0, weights=self.weights)
@@ -310,10 +310,10 @@ class LGBMModel(lgb.LGBMModel):
         refit: bool = False,
         reg_alpha: float = 0.0,
         reg_lambda: float = 0.0,
-        random_state: Optional[RANDOM_STATE_TYPE] = None,
+        random_state: Optional[RandomStateType] = None,
         n_jobs: int = 1,
         importance_type: str = "split",
-        cv: Union[BaseCrossValidator, int] = 5,
+        cv: CVType = 5,
         enable_pruning: bool = False,
         n_trials: int = 20,
         param_distributions: Optional[
@@ -378,9 +378,9 @@ class LGBMModel(lgb.LGBMModel):
 
     def _train_booster(
         self,
-        X: TWO_DIM_ARRAYLIKE_TYPE,
-        y: ONE_DIM_ARRAYLIKE_TYPE,
-        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
+        X: TwoDimArrayLikeType,
+        y: OneDimArrayLikeType,
+        sample_weight: Optional[OneDimArrayLikeType] = None,
         callbacks: Optional[List[Callable]] = None,
         categorical_feature: Union[List[int], List[str], str] = "auto",
         feature_name: Union[List[str], str] = "auto",
@@ -433,16 +433,16 @@ class LGBMModel(lgb.LGBMModel):
 
     def fit(
         self,
-        X: TWO_DIM_ARRAYLIKE_TYPE,
-        y: ONE_DIM_ARRAYLIKE_TYPE,
-        sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
-        group: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
+        X: TwoDimArrayLikeType,
+        y: OneDimArrayLikeType,
+        sample_weight: Optional[OneDimArrayLikeType] = None,
+        group: Optional[OneDimArrayLikeType] = None,
         eval_metric: Optional[Union[Callable, str]] = None,
         early_stopping_rounds: Optional[int] = 10,
         feature_name: Union[List[str], str] = "auto",
         categorical_feature: Union[List[int], List[str], str] = "auto",
         callbacks: Optional[List[Callable]] = None,
-        groups: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
+        groups: Optional[OneDimArrayLikeType] = None,
         **fit_params: Any
     ) -> "LGBMModel":
         """Fit the model according to the given training data.
@@ -851,10 +851,10 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
 
     def predict(
         self,
-        X: TWO_DIM_ARRAYLIKE_TYPE,
+        X: TwoDimArrayLikeType,
         num_iteration: Optional[int] = None,
         **predict_params: Any
-    ) -> ONE_DIM_ARRAYLIKE_TYPE:
+    ) -> OneDimArrayLikeType:
         """Predict using the fitted model.
 
         Parameters
@@ -886,10 +886,10 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
 
     def predict_proba(
         self,
-        X: TWO_DIM_ARRAYLIKE_TYPE,
+        X: TwoDimArrayLikeType,
         num_iteration: Optional[int] = None,
         **predict_params: Any
-    ) -> TWO_DIM_ARRAYLIKE_TYPE:
+    ) -> TwoDimArrayLikeType:
         """Predict class probabilities for data.
 
         Parameters
@@ -1104,10 +1104,10 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
         colsample_bytree: float = 1.0,
         reg_alpha: float = 0.0,
         reg_lambda: float = 0.0,
-        random_state: Optional[RANDOM_STATE_TYPE] = None,
+        random_state: Optional[RandomStateType] = None,
         n_jobs: int = 1,
         importance_type: str = "split",
-        cv: Union[BaseCrossValidator, int] = 5,
+        cv: CVType = 5,
         enable_pruning: bool = False,
         n_trials: int = 20,
         param_distributions: Optional[
@@ -1149,10 +1149,10 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
 
     def predict(
         self,
-        X: TWO_DIM_ARRAYLIKE_TYPE,
+        X: TwoDimArrayLikeType,
         num_iteration: Optional[int] = None,
         **predict_params: Any
-    ) -> ONE_DIM_ARRAYLIKE_TYPE:
+    ) -> OneDimArrayLikeType:
         """Predict using the fitted model.
 
         Parameters

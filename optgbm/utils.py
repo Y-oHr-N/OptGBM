@@ -1,14 +1,9 @@
 """Utilities."""
 
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
-from typing import Union
 
-import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
@@ -24,31 +19,14 @@ from sklearn.utils.validation import _assert_all_finite
 from sklearn.utils.validation import _num_samples
 from sklearn.utils.validation import column_or_1d
 
-if lgb.__version__ >= "2.2.2":
-    from lightgbm.engine import _CVBooster
-else:
-    from lightgbm.engine import CVBooster as _CVBooster
-
-RANDOM_STATE_TYPE = Union[int, np.random.RandomState]
-ONE_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.Series]
-TWO_DIM_ARRAYLIKE_TYPE = Union[np.ndarray, pd.DataFrame]
-
-LightGBMCallbackEnv = NamedTuple(
-    "LightGBMCallbackEnv",
-    [
-        ("model", _CVBooster),
-        ("params", Dict[str, Any]),
-        ("iteration", int),
-        ("begin_iteration", int),
-        ("end_iteration", int),
-        ("evaluation_result_list", List),
-    ],
-)
+from .typing import CVType
+from .typing import OneDimArrayLikeType
+from .typing import TwoDimArrayLikeType
 
 
 def check_cv(
-    cv: Union[BaseCrossValidator, int] = 5,
-    y: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
+    cv: CVType = 5,
+    y: Optional[OneDimArrayLikeType] = None,
     classifier: bool = False,
 ) -> BaseCrossValidator:
     """Check `cv`.
@@ -77,10 +55,10 @@ def check_cv(
 
 
 def check_X(
-    X: TWO_DIM_ARRAYLIKE_TYPE,
+    X: TwoDimArrayLikeType,
     estimator: Optional[BaseEstimator] = None,
     **kwargs: Any
-) -> TWO_DIM_ARRAYLIKE_TYPE:
+) -> TwoDimArrayLikeType:
     """Check `X`.
 
     Parameters
@@ -116,13 +94,13 @@ def check_X(
 
 
 def check_fit_params(
-    X: TWO_DIM_ARRAYLIKE_TYPE,
-    y: ONE_DIM_ARRAYLIKE_TYPE,
-    sample_weight: Optional[ONE_DIM_ARRAYLIKE_TYPE] = None,
+    X: TwoDimArrayLikeType,
+    y: OneDimArrayLikeType,
+    sample_weight: Optional[OneDimArrayLikeType] = None,
     estimator: Optional[BaseEstimator] = None,
     **kwargs: Any
 ) -> Tuple[
-    TWO_DIM_ARRAYLIKE_TYPE, ONE_DIM_ARRAYLIKE_TYPE, ONE_DIM_ARRAYLIKE_TYPE
+    TwoDimArrayLikeType, OneDimArrayLikeType, OneDimArrayLikeType
 ]:
     """Check `X`, `y` and `sample_weight`.
 
