@@ -99,9 +99,7 @@ def check_fit_params(
     sample_weight: Optional[OneDimArrayLikeType] = None,
     estimator: Optional[BaseEstimator] = None,
     **kwargs: Any
-) -> Tuple[
-    TwoDimArrayLikeType, OneDimArrayLikeType, OneDimArrayLikeType
-]:
+) -> Tuple[TwoDimArrayLikeType, OneDimArrayLikeType, OneDimArrayLikeType]:
     """Check `X`, `y` and `sample_weight`.
 
     Parameters

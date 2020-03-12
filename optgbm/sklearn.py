@@ -169,9 +169,7 @@ class _Objective(object):
 
         if is_best_trial:
             best_iteration = callbacks[0]._best_iteration  # type: ignore
-            boosters = (
-                callbacks[0]._boosters  # type: ignore
-            )  # type: List[lgb.Booster]
+            boosters = callbacks[0]._boosters  # type: ignore
             representations = []  # type: List[str]
 
             for b in boosters:
@@ -190,10 +188,8 @@ class _Objective(object):
         callbacks = [extraction_callback]  # type: List[Callable]
 
         if self.enable_pruning:
-            pruning_callback = (
-                integration.LightGBMPruningCallback(
-                    trial, self.eval_name
-                )
+            pruning_callback = integration.LightGBMPruningCallback(
+                trial, self.eval_name
             )  # type: integration.LightGBMPruningCallback
 
             callbacks.append(pruning_callback)
@@ -276,9 +272,7 @@ class _VotingBooster(object):
 
         return np.average(results, axis=0, weights=self.weights)
 
-    def predict(
-        self, X: TwoDimArrayLikeType, **kwargs: Any
-    ) -> np.ndarray:
+    def predict(self, X: TwoDimArrayLikeType, **kwargs: Any) -> np.ndarray:
         results = [b.predict(X, **kwargs) for b in self.boosters]
 
         return np.average(results, axis=0, weights=self.weights)
@@ -877,9 +871,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
             Predicted values.
         """
         probas = self.predict_proba(
-            X,
-            num_iteration=num_iteration,
-            **predict_params
+            X, num_iteration=num_iteration, **predict_params
         )
         class_index = np.argmax(probas, axis=1)
 

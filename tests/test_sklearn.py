@@ -185,9 +185,7 @@ def test_fit_with_pruning() -> None:
     else:
         trials = clf.study_.trials
 
-    pruned_trials = [
-        t for t in trials if t.state == structs.TrialState.PRUNED
-    ]
+    pruned_trials = [t for t in trials if t.state == structs.TrialState.PRUNED]
 
     assert len(pruned_trials) > 0
 
@@ -211,7 +209,7 @@ def test_fit_twice_without_study(n_jobs: int) -> None:
         n_estimators=n_estimators,
         n_jobs=n_jobs,
         n_trials=n_trials,
-        random_state=random_state
+        random_state=random_state,
     )
 
     clf.fit(X, y)
