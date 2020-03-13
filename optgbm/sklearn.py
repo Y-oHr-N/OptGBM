@@ -211,8 +211,8 @@ class _Objective(object):
                 "num_leaves", 2, 2 ** params["max_depth"]
             )
             # See https://github.com/Microsoft/LightGBM/issues/907
-            params["min_child_samples"] = trial.suggest_int(
-                "min_child_samples",
+            params["min_data_in_leaf"] = trial.suggest_int(
+                "min_data_in_leaf",
                 1,
                 max(1, int(self.n_samples / params["num_leaves"])),
             )
