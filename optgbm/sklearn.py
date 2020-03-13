@@ -821,9 +821,9 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
 
     Examples
     --------
-    >>> from optgbm.sklearn import LGBMClassifier
+    >>> import optgbm as lgb
     >>> from sklearn.datasets import load_iris
-    >>> clf = LGBMClassifier(random_state=0)
+    >>> clf = lgb.LGBMClassifier(random_state=0)
     >>> X, y = load_iris(return_X_y=True)
     >>> clf.fit(X, y)
     LGBMClassifier(...)
@@ -1071,9 +1071,9 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
 
     Examples
     --------
-    >>> from optgbm.sklearn import LGBMRegressor
+    >>> import optgbm as lgb
     >>> from sklearn.datasets import load_boston
-    >>> reg = LGBMRegressor(random_state=0)
+    >>> reg = lgb.LGBMRegressor(random_state=0)
     >>> X, y = load_boston(return_X_y=True)
     >>> reg.fit(X, y)
     LGBMRegressor(...)
