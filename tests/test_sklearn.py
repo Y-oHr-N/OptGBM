@@ -306,7 +306,7 @@ def test_refit(early_stopping_rounds: Optional[int]) -> None:
 
     clf.fit(X, y)
 
-    assert np.array_equal(y_pred, clf.predict(X))
+    np.testing.assert_array_equal(y_pred, clf.predict(X))
 
 
 @pytest.mark.parametrize(
