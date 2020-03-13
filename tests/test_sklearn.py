@@ -115,18 +115,14 @@ def test_hasattr(refit: bool) -> None:
 
 
 @pytest.mark.parametrize("boosting_type", ["dart", "gbdt", "goss", "rf"])
-@pytest.mark.parametrize("is_unbalance", [False, True])
 @pytest.mark.parametrize("objective", [None, "binary", log_likelihood])
 def test_fit_with_params(
-    boosting_type: str,
-    is_unbalance: bool,
-    objective: Optional[Union[Callable, str]],
+    boosting_type: str, objective: Optional[Union[Callable, str]],
 ) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
     clf = OGBMClassifier(
         boosting_type=boosting_type,
-        is_unbalance=is_unbalance,
         n_estimators=n_estimators,
         n_trials=n_trials,
         objective=objective,
@@ -203,9 +199,16 @@ def test_fit_twice_without_study(n_jobs: int) -> None:
 
     clf.fit(X, y)
 
-    best_params = clf.best_params_
+    df = clf.study_.trials_dataframe()
+    values = df["value"]
 
     clf = OGBMClassifier(
+        bagging_fraction=1.0,
+        bagging_freq=0,
+        feature_fraction=1.0,
+        lambda_l1=0.0,
+        lambda_l2=0.0,
+        min_data_in_leaf=20,
         n_estimators=n_estimators,
         n_jobs=n_jobs,
         n_trials=n_trials,
@@ -214,7 +217,9 @@ def test_fit_twice_without_study(n_jobs: int) -> None:
 
     clf.fit(X, y)
 
-    assert best_params == clf.best_params_
+    df = clf.study_.trials_dataframe()
+
+    np.testing.assert_array_equal(values, df["value"])
 
 
 @pytest.mark.parametrize("storage", [None, "sqlite:///:memory:"])
