@@ -220,8 +220,6 @@ def test_fit_twice_without_study(n_jobs: int) -> None:
     df = clf.study_.trials_dataframe()
     values = df["value"]
 
-    assert values.nunique() > 1
-
     clf = OGBMClassifier(
         bagging_fraction=1.0,
         bagging_freq=0,
