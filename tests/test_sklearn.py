@@ -22,8 +22,8 @@ from optgbm.sklearn import OGBMClassifier
 from optgbm.sklearn import OGBMRegressor
 from optgbm.sklearn import _VotingBooster
 
-n_estimators = 3
-n_trials = 3
+n_estimators = 10
+n_trials = 5
 random_state = 0
 callback = lgb.reset_parameter(
     learning_rate=lambda iteration: 0.05 * (0.99 ** iteration)
@@ -136,6 +136,39 @@ def test_fit_with_params(
         clf.fit(X, y)
 
 
+@pytest.mark.parametrize("callbacks", [None, [callback]])
+@pytest.mark.parametrize("eval_metric", [None, "auc", zero_one_loss])
+def test_fit_with_fit_params(
+    callbacks: Optional[List[Callable]], eval_metric: Union[Callable, str]
+) -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier(n_estimators=n_estimators, n_trials=n_trials)
+
+    clf.fit(X, y, callbacks=callbacks, eval_metric=eval_metric)
+
+
+def test_fit_with_unused_fit_params() -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier(n_estimators=n_estimators, n_trials=n_trials)
+
+    clf.fit(X, y, eval_set=None)
+
+
+def test_fit_with_group_k_fold() -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier(
+        cv=GroupKFold(5), n_estimators=n_estimators, n_trials=n_trials
+    )
+
+    n_samples, _ = X.shape
+    groups = np.random.choice(10, size=n_samples)
+
+    clf.fit(X, y, groups=groups)
+
+
 def test_fit_with_pruning() -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
@@ -169,39 +202,6 @@ def test_fit_with_empty_param_distributions() -> None:
     values = df["value"]
 
     assert values.nunique() == 1
-
-
-@pytest.mark.parametrize("callbacks", [None, [callback]])
-@pytest.mark.parametrize("eval_metric", [None, "auc", zero_one_loss])
-def test_fit_with_fit_params(
-    callbacks: Optional[List[Callable]], eval_metric: Union[Callable, str]
-) -> None:
-    X, y = load_breast_cancer(return_X_y=True)
-
-    clf = OGBMClassifier(n_estimators=n_estimators, n_trials=n_trials)
-
-    clf.fit(X, y, callbacks=callbacks, eval_metric=eval_metric)
-
-
-def test_fit_with_unused_fit_params() -> None:
-    X, y = load_breast_cancer(return_X_y=True)
-
-    clf = OGBMClassifier(n_estimators=n_estimators, n_trials=n_trials)
-
-    clf.fit(X, y, eval_set=None)
-
-
-def test_fit_with_group_k_fold() -> None:
-    X, y = load_breast_cancer(return_X_y=True)
-
-    clf = OGBMClassifier(
-        cv=GroupKFold(5), n_estimators=n_estimators, n_trials=n_trials
-    )
-
-    n_samples, _ = X.shape
-    groups = np.random.choice(10, size=n_samples)
-
-    clf.fit(X, y, groups=groups)
 
 
 @pytest.mark.parametrize("n_jobs", [-1, 1])
