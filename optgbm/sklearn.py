@@ -379,6 +379,7 @@ class LGBMModel(lgb.LGBMModel):
         callbacks: Optional[List[Callable]] = None,
         categorical_feature: Union[List[int], List[str], str] = "auto",
         feature_name: Union[List[str], str] = "auto",
+        fobj: Optional[Callable] = None,
     ) -> lgb.Booster:
         """Refit the estimator with the best found hyperparameters.
 
@@ -409,6 +410,9 @@ class LGBMModel(lgb.LGBMModel):
             Feature names. If 'auto' and data is pandas DataFrame, data columns
             names are used.
 
+        fobj
+            Customized objective function.
+
         Returns
         -------
         booster
@@ -419,7 +423,13 @@ class LGBMModel(lgb.LGBMModel):
         params = self.best_params_.copy()
         dataset = lgb.Dataset(X, label=y, weight=sample_weight)
         booster = lgb.train(
-            params, dataset, num_boost_round=self._best_iteration
+            params,
+            dataset,
+            callbacks=callbacks,
+            categorical_feature=categorical_feature,
+            feature_name=feature_name,
+            fobj=fobj,
+            num_boost_round=self._best_iteration,
         )
 
         booster.free_dataset()
@@ -632,6 +642,7 @@ class LGBMModel(lgb.LGBMModel):
                 callbacks=callbacks,
                 categorical_feature=categorical_feature,
                 feature_name=feature_name,
+                fobj=fobj,
             )
             self.refit_time_ = time.perf_counter() - start_time
 
