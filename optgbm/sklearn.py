@@ -9,6 +9,7 @@ from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 import lightgbm as lgb
@@ -371,68 +372,41 @@ class LGBMModel(lgb.LGBMModel):
 
         return random_state.randint(0, MAX_INT)
 
-    def _train_booster(
+    def _make_booster(
         self,
-        X: TwoDimArrayLikeType,
-        y: OneDimArrayLikeType,
-        sample_weight: Optional[OneDimArrayLikeType] = None,
-        callbacks: Optional[List[Callable]] = None,
-        categorical_feature: Union[List[int], List[str], str] = "auto",
-        feature_name: Union[List[str], str] = "auto",
+        params: Dict[str, Any],
+        dataset: lgb.Dataset,
+        representations: List[str],
+        num_boost_round: int,
+        folds: List[Tuple],
         fobj: Optional[Callable] = None,
-    ) -> lgb.Booster:
-        """Refit the estimator with the best found hyperparameters.
+        feature_name: Union[List[str], str] = "auto",
+        categorical_feature: Union[List[int], List[str], str] = "auto",
+        callbacks: Optional[List[Callable]] = None,
+    ) -> Union[_VotingBooster, lgb.Booster]:
+        if self.refit:
+            booster = lgb.train(
+                params,
+                dataset,
+                num_boost_round=num_boost_round,
+                fobj=fobj,
+                feature_name=feature_name,
+                categorical_feature=categorical_feature,
+                callbacks=callbacks,
+            )
 
-        Parameters
-        ----------
-        X
-            Training data.
+            booster.free_dataset()
 
-        y
-            Target.
+            return booster
 
-        sample_weight
-            Weights of training data.
-
-        callbacks
-            List of callback functions that are applied at each iteration.
-
-        categorical_feature
-            Categorical features. If list of int, interpreted as indices. If
-            list of strings, interpreted as feature names. If 'auto' and data
-            is pandas DataFrame, pandas categorical columns are used. All
-            values in categorical features should be less than int32 max value
-            (2147483647). Large values could be memory consuming. Consider
-            using consecutive integers starting from zero. All negative values
-            in categorical features will be treated as missing values.
-
-        feature_name
-            Feature names. If 'auto' and data is pandas DataFrame, data columns
-            names are used.
-
-        fobj
-            Customized objective function.
-
-        Returns
-        -------
-        booster
-            Trained booster.
-        """
-        self._check_is_fitted()
-
-        params = self.best_params_.copy()
-        dataset = lgb.Dataset(X, label=y, weight=sample_weight)
-        booster = lgb.train(
-            params,
-            dataset,
-            callbacks=callbacks,
-            categorical_feature=categorical_feature,
-            feature_name=feature_name,
-            fobj=fobj,
-            num_boost_round=self._best_iteration,
+        sample_weight = dataset.get_weight()
+        weights = np.array(
+            [np.sum(sample_weight[train]) for train, _ in folds]
         )
 
-        booster.free_dataset()
+        booster = _VotingBooster.from_representations(
+            representations, weights=weights
+        )
 
         return booster
 
@@ -630,38 +604,34 @@ class LGBMModel(lgb.LGBMModel):
 
         logger.info("The best_iteration is {}.".format(self._best_iteration))
 
+        folds = cv.split(X, y, groups=groups)
+        representations = self.study_.user_attrs["representations"]
+
+        logger.info("Making booster(s)...")
+
+        start_time = time.perf_counter()
+
+        self._Booster = self._make_booster(
+            self.best_params_,
+            dataset,
+            representations,
+            self.best_iteration_,
+            folds,
+            fobj=fobj,
+            feature_name=feature_name,
+            categorical_feature=categorical_feature,
+            callbacks=callbacks,
+        )
+
+        elapsed_time = time.perf_counter() - start_time
+
+        logger.info(
+            "Finished making booster(s)! "
+            "(elapsed time: {:.3f} sec.)".format(elapsed_time)
+        )
+
         if self.refit:
-            logger.info("Refitting the estimator...")
-
-            start_time = time.perf_counter()
-
-            self._Booster = self._train_booster(
-                X,
-                y,
-                sample_weight=sample_weight,
-                callbacks=callbacks,
-                categorical_feature=categorical_feature,
-                feature_name=feature_name,
-                fobj=fobj,
-            )
-            self.refit_time_ = time.perf_counter() - start_time
-
-            logger.info(
-                "Finished refitting! "
-                "(elapsed time: {:.3f} sec.)".format(self.refit_time_)
-            )
-
-        else:
-            weights = np.array(
-                [
-                    np.sum(sample_weight[train])
-                    for train, _ in cv.split(X, y, groups=groups)
-                ]
-            )
-
-            self._Booster = _VotingBooster.from_representations(
-                self.study_.user_attrs["representations"], weights=weights
-            )
+            self.refit_time_ = elapsed_time
 
         return self
 
