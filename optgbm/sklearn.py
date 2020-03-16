@@ -601,11 +601,11 @@ class LGBMModel(lgb.LGBMModel):
 
         elapsed_time = time.perf_counter() - start_time
 
-        self.best_params_ = {**params, **self.study_.best_params}
         self._best_iteration = self.study_.best_trial.user_attrs[
             "best_iteration"
         ]
         self._best_score = self.study_.best_value
+        self.best_params_ = {**params, **self.study_.best_params}
         self.n_splits_ = cv.get_n_splits(X, y, groups=groups)
 
         logger.info(
@@ -627,7 +627,7 @@ class LGBMModel(lgb.LGBMModel):
             self.best_params_,
             dataset,
             representations,
-            self.best_iteration_,
+            self._best_iteration,
             folds,
             fobj=fobj,
             feature_name=feature_name,
