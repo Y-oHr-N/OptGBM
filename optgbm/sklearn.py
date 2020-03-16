@@ -593,11 +593,13 @@ class LGBMModel(lgb.LGBMModel):
 
         logger.info("Searching the best hyperparameters...")
 
+        start_time = time.perf_counter()
+
         self.study_.optimize(
             objective, catch=(), n_trials=self.n_trials, timeout=self.timeout
         )
 
-        logger.info("Finished hyperparemeter search!")
+        elapsed_time = time.perf_counter() - start_time
 
         self.best_params_ = {**params, **self.study_.best_params}
         self._best_iteration = self.study_.best_trial.user_attrs[
@@ -606,7 +608,13 @@ class LGBMModel(lgb.LGBMModel):
         self._best_score = self.study_.best_value
         self.n_splits_ = cv.get_n_splits(X, y, groups=groups)
 
-        logger.info("The best_iteration is {}.".format(self._best_iteration))
+        logger.info(
+            "Finished hyperparemeter search! "
+            "(elapsed time: {:.3f} sec.) "
+            "The best_iteration is {}.".format(
+                elapsed_time, self._best_iteration
+            )
+        )
 
         folds = cv.split(X, y, groups=groups)
         representations = self.study_.user_attrs["representations"]
