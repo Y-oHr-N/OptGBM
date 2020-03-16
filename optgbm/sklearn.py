@@ -313,6 +313,7 @@ class LGBMModel(lgb.LGBMModel):
         importance_type: str = "split",
         cv: CVType = 5,
         enable_pruning: bool = False,
+        enable_weighted_averaging: bool = False,
         n_trials: int = 20,
         param_distributions: Optional[
             Dict[str, distributions.BaseDistribution]
@@ -346,6 +347,7 @@ class LGBMModel(lgb.LGBMModel):
 
         self.cv = cv
         self.enable_pruning = enable_pruning
+        self.enable_weighted_averaging = enable_weighted_averaging
         self.n_trials = n_trials
         self.param_distributions = param_distributions
         self.refit = refit
@@ -401,10 +403,13 @@ class LGBMModel(lgb.LGBMModel):
 
             return booster
 
-        sample_weight = dataset.get_weight()
-        weights = np.array(
-            [np.sum(sample_weight[train]) for train, _ in folds]
-        )
+        if self.enable_weighted_averaging:
+            sample_weight = dataset.get_weight()
+            weights = np.array(
+                [np.sum(sample_weight[train]) for train, _ in folds]
+            )
+        else:
+            weights = None
 
         booster = _VotingBooster.from_representations(
             representations, weights=weights
@@ -501,6 +506,7 @@ class LGBMModel(lgb.LGBMModel):
             "class_weight",
             "cv",
             "enable_pruning",
+            "enable_weighted_averaging",
             "importance_type",
             "n_estimators",
             "n_trials",
@@ -745,6 +751,9 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
 
     enable_pruning
         If True, pruning is performed.
+
+    enable_weighted_averaging
+        If True, weighted averaging is performed.
 
     n_trials
         Number of trials. If None, there is no limitation on the number of
@@ -999,6 +1008,9 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
     enable_pruning
         If True, pruning is performed.
 
+    enable_weighted_averaging
+        If True, weighted averaging is performed.
+
     n_trials
         Number of trials. If None, there is no limitation on the number of
         trials. If `timeout` is also set to None, the study continues to create
@@ -1095,6 +1107,7 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
         importance_type: str = "split",
         cv: CVType = 5,
         enable_pruning: bool = False,
+        enable_weighted_averaging: bool = False,
         n_trials: int = 20,
         param_distributions: Optional[
             Dict[str, distributions.BaseDistribution]
@@ -1109,6 +1122,7 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
             colsample_bytree=colsample_bytree,
             cv=cv,
             enable_pruning=enable_pruning,
+            enable_weighted_averaging=enable_weighted_averaging,
             importance_type=importance_type,
             learning_rate=learning_rate,
             max_depth=max_depth,
