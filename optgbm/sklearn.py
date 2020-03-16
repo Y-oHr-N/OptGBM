@@ -45,9 +45,9 @@ else:
     )
 
 if sklearn.__version__ >= "0.22":
-    from sklearn.utils import _safe_indexing as safe_indexing
+    from sklearn.utils import _safe_indexing
 else:
-    from sklearn.utils import safe_indexing
+    from sklearn.utils import safe_indexing as _safe_indexing
 
 __all__ = [
     "LGBMModel",
@@ -587,10 +587,10 @@ class LGBMModel(lgb.LGBMModel):
         # See https://github.com/microsoft/LightGBM/issues/2319
         if group is None and groups is not None:
             indices = np.argsort(groups)
-            X = safe_indexing(X, indices)
-            y = safe_indexing(y, indices)
-            sample_weight = safe_indexing(sample_weight, indices)
-            groups = safe_indexing(groups, indices)
+            X = _safe_indexing(X, indices)
+            y = _safe_indexing(y, indices)
+            sample_weight = _safe_indexing(sample_weight, indices)
+            groups = _safe_indexing(groups, indices)
             _, group = np.unique(groups, return_counts=True)
 
         dataset = lgb.Dataset(X, label=y, group=group, weight=sample_weight)
