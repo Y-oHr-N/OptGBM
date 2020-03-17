@@ -11,6 +11,8 @@ try:
 except DistributionNotFound:
     pass
 
+from lightgbm import *  # noqa
+
 from . import sklearn  # noqa
 from . import typing  # noqa
 from . import utils  # noqa
