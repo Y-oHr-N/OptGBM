@@ -25,7 +25,6 @@ from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
-from sklearn.utils.validation import check_is_fitted
 
 from .typing import CVType
 from .typing import LightGBMCallbackEnvType
@@ -355,7 +354,7 @@ class LGBMModel(lgb.LGBMModel):
         self.timeout = timeout
 
     def _check_is_fitted(self) -> None:
-        check_is_fitted(self, "n_features_")
+        getattr(self, "n_features_")
 
     def _get_objective(self) -> str:
         if isinstance(self.objective, str):
