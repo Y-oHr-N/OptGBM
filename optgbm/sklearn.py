@@ -897,12 +897,10 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         p
             Class probabilities of data.
         """
-        self._check_is_fitted()
-
         X = check_X(
             X, accept_sparse=True, estimator=self, force_all_finite=False
         )
-        preds = self._Booster.predict(X, num_iteration=num_iteration)
+        preds = self.booster_.predict(X, num_iteration=num_iteration)
 
         if self._n_classes > 2:
             return preds
@@ -1160,13 +1158,11 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
         y_pred
             Predicted values.
         """
-        self._check_is_fitted()
-
         X = check_X(
             X, accept_sparse=True, estimator=self, force_all_finite=False
         )
 
-        return self._Booster.predict(X, num_iteration=num_iteration)
+        return self.booster_.predict(X, num_iteration=num_iteration)
 
 
 # alias classes
