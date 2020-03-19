@@ -515,16 +515,8 @@ class LGBMModel(lgb.LGBMModel):
         params["random_state"] = seed
         params["verbose"] = -1
 
-        if is_classifier:
-            self.encoder_ = LabelEncoder()
-
-            y = self.encoder_.fit_transform(y)
-
-            self._classes = self.encoder_.classes_
-            self._n_classes = len(self.encoder_.classes_)
-
-            if self._n_classes > 2:
-                params["num_classes"] = self._n_classes
+        if self._n_classes is not None and self._n_classes > 2:
+            params["num_classes"] = self._n_classes
 
         if callable(self.objective):
             fobj = _ObjectiveFunctionWrapper(self.objective)
@@ -837,6 +829,93 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         self._check_is_fitted()
 
         return self._n_classes
+
+    def fit(
+        self,
+        X: TwoDimArrayLikeType,
+        y: OneDimArrayLikeType,
+        sample_weight: Optional[OneDimArrayLikeType] = None,
+        group: Optional[OneDimArrayLikeType] = None,
+        eval_metric: Optional[Union[Callable, str]] = None,
+        early_stopping_rounds: Optional[int] = 10,
+        feature_name: Union[List[str], str] = "auto",
+        categorical_feature: Union[List[int], List[str], str] = "auto",
+        callbacks: Optional[List[Callable]] = None,
+        groups: Optional[OneDimArrayLikeType] = None,
+        **fit_params: Any
+    ) -> "LGBMClassifier":
+        """Fit the model according to the given training data.
+
+        Parameters
+        ----------
+        X
+            Training data.
+
+        y
+            Target.
+
+        sample_weight
+            Weights of training data.
+
+        group
+            Group data of training data.
+
+        eval_metric
+            Evaluation metric. See
+            https://lightgbm.readthedocs.io/en/latest/Parameters.html#metric.
+
+        early_stopping_rounds
+            Used to activate early stopping. The model will train until the
+            validation score stops improving.
+
+        feature_name
+            Feature names. If 'auto' and data is pandas DataFrame, data columns
+            names are used.
+
+        categorical_feature
+            Categorical features. If list of int, interpreted as indices. If
+            list of strings, interpreted as feature names. If 'auto' and data
+            is pandas DataFrame, pandas categorical columns are used. All
+            values in categorical features should be less than int32 max value
+            (2147483647). Large values could be memory consuming. Consider
+            using consecutive integers starting from zero. All negative values
+            in categorical features will be treated as missing values.
+
+        callbacks
+            List of callback functions that are applied at each iteration.
+
+        groups
+            Group labels for the samples used while splitting the dataset into
+            train/test set. If `group` is not None, this parameter is ignored.
+
+        **fit_params
+            Always ignored. This parameter exists for compatibility.
+
+        Returns
+        -------
+        self
+            Return self.
+        """
+        self.encoder_ = LabelEncoder()
+
+        y = self.encoder_.fit_transform(y)
+
+        self._classes = self.encoder_.classes_
+        self._n_classes = len(self.encoder_.classes_)
+
+        return super().fit(
+            X,
+            y,
+            sample_weight=sample_weight,
+            group=group,
+            eval_metric=eval_metric,
+            early_stopping_rounds=early_stopping_rounds,
+            feature_name=feature_name,
+            categorical_feature=categorical_feature,
+            callbacks=callbacks,
+            groups=groups,
+            **fit_params
+        )
 
     def predict(
         self,
