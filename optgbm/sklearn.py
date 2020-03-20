@@ -638,6 +638,7 @@ class LGBMModel(lgb.LGBMModel):
             feature_name=feature_name,
             categorical_feature=categorical_feature,
             callbacks=callbacks,
+            init_model=init_model,
         )
 
         elapsed_time = time.perf_counter() - start_time
