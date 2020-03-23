@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "setuptools>=42",
-    "setuptools_scm",
+    "setuptools_scm[toml]>=3.4",
     "wheel",
 ]
 
@@ -10,3 +10,5 @@ line-length = 79
 
 [tool.isort]
 force_single_line = true
+
+[tool.setuptools_scm]
