@@ -3,7 +3,6 @@
 import copy
 import logging
 import time
-
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -15,7 +14,6 @@ from typing import Union
 import lightgbm as lgb
 import numpy as np
 import sklearn
-
 from optuna import distributions
 from optuna import integration
 from optuna import samplers

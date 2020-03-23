@@ -1,5 +1,4 @@
 import numpy as np
-
 from sklearn.datasets import load_boston
 
 from optgbm.utils import check_fit_params

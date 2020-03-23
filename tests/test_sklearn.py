@@ -7,7 +7,6 @@ from typing import Union
 import lightgbm as lgb
 import numpy as np
 import pytest
-
 from optuna import structs
 from optuna import study as study_module
 from sklearn.datasets import load_breast_cancer

@@ -10,7 +10,6 @@ from typing import Union
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
-
 from scipy.sparse import spmatrix
 from sklearn.model_selection import BaseCrossValidator
 
