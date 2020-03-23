@@ -10,5 +10,8 @@ line-length = 79
 
 [tool.isort]
 force_single_line = true
+known_third_party = [
+    "pytest",
+]
 
 [tool.setuptools_scm]
