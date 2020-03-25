@@ -209,9 +209,9 @@ class _Objective(object):
 
         if self.param_distributions is None:
             params["feature_fraction"] = trial.suggest_discrete_uniform(
-                "feature_fraction", 0.1, 1.0, 0.05
+                "feature_fraction", 0.4, 1.0, 0.05
             )
-            params["max_depth"] = trial.suggest_int("max_depth", 1, 7)
+            params["max_depth"] = trial.suggest_int("max_depth", 1, 8)
             params["num_leaves"] = trial.suggest_int(
                 "num_leaves", 2, 2 ** params["max_depth"]
             )
@@ -222,18 +222,18 @@ class _Objective(object):
                 max(1, int(self.n_samples / params["num_leaves"])),
             )
             params["lambda_l1"] = trial.suggest_loguniform(
-                "lambda_l1", 1e-09, 10.0
+                "lambda_l1", 1e-08, 10.0
             )
             params["lambda_l2"] = trial.suggest_loguniform(
-                "lambda_l2", 1e-09, 10.0
+                "lambda_l2", 1e-08, 10.0
             )
 
             if params["boosting_type"] != "goss":
                 params["bagging_fraction"] = trial.suggest_discrete_uniform(
-                    "bagging_fraction", 0.5, 0.95, 0.05
+                    "bagging_fraction", 0.4, 0.95, 0.05
                 )
                 params["bagging_freq"] = trial.suggest_int(
-                    "bagging_freq", 1, 10
+                    "bagging_freq", 1, 7
                 )
 
             return params
