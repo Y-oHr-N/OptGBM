@@ -309,7 +309,6 @@ class LGBMModel(lgb.LGBMModel):
         subsample: float = 1.0,
         subsample_freq: int = 0,
         colsample_bytree: float = 1.0,
-        refit: bool = False,
         reg_alpha: float = 0.0,
         reg_lambda: float = 0.0,
         random_state: Optional[RandomStateType] = None,
@@ -321,6 +320,7 @@ class LGBMModel(lgb.LGBMModel):
         param_distributions: Optional[
             Dict[str, distributions.BaseDistribution]
         ] = None,
+        refit: bool = True,
         study: Optional[study_module.Study] = None,
         timeout: Optional[float] = None,
         **kwargs: Any
