@@ -11,9 +11,6 @@ import pytest
 from optuna import structs
 from optuna import study as study_module
 from sklearn.datasets import load_breast_cancer
-from sklearn.datasets import load_digits
-from sklearn.datasets import load_iris
-from sklearn.datasets import load_wine
 from sklearn.model_selection import GroupKFold
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -309,11 +306,8 @@ def test_refit(early_stopping_rounds: Optional[int]) -> None:
     np.testing.assert_array_equal(y_pred, clf.predict(X))
 
 
-@pytest.mark.parametrize(
-    "load_function", [load_breast_cancer, load_digits, load_iris, load_wine]
-)
-def test_score(load_function: Callable) -> None:
-    X, y = load_function(return_X_y=True)
+def test_score() -> None:
+    X, y = load_breast_cancer(return_X_y=True)
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, random_state=random_state
     )
