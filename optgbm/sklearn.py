@@ -316,7 +316,7 @@ class LGBMModel(lgb.LGBMModel):
         importance_type: str = "split",
         cv: CVType = 5,
         enable_pruning: bool = False,
-        n_trials: int = 20,
+        n_trials: int = 40,
         param_distributions: Optional[
             Dict[str, distributions.BaseDistribution]
         ] = None,
