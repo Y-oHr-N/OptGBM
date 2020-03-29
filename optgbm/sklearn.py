@@ -299,7 +299,7 @@ class LGBMModel(lgb.LGBMModel):
         num_leaves: int = 31,
         max_depth: int = -1,
         learning_rate: float = 0.1,
-        n_estimators: int = 1000,
+        n_estimators: int = 100,
         subsample_for_bin: int = 200000,
         objective: Optional[Union[Callable, str]] = None,
         class_weight: Optional[Union[Dict[str, float], str]] = None,
