@@ -312,7 +312,7 @@ class LGBMModel(lgb.LGBMModel):
         reg_alpha: float = 0.0,
         reg_lambda: float = 0.0,
         random_state: Optional[RandomStateType] = None,
-        n_jobs: int = 1,
+        n_jobs: int = -1,
         importance_type: str = "split",
         cv: CVType = 5,
         enable_pruning: bool = False,
