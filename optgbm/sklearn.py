@@ -683,9 +683,14 @@ class LGBMModel(lgb.LGBMModel):
         y_pred
             Predicted values.
         """
+        logger = logging.getLogger(__name__)
+
         X = check_X(
             X, accept_sparse=True, estimator=self, force_all_finite=False
         )
+
+        if predict_params:
+            logger.warn("{} are ignored.".format(predict_params))
 
         return self.booster_.predict(X, num_iteration=num_iteration)
 
