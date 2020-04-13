@@ -858,62 +858,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         groups: Optional[OneDimArrayLikeType] = None,
         **fit_params: Any
     ) -> "LGBMClassifier":
-        """Fit the model according to the given training data.
-
-        Parameters
-        ----------
-        X
-            Training data.
-
-        y
-            Target.
-
-        sample_weight
-            Weights of training data.
-
-        group
-            Group data of training data.
-
-        eval_metric
-            Evaluation metric. See
-            https://lightgbm.readthedocs.io/en/latest/Parameters.html#metric.
-
-        early_stopping_rounds
-            Used to activate early stopping. The model will train until the
-            validation score stops improving.
-
-        feature_name
-            Feature names. If 'auto' and data is pandas DataFrame, data columns
-            names are used.
-
-        categorical_feature
-            Categorical features. If list of int, interpreted as indices. If
-            list of strings, interpreted as feature names. If 'auto' and data
-            is pandas DataFrame, pandas categorical columns are used. All
-            values in categorical features should be less than int32 max value
-            (2147483647). Large values could be memory consuming. Consider
-            using consecutive integers starting from zero. All negative values
-            in categorical features will be treated as missing values.
-
-        callbacks
-            List of callback functions that are applied at each iteration.
-
-        init_model
-            Filename of LightGBM model, Booster instance or LGBMModel instance
-            used for continue training.
-
-        groups
-            Group labels for the samples used while splitting the dataset into
-            train/test set. If `group` is not None, this parameter is ignored.
-
-        **fit_params
-            Always ignored. This parameter exists for compatibility.
-
-        Returns
-        -------
-        self
-            Return self.
-        """
+        """Docstring is inherited from the LGBMModel."""
         self.encoder_ = LabelEncoder()
 
         y = self.encoder_.fit_transform(y)
@@ -935,6 +880,8 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
             groups=groups,
             **fit_params
         )
+
+    fit.__doc__ = LGBMModel.fit.__doc__
 
     def predict(
         self,
