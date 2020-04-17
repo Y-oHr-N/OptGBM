@@ -2,6 +2,8 @@
 
 import copy
 import logging
+import pathlib
+import pickle
 import time
 
 from typing import Any
@@ -125,6 +127,7 @@ class _Objective(object):
         param_distributions: Optional[
             Dict[str, distributions.BaseDistribution]
         ] = None,
+        train_dir: Union[pathlib.Path, str] = "optgbm_info",
     ) -> None:
         self.callbacks = callbacks
         self.categorical_feature = categorical_feature
@@ -142,6 +145,7 @@ class _Objective(object):
         self.n_samples = n_samples
         self.params = params
         self.param_distributions = param_distributions
+        self.train_dir = train_dir
 
     def __call__(self, trial: trial_module.Trial) -> float:
         params = self._get_params(trial)  # type: Dict[str, Any]
@@ -176,13 +180,9 @@ class _Objective(object):
 
         if is_best_trial:
             boosters = callbacks[0]._boosters  # type: ignore
-            representations = []  # type: List[str]
+            booster = _VotingBooster(boosters)  # type: _VotingBooster
 
-            for b in boosters:
-                b.free_dataset()
-                representations.append(b.model_to_string())
-
-            trial.study.set_user_attr("representations", representations)
+            booster.dump(self.train_dir)
 
         return value
 
@@ -258,23 +258,6 @@ class _VotingBooster(object):
         self.boosters = boosters
         self.weights = weights
 
-    @classmethod
-    def from_representations(
-        cls, representations: List[str], weights: Optional[np.ndarray] = None
-    ) -> "_VotingBooster":
-        if lgb.__version__ >= "2.3":
-            boosters = [
-                lgb.Booster(model_str=model_str, silent=True)
-                for model_str in representations
-            ]
-        else:
-            boosters = [
-                lgb.Booster(params={"model_str": model_str})
-                for model_str in representations
-            ]
-
-        return cls(boosters, weights=weights)
-
     def feature_importance(self, **kwargs: Any) -> np.ndarray:
         results = [b.feature_importance(**kwargs) for b in self.boosters]
 
@@ -284,6 +267,31 @@ class _VotingBooster(object):
         results = [b.predict(X, **kwargs) for b in self.boosters]
 
         return np.average(results, axis=0, weights=self.weights)
+
+    def dump(self, train_dir: Union[pathlib.Path, str]) -> None:
+        train_dir_path = pathlib.Path(train_dir)
+
+        train_dir_path.mkdir(exist_ok=True, parents=True)
+
+        for i, b in enumerate(self.boosters):
+            booster_path = train_dir_path / "fold_{}.pkl".format(i)
+
+            with open(booster_path, "wb") as f:
+                pickle.dump(b, f)
+
+    @classmethod
+    def load(cls, train_dir: Union[pathlib.Path, str]) -> "_VotingBooster":
+        train_dir_path = pathlib.Path(train_dir)
+        boosters = []
+
+        for booster_path in train_dir_path.iterdir():
+            if booster_path.match("fold_*.pkl"):
+                with open(booster_path, "rb") as f:
+                    b = pickle.load(f)
+
+                boosters.append(b)
+
+        return cls(boosters)
 
 
 class LGBMModel(lgb.LGBMModel):
@@ -326,6 +334,7 @@ class LGBMModel(lgb.LGBMModel):
         refit: bool = True,
         study: Optional[study_module.Study] = None,
         timeout: Optional[float] = None,
+        train_dir: Union[pathlib.Path, str] = "optgbm_info",
         **kwargs: Any
     ) -> None:
         super().__init__(
@@ -358,6 +367,7 @@ class LGBMModel(lgb.LGBMModel):
         self.refit = refit
         self.study = study
         self.timeout = timeout
+        self.train_dir = train_dir
 
     def _check_is_fitted(self) -> None:
         getattr(self, "n_features_")
@@ -385,7 +395,6 @@ class LGBMModel(lgb.LGBMModel):
         self,
         params: Dict[str, Any],
         dataset: lgb.Dataset,
-        representations: List[str],
         num_boost_round: int,
         folds: List[Tuple],
         fobj: Optional[Callable] = None,
@@ -415,9 +424,8 @@ class LGBMModel(lgb.LGBMModel):
             [np.sum(sample_weight[train]) for train, _ in folds]
         )
 
-        booster = _VotingBooster.from_representations(
-            representations, weights=weights
-        )
+        booster = _VotingBooster.load(self.train_dir)
+        booster.weights = weights
 
         return booster
 
@@ -527,6 +535,7 @@ class LGBMModel(lgb.LGBMModel):
             "refit",
             "study",
             "timeout",
+            "train_dir",
         ):
             params.pop(attr, None)
 
@@ -600,6 +609,7 @@ class LGBMModel(lgb.LGBMModel):
             init_model=init_model,
             n_estimators=self.n_estimators,
             param_distributions=self.param_distributions,
+            train_dir=self.train_dir,
         )
 
         logger.info("Searching the best hyperparameters...")
@@ -629,7 +639,6 @@ class LGBMModel(lgb.LGBMModel):
         )
 
         folds = cv.split(X, y, groups=groups)
-        representations = self.study_.user_attrs["representations"]
 
         logger.info("Making booster(s)...")
 
@@ -638,7 +647,6 @@ class LGBMModel(lgb.LGBMModel):
         self._Booster = self._make_booster(
             self.best_params_,
             dataset,
-            representations,
             self._best_iteration,
             folds,
             fobj=fobj,
@@ -822,6 +830,9 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         set to None, the study continues to create trials until it receives a
         termination signal such as Ctrl+C or SIGTERM. This trades off runtime
         vs quality of the solution.
+
+    train_dir
+        Directory for storing the files generated during training.
 
     **kwargs
         Other parameters for the model. See
@@ -1106,6 +1117,9 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
         set to None, the study continues to create trials until it receives a
         termination signal such as Ctrl+C or SIGTERM. This trades off runtime
         vs quality of the solution.
+
+    train_dir
+        Directory for storing the files generated during training.
 
     **kwargs
         Other parameters for the model. See
