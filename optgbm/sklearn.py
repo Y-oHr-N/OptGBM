@@ -558,18 +558,33 @@ class LGBMModel(lgb.LGBMModel):
             else None
         )
 
-        if isinstance(init_model, lgb.LGBMModel):
-            init_model = init_model.booster_
+        init_model = (
+            init_model.booster_
+            if isinstance(init_model, lgb.LGBMModel)
+            else init_model
+        )
+
+        direction = "maximize" if is_higher_better else "minimize"
 
         if self.study is None:
             sampler = samplers.TPESampler(seed=seed)
 
             self.study_ = study_module.create_study(
-                direction="maximize" if is_higher_better else "minimize",
-                sampler=sampler,
+                direction=direction, sampler=sampler
             )
 
         else:
+            _direction = (
+                study_module.StudyDirection.MAXIMIZE
+                if is_higher_better
+                else study_module.StudyDirection.MINIMIZE
+            )
+
+            if self.study.direction != _direction:
+                raise ValueError(
+                    "direction of study must be '{}'.".format(direction)
+                )
+
             self.study_ = self.study
 
         # See https://github.com/microsoft/LightGBM/issues/2319
