@@ -877,7 +877,8 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
     --------
     >>> import optgbm as lgb
     >>> from sklearn.datasets import load_iris
-    >>> clf = lgb.LGBMClassifier(random_state=0)
+    >>> tmp_path = getfixture("tmp_path")  # noqa
+    >>> clf = lgb.LGBMClassifier(random_state=0, train_dir=tmp_path)
     >>> X, y = load_iris(return_X_y=True)
     >>> clf.fit(X, y)
     LGBMClassifier(...)
@@ -1161,7 +1162,8 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
     --------
     >>> import optgbm as lgb
     >>> from sklearn.datasets import load_boston
-    >>> reg = lgb.LGBMRegressor(random_state=0)
+    >>> tmp_path = getfixture("tmp_path")  # noqa
+    >>> reg = lgb.LGBMRegressor(random_state=0, train_dir=tmp_path)
     >>> X, y = load_boston(return_X_y=True)
     >>> reg.fit(X, y)
     LGBMRegressor(...)
