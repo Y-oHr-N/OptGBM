@@ -269,6 +269,7 @@ class _VotingBooster(object):
         return np.average(results, axis=0, weights=self.weights)
 
     def dump(self, train_dir: Union[pathlib.Path, str]) -> None:
+        train_dir = str(train_dir)
         train_dir_path = pathlib.Path(train_dir)
 
         train_dir_path.mkdir(exist_ok=True, parents=True)
@@ -281,6 +282,7 @@ class _VotingBooster(object):
 
     @classmethod
     def load(cls, train_dir: Union[pathlib.Path, str]) -> "_VotingBooster":
+        train_dir = str(train_dir)
         train_dir_path = pathlib.Path(train_dir)
         boosters = []
 
