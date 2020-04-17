@@ -277,7 +277,7 @@ class _VotingBooster(object):
         for i, b in enumerate(self.boosters):
             booster_path = train_dir_path / "fold_{}.pkl".format(i)
 
-            with open(booster_path, "wb") as f:
+            with booster_path.open("wb") as f:
                 pickle.dump(b, f)
 
     @classmethod
@@ -288,7 +288,7 @@ class _VotingBooster(object):
 
         for booster_path in train_dir_path.iterdir():
             if booster_path.match("fold_*.pkl"):
-                with open(booster_path, "rb") as f:
+                with booster_path.open("rb") as f:
                     b = pickle.load(f)
 
                 boosters.append(b)
