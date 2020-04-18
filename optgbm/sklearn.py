@@ -616,9 +616,11 @@ class LGBMModel(lgb.LGBMModel):
 
         elapsed_time = time.perf_counter() - start_time
 
-        self._best_iteration = self.study_.best_trial.user_attrs[
-            "best_iteration"
-        ]
+        best_iteration = self.study_.best_trial.user_attrs["best_iteration"]
+
+        self._best_iteration = (
+            None if early_stopping_rounds is None else best_iteration
+        )
         self._best_score = self.study_.best_value
         self._objective = params["objective"]
         self.best_params_ = {**params, **self.study_.best_params}
@@ -627,9 +629,7 @@ class LGBMModel(lgb.LGBMModel):
         logger.info(
             "Finished hyperparemeter search! "
             "(elapsed time: {:.3f} sec.) "
-            "The best_iteration is {}.".format(
-                elapsed_time, self._best_iteration
-            )
+            "The best_iteration is {}.".format(elapsed_time, best_iteration)
         )
 
         folds = cv.split(X, y, groups=groups)
@@ -643,7 +643,7 @@ class LGBMModel(lgb.LGBMModel):
             self.best_params_,
             dataset,
             representations,
-            self._best_iteration,
+            best_iteration,
             folds,
             fobj=fobj,
             feature_name=feature_name,
