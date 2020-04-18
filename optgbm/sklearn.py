@@ -20,6 +20,7 @@ from optuna import distributions
 from optuna import integration
 from optuna import samplers
 from optuna import study as study_module
+from optuna import structs
 from optuna import trial as trial_module
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
@@ -575,9 +576,9 @@ class LGBMModel(lgb.LGBMModel):
 
         else:
             _direction = (
-                study_module.StudyDirection.MAXIMIZE
+                structs.StudyDirection.MAXIMIZE
                 if is_higher_better
-                else study_module.StudyDirection.MINIMIZE
+                else structs.StudyDirection.MINIMIZE
             )
 
             if self.study.direction != _direction:
