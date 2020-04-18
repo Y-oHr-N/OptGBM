@@ -20,6 +20,7 @@ from optuna import distributions
 from optuna import integration
 from optuna import samplers
 from optuna import study as study_module
+from optuna import structs
 from optuna import trial as trial_module
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
@@ -558,18 +559,33 @@ class LGBMModel(lgb.LGBMModel):
             else None
         )
 
-        if isinstance(init_model, lgb.LGBMModel):
-            init_model = init_model.booster_
+        init_model = (
+            init_model.booster_
+            if isinstance(init_model, lgb.LGBMModel)
+            else init_model
+        )
+
+        direction = "maximize" if is_higher_better else "minimize"
 
         if self.study is None:
             sampler = samplers.TPESampler(seed=seed)
 
             self.study_ = study_module.create_study(
-                direction="maximize" if is_higher_better else "minimize",
-                sampler=sampler,
+                direction=direction, sampler=sampler
             )
 
         else:
+            _direction = (
+                structs.StudyDirection.MAXIMIZE
+                if is_higher_better
+                else structs.StudyDirection.MINIMIZE
+            )
+
+            if self.study.direction != _direction:
+                raise ValueError(
+                    "direction of study must be '{}'.".format(direction)
+                )
+
             self.study_ = self.study
 
         # See https://github.com/microsoft/LightGBM/issues/2319
