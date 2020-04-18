@@ -7,17 +7,13 @@ from typing import NamedTuple
 from typing import Tuple
 from typing import Union
 
-import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
 from scipy.sparse import spmatrix
 from sklearn.model_selection import BaseCrossValidator
 
-if lgb.__version__ >= "2.2.2":
-    from lightgbm.engine import _CVBooster
-else:
-    from lightgbm.engine import CVBooster as _CVBooster
+from .compat import _CVBooster
 
 CVType = Union[BaseCrossValidator, int, List[Tuple]]
 
