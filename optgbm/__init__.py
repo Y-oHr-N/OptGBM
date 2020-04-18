@@ -13,6 +13,7 @@ except DistributionNotFound:
 
 from lightgbm import *  # noqa
 
+from . import compat  # noqa
 from . import sklearn  # noqa
 from . import typing  # noqa
 from . import utils  # noqa

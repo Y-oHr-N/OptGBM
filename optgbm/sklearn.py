@@ -14,7 +14,6 @@ from typing import Union
 
 import lightgbm as lgb
 import numpy as np
-import sklearn
 
 from optuna import distributions
 from optuna import integration
@@ -27,6 +26,9 @@ from sklearn.base import RegressorMixin
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 
+from .compat import _EvalFunctionWrapper
+from .compat import _ObjectiveFunctionWrapper
+from .compat import _safe_indexing
 from .typing import CVType
 from .typing import LightGBMCallbackEnvType
 from .typing import OneDimArrayLikeType
@@ -35,20 +37,6 @@ from .typing import TwoDimArrayLikeType
 from .utils import check_cv
 from .utils import check_fit_params
 from .utils import check_X
-
-if lgb.__version__ >= "2.3":
-    from lightgbm.sklearn import _EvalFunctionWrapper
-    from lightgbm.sklearn import _ObjectiveFunctionWrapper
-else:
-    from lightgbm.sklearn import _eval_function_wrapper as _EvalFunctionWrapper
-    from lightgbm.sklearn import (
-        _objective_function_wrapper as _ObjectiveFunctionWrapper,
-    )
-
-if sklearn.__version__ >= "0.22":
-    from sklearn.utils import _safe_indexing
-else:
-    from sklearn.utils import safe_indexing as _safe_indexing
 
 __all__ = [
     "LGBMModel",
