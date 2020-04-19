@@ -111,8 +111,19 @@ def test_hasattr(refit: bool, early_stopping_rounds: int) -> None:
 
     if refit:
         assert hasattr(clf, "refit_time_")
+
+        assert clf.booster_.best_iteration == 0
+
     else:
         assert not hasattr(clf, "refit_time_")
+
+        boosters = clf.booster_.boosters
+
+        for b in boosters:
+            if early_stopping_rounds is None:
+                assert b.best_iteration == clf.n_estimators
+            else:
+                assert b.best_iteration == clf.best_iteration_
 
     if early_stopping_rounds is None:
         assert clf.best_iteration_ is None
