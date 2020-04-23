@@ -33,5 +33,5 @@
 		"EditorConfig.EditorConfig",
 		"ms-python.python"
 	],
-	"postCreateCommand": "pip install .[develop]"
+	"postCreateCommand": "pip install tox"
 }
