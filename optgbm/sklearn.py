@@ -271,8 +271,24 @@ class _VotingBooster(object):
 
         return np.average(results, axis=0, weights=self.weights)
 
-    def predict(self, X: TwoDimArrayLikeType, **kwargs: Any) -> np.ndarray:
-        results = [b.predict(X, **kwargs) for b in self.boosters]
+    def predict(
+        self,
+        X: TwoDimArrayLikeType,
+        num_iteration: Optional[int] = None,
+        **predict_params: Any
+    ) -> np.ndarray:
+        logger = logging.getLogger(__name__)
+
+        if predict_params:
+            logger.warning(
+                "{} are ignored when refit is set to True.".format(
+                    predict_params
+                )
+            )
+
+        results = [
+            b.predict(X, num_iteration=num_iteration) for b in self.boosters
+        ]
 
         return np.average(results, axis=0, weights=self.weights)
 
@@ -695,23 +711,20 @@ class LGBMModel(lgb.LGBMModel):
             <=0, all trees are used (no limits).
 
         **predict_params
-            Always ignored. This parameter exists for compatibility.
+            Ignored if refit is set to False.
 
         Returns
         -------
         y_pred
             Predicted values.
         """
-        logger = logging.getLogger(__name__)
-
         X = check_X(
             X, accept_sparse=True, estimator=self, force_all_finite=False
         )
 
-        if predict_params:
-            logger.warning("{} are ignored.".format(predict_params))
-
-        return self.booster_.predict(X, num_iteration=num_iteration)
+        return self.booster_.predict(
+            X, num_iteration=num_iteration, **predict_params
+        )
 
 
 class LGBMClassifier(LGBMModel, ClassifierMixin):
@@ -978,7 +991,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
             <=0, all trees are used (no limits).
 
         **predict_params
-            Always ignored. This parameter exists for compatibility.
+            Ignored if refit is set to False.
 
         Returns
         -------
