@@ -4,8 +4,27 @@ requires = [
     "setuptools_scm[toml]>=3.4",
     "wheel",
 ]
+build-backend = "setuptools.build_meta"
 
 [tool.black]
 line-length = 79
 
 [tool.setuptools_scm]
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py
+isolated_build = True
+
+[testenv]
+commands = pytest
+deps =
+  pytest
+  pytest-black
+  pytest-cov
+  pytest-flake8
+  pytest-mypy
+  pytest-pydocstyle==2.0.0
+extras = testing
+"""
