@@ -33,5 +33,5 @@
 		"EditorConfig.EditorConfig",
 		"ms-python.python"
 	],
-	"postCreateCommand": "pip install tox"
+	"postCreateCommand": "pip install pre-commit tox && pre-commit install"
 }
