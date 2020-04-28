@@ -11,9 +11,14 @@ try:
 except DistributionNotFound:
     pass
 
+from lightgbm import *  # noqa
+
 from . import cli  # noqa
+from . import compat  # noqa
 from . import sklearn  # noqa
+from . import typing  # noqa
 from . import utils  # noqa
+from .sklearn import *  # noqa
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler()
