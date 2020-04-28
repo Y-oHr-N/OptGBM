@@ -7,6 +7,8 @@ import sys
 from typing import Any
 from typing import Callable
 from typing import Optional
+from typing import TextIO
+from typing import Union
 
 import click
 import numpy as np
@@ -44,7 +46,7 @@ def train(config_path: str) -> None:
 def predict(
     config_path: str,
     input_path: str,
-    output_path: Optional[str],
+    output_path: Optional[Union[str, TextIO]],
     label_col: Optional[str],
 ) -> None:
     """Predict using the fitted model."""
@@ -65,7 +67,9 @@ def predict(
 @click.argument("input-path", type=click.Path(exists=True))
 @click.option("--output-path", "-o", default=None, type=click.Path())
 def predict_proba(
-    config_path: str, input_path: str, output_path: Optional[str]
+    config_path: str,
+    input_path: str,
+    output_path: Optional[Union[str, TextIO]],
 ) -> None:
     """Predict class probabilities for data."""
     predictor = Predictor(config_path)
