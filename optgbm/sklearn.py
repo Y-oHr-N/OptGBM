@@ -16,18 +16,21 @@ from typing import Union
 
 import lightgbm as lgb
 import numpy as np
-import sklearn
 
 from optuna import distributions
 from optuna import integration
 from optuna import samplers
 from optuna import study as study_module
+from optuna import structs
 from optuna import trial as trial_module
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 
+from .compat import _EvalFunctionWrapper
+from .compat import _ObjectiveFunctionWrapper
+from .compat import _safe_indexing
 from .typing import CVType
 from .typing import LightGBMCallbackEnvType
 from .typing import OneDimArrayLikeType
@@ -36,20 +39,6 @@ from .typing import TwoDimArrayLikeType
 from .utils import check_cv
 from .utils import check_fit_params
 from .utils import check_X
-
-if lgb.__version__ >= "2.3":
-    from lightgbm.sklearn import _EvalFunctionWrapper
-    from lightgbm.sklearn import _ObjectiveFunctionWrapper
-else:
-    from lightgbm.sklearn import _eval_function_wrapper as _EvalFunctionWrapper
-    from lightgbm.sklearn import (
-        _objective_function_wrapper as _ObjectiveFunctionWrapper,
-    )
-
-if sklearn.__version__ >= "0.22":
-    from sklearn.utils import _safe_indexing
-else:
-    from sklearn.utils import safe_indexing as _safe_indexing
 
 __all__ = [
     "LGBMModel",
@@ -97,13 +86,21 @@ def _is_higher_better(metric: str) -> bool:
 
 
 class _LightGBMExtractionCallback(object):
-    def __init__(self) -> None:
-        self._best_iteration = None  # type: Optional[int]
-        self._boosters = None  # type: Optional[List[lgb.Booster]]
+    @property
+    def best_iteration_(self) -> int:
+        best_iteration = self.env_.model.best_iteration
+
+        if best_iteration > 0:
+            return best_iteration
+
+        return self.env_.iteration + 1
+
+    @property
+    def boosters_(self) -> List[lgb.Booster]:
+        return self.env_.model.boosters
 
     def __call__(self, env: LightGBMCallbackEnvType) -> None:
-        self._best_iteration = env.iteration + 1
-        self._boosters = env.model.boosters
+        self.env_ = env
 
 
 class _Objective(object):
@@ -115,11 +112,9 @@ class _Objective(object):
         is_higher_better: bool,
         n_samples: int,
         callbacks: Optional[List[Callable]] = None,
-        categorical_feature: Union[List[int], List[str], str] = "auto",
         cv: Optional[CVType] = None,
         early_stopping_rounds: Optional[int] = None,
         enable_pruning: bool = False,
-        feature_name: Union[List[str], str] = "auto",
         feval: Optional[Callable] = None,
         fobj: Optional[Callable] = None,
         init_model: Optional[Union[lgb.Booster, lgb.LGBMModel, str]] = None,
@@ -130,13 +125,11 @@ class _Objective(object):
         train_dir: Union[pathlib.Path, str] = "optgbm_info",
     ) -> None:
         self.callbacks = callbacks
-        self.categorical_feature = categorical_feature
         self.cv = cv
         self.dataset = dataset
         self.early_stopping_rounds = early_stopping_rounds
         self.enable_pruning = enable_pruning
         self.eval_name = eval_name
-        self.feature_name = feature_name
         self.feval = feval
         self.fobj = fobj
         self.init_model = init_model
@@ -155,16 +148,14 @@ class _Objective(object):
             params,
             dataset,
             callbacks=callbacks,
-            categorical_feature=self.categorical_feature,
             early_stopping_rounds=self.early_stopping_rounds,
-            feature_name=self.feature_name,
             feval=self.feval,
             fobj=self.fobj,
             folds=self.cv,
             init_model=self.init_model,
             num_boost_round=self.n_estimators,
         )  # Dict[str, List[float]]
-        best_iteration = callbacks[0]._best_iteration  # type: ignore
+        best_iteration = callbacks[0].best_iteration_  # type: ignore
 
         trial.set_user_attr("best_iteration", best_iteration)
 
@@ -179,7 +170,7 @@ class _Objective(object):
             pass
 
         if is_best_trial:
-            boosters = callbacks[0]._boosters  # type: ignore
+            boosters = callbacks[0].boosters_  # type: ignore
             booster = _VotingBooster(boosters)  # type: _VotingBooster
 
             booster.dump(self.train_dir)
@@ -263,8 +254,24 @@ class _VotingBooster(object):
 
         return np.average(results, axis=0, weights=self.weights)
 
-    def predict(self, X: TwoDimArrayLikeType, **kwargs: Any) -> np.ndarray:
-        results = [b.predict(X, **kwargs) for b in self.boosters]
+    def predict(
+        self,
+        X: TwoDimArrayLikeType,
+        num_iteration: Optional[int] = None,
+        **predict_params: Any
+    ) -> np.ndarray:
+        logger = logging.getLogger(__name__)
+
+        if predict_params:
+            logger.warning(
+                "{} are ignored when refit is set to True.".format(
+                    predict_params
+                )
+            )
+
+        results = [
+            b.predict(X, num_iteration=num_iteration) for b in self.boosters
+        ]
 
         return np.average(results, axis=0, weights=self.weights)
 
@@ -429,6 +436,11 @@ class LGBMModel(lgb.LGBMModel):
         booster = _VotingBooster.load(self.train_dir)
         booster.weights = weights
 
+        boosters = booster.boosters
+
+        for b in boosters:
+            b.best_iteration = num_boost_round
+
         return booster
 
     def fit(
@@ -569,18 +581,33 @@ class LGBMModel(lgb.LGBMModel):
             else None
         )
 
-        if isinstance(init_model, lgb.LGBMModel):
-            init_model = init_model.booster_
+        init_model = (
+            init_model.booster_
+            if isinstance(init_model, lgb.LGBMModel)
+            else init_model
+        )
+
+        direction = "maximize" if is_higher_better else "minimize"
 
         if self.study is None:
             sampler = samplers.TPESampler(seed=seed)
 
             self.study_ = study_module.create_study(
-                direction="maximize" if is_higher_better else "minimize",
-                sampler=sampler,
+                direction=direction, sampler=sampler
             )
 
         else:
+            _direction = (
+                structs.StudyDirection.MAXIMIZE
+                if is_higher_better
+                else structs.StudyDirection.MINIMIZE
+            )
+
+            if self.study.direction != _direction:
+                raise ValueError(
+                    "direction of study must be '{}'.".format(direction)
+                )
+
             self.study_ = self.study
 
         # See https://github.com/microsoft/LightGBM/issues/2319
@@ -592,7 +619,14 @@ class LGBMModel(lgb.LGBMModel):
             groups = _safe_indexing(groups, indices)
             _, group = np.unique(groups, return_counts=True)
 
-        dataset = lgb.Dataset(X, label=y, group=group, weight=sample_weight)
+        dataset = lgb.Dataset(
+            X,
+            label=y,
+            group=group,
+            weight=sample_weight,
+            feature_name=feature_name,
+            categorical_feature=categorical_feature,
+        )
 
         objective = _Objective(
             params,
@@ -601,11 +635,9 @@ class LGBMModel(lgb.LGBMModel):
             is_higher_better,
             n_samples,
             callbacks=callbacks,
-            categorical_feature=categorical_feature,
             cv=cv,
             early_stopping_rounds=early_stopping_rounds,
             enable_pruning=self.enable_pruning,
-            feature_name=feature_name,
             feval=feval,
             fobj=fobj,
             init_model=init_model,
@@ -624,9 +656,11 @@ class LGBMModel(lgb.LGBMModel):
 
         elapsed_time = time.perf_counter() - start_time
 
-        self._best_iteration = self.study_.best_trial.user_attrs[
-            "best_iteration"
-        ]
+        best_iteration = self.study_.best_trial.user_attrs["best_iteration"]
+
+        self._best_iteration = (
+            None if early_stopping_rounds is None else best_iteration
+        )
         self._best_score = self.study_.best_value
         self._objective = params["objective"]
         self.best_params_ = {**params, **self.study_.best_params}
@@ -635,9 +669,7 @@ class LGBMModel(lgb.LGBMModel):
         logger.info(
             "Finished hyperparemeter search! "
             "(elapsed time: {:.3f} sec.) "
-            "The best_iteration is {}.".format(
-                elapsed_time, self._best_iteration
-            )
+            "The best_iteration is {}.".format(elapsed_time, best_iteration)
         )
 
         folds = cv.split(X, y, groups=groups)
@@ -649,7 +681,7 @@ class LGBMModel(lgb.LGBMModel):
         self._Booster = self._make_booster(
             self.best_params_,
             dataset,
-            self._best_iteration,
+            best_iteration,
             folds,
             fobj=fobj,
             feature_name=feature_name,
@@ -689,23 +721,20 @@ class LGBMModel(lgb.LGBMModel):
             <=0, all trees are used (no limits).
 
         **predict_params
-            Always ignored. This parameter exists for compatibility.
+            Ignored if refit is set to False.
 
         Returns
         -------
         y_pred
             Predicted values.
         """
-        logger = logging.getLogger(__name__)
-
         X = check_X(
             X, accept_sparse=True, estimator=self, force_all_finite=False
         )
 
-        if predict_params:
-            logger.warning("{} are ignored.".format(predict_params))
-
-        return self.booster_.predict(X, num_iteration=num_iteration)
+        return self.booster_.predict(
+            X, num_iteration=num_iteration, **predict_params
+        )
 
 
 class LGBMClassifier(LGBMModel, ClassifierMixin):
@@ -976,7 +1005,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
             <=0, all trees are used (no limits).
 
         **predict_params
-            Always ignored. This parameter exists for compatibility.
+            Ignored if refit is set to False.
 
         Returns
         -------

@@ -31,5 +31,5 @@ pip install optgbm
 ## Testing
 
 ```
-python setup.py test
+tox
 ```
