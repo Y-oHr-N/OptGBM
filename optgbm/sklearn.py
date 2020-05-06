@@ -973,17 +973,16 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
             Class probabilities, raw scores, leaf indices or feature
             contributions.
         """
-        preds = super().predict(
+        result = super().predict(
             X, num_iteration=num_iteration, **predict_params
         )
 
         if self._n_classes > 2:
-            return preds
+            return result
 
-        else:
-            preds = preds.reshape(-1, 1)
+        preds = result.reshape(-1, 1)
 
-            return np.concatenate([1.0 - preds, preds], axis=1)
+        return np.concatenate([1.0 - preds, preds], axis=1)
 
 
 class LGBMRegressor(LGBMModel, RegressorMixin):
