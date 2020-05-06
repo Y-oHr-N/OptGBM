@@ -36,7 +36,6 @@ from .typing import RandomStateType
 from .typing import TwoDimArrayLikeType
 from .utils import check_cv
 from .utils import check_fit_params
-from .utils import check_X
 
 __all__ = [
     "LGBMModel",
@@ -691,40 +690,6 @@ class LGBMModel(lgb.LGBMModel):
             self.refit_time_ = elapsed_time
 
         return self
-
-    def predict(
-        self,
-        X: TwoDimArrayLikeType,
-        num_iteration: Optional[int] = None,
-        **predict_params: Any
-    ) -> np.ndarray:
-        """Predict using the fitted model.
-
-        Parameters
-        ----------
-        X
-            Data.
-
-        num_iteration
-            Limit number of iterations in the prediction. If None, if the best
-            iteration exists, it is used; otherwise, all trees are used. If
-            <=0, all trees are used (no limits).
-
-        **predict_params
-            Ignored if refit is set to False.
-
-        Returns
-        -------
-        y_pred
-            Predicted values.
-        """
-        X = check_X(
-            X, accept_sparse=True, estimator=self, force_all_finite=False
-        )
-
-        return self.booster_.predict(
-            X, num_iteration=num_iteration, **predict_params
-        )
 
 
 class LGBMClassifier(LGBMModel, ClassifierMixin):
