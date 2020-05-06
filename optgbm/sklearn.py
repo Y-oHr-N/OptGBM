@@ -943,17 +943,26 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         num_iteration: Optional[int] = None,
         **predict_params: Any
     ) -> np.ndarray:
-        """Predict class probabilities for data.
+        """Predict class probabilities.
 
         Parameters
         ----------
         X
             Data.
 
+        raw_score
+            If True, return raw scores.
+
         num_iteration
             Limit number of iterations in the prediction. If None, if the best
             iteration exists, it is used; otherwise, all trees are used. If
             <=0, all trees are used (no limits).
+
+        pred_leaf
+            If True, return leaf indices.
+
+        pred_contrib
+            If True, return feature contributions.
 
         **predict_params
             Ignored if refit is set to False.
@@ -961,7 +970,8 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         Returns
         -------
         p
-            Class probabilities of data.
+            Class probabilities, raw scores, leaf indices or feature
+            contributions.
         """
         preds = super().predict(
             X, num_iteration=num_iteration, **predict_params
