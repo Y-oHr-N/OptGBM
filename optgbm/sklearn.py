@@ -151,10 +151,17 @@ class _Objective(object):
             num_boost_round=self.n_estimators,
         )  # Dict[str, List[float]]
         best_iteration = callbacks[0].best_iteration_  # type: ignore
+        values = eval_hist[
+            "{}-mean".format(self.eval_name)
+        ]  # type: List[float]
+        evals_result = {
+            "cv_agg": {self.eval_name: values}
+        }  # type: Dict[str, Dict[str, List[float]]]
 
         trial.set_user_attr("best_iteration", best_iteration)
+        trial.set_user_attr("evals_result", evals_result)
 
-        value = eval_hist["{}-mean".format(self.eval_name)][-1]  # type: float
+        value = values[-1]  # type: float
         is_best_trial = True  # type: bool
 
         try:
@@ -649,6 +656,7 @@ class LGBMModel(lgb.LGBMModel):
             None if early_stopping_rounds is None else best_iteration
         )
         self._best_score = self.study_.best_value
+        self._evals_result = self.study_.best_trial.user_attrs["evals_result"]
         self._objective = params["objective"]
         self.best_params_ = {**params, **self.study_.best_params}
         self.n_splits_ = cv.get_n_splits(X, y, groups=groups)

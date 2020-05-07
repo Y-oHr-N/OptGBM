@@ -374,3 +374,15 @@ def test_plot_importance(n_jobs: int) -> None:
     clf.fit(X, y)
 
     lgb.plot_importance(clf)
+
+
+def test_plot_metric() -> None:
+    X, y = load_breast_cancer(return_X_y=True)
+
+    clf = OGBMClassifier(
+        n_estimators=n_estimators, n_trials=n_trials, refit=False
+    )
+
+    clf.fit(X, y)
+
+    lgb.plot_metric(clf)
