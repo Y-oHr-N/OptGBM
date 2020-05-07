@@ -273,7 +273,10 @@ class _VotingBooster(object):
     def predict(
         self,
         X: TwoDimArrayLikeType,
+        raw_score: bool = False,
         num_iteration: Optional[int] = None,
+        pred_leaf: bool = False,
+        pred_contrib: bool = False,
         **predict_params: Any
     ) -> np.ndarray:
         logger = logging.getLogger(__name__)
@@ -924,14 +927,26 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
     def predict(
         self,
         X: TwoDimArrayLikeType,
+        raw_score: bool = False,
         num_iteration: Optional[int] = None,
+        pred_leaf: bool = False,
+        pred_contrib: bool = False,
         **predict_params: Any
     ) -> np.ndarray:
         """Docstring is inherited from the LGBMModel."""
-        probas = self.predict_proba(
-            X, num_iteration=num_iteration, **predict_params
+        result = self.predict_proba(
+            X,
+            raw_score=raw_score,
+            num_iteration=num_iteration,
+            pred_leaf=pred_leaf,
+            pred_contrib=pred_contrib,
+            **predict_params
         )
-        class_index = np.argmax(probas, axis=1)
+
+        if raw_score or pred_leaf or pred_contrib:
+            return result
+
+        class_index = np.argmax(result, axis=1)
 
         return self.encoder_.inverse_transform(class_index)
 
@@ -940,7 +955,10 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
     def predict_proba(
         self,
         X: TwoDimArrayLikeType,
+        raw_score: bool = False,
         num_iteration: Optional[int] = None,
+        pred_leaf: bool = False,
+        pred_contrib: bool = False,
         **predict_params: Any
     ) -> np.ndarray:
         """Predict class probabilities.
@@ -974,10 +992,15 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
             contributions.
         """
         result = super().predict(
-            X, num_iteration=num_iteration, **predict_params
+            X,
+            raw_score=raw_score,
+            num_iteration=num_iteration,
+            pred_leaf=pred_leaf,
+            pred_contrib=pred_contrib,
+            **predict_params
         )
 
-        if self._n_classes > 2:
+        if self._n_classes > 2 or raw_score or pred_leaf or pred_contrib:
             return result
 
         preds = result.reshape(-1, 1)
