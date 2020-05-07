@@ -267,13 +267,24 @@ class _VotingBooster(object):
     def predict(
         self,
         X: TwoDimArrayLikeType,
-        raw_score: bool = False,
         num_iteration: Optional[int] = None,
+        raw_score: bool = False,
         pred_leaf: bool = False,
         pred_contrib: bool = False,
         **predict_params: Any
     ) -> np.ndarray:
         logger = logging.getLogger(__name__)
+
+        if raw_score:
+            raise ValueError("_VotingBooster cannot return raw scores.")
+
+        if pred_leaf:
+            raise ValueError("_VotingBooster cannot return leaf indices.")
+
+        if pred_contrib:
+            raise ValueError(
+                "_VotingBooster cannot return feature contributions."
+            )
 
         for key, value in predict_params.items():
             logger.warning("{}={} will be ignored.".format(key, value))
