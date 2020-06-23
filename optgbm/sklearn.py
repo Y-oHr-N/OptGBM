@@ -38,7 +38,6 @@ from .typing import RandomStateType
 from .typing import TwoDimArrayLikeType
 from .utils import check_cv
 from .utils import check_fit_params
-from .utils import check_X
 
 __all__ = [
     "LGBMModel",
@@ -86,15 +85,6 @@ def _is_higher_better(metric: str) -> bool:
 
 
 class _LightGBMExtractionCallback(object):
-    @property
-    def best_iteration_(self) -> int:
-        best_iteration = self.env_.model.best_iteration
-
-        if best_iteration > 0:
-            return best_iteration
-
-        return self.env_.iteration + 1
-
     @property
     def boosters_(self) -> List[lgb.Booster]:
         return self.env_.model.boosters
@@ -155,11 +145,14 @@ class _Objective(object):
             init_model=self.init_model,
             num_boost_round=self.n_estimators,
         )  # Dict[str, List[float]]
-        best_iteration = callbacks[0].best_iteration_  # type: ignore
+        values = eval_hist[
+            "{}-mean".format(self.eval_name)
+        ]  # type: List[float]
+        best_iteration = len(values)  # type: int
 
         trial.set_user_attr("best_iteration", best_iteration)
 
-        value = eval_hist["{}-mean".format(self.eval_name)][-1]  # type: float
+        value = values[-1]  # type: float
         is_best_trial = True  # type: bool
 
         try:
@@ -262,12 +255,8 @@ class _VotingBooster(object):
     ) -> np.ndarray:
         logger = logging.getLogger(__name__)
 
-        if predict_params:
-            logger.warning(
-                "{} are ignored when refit is set to True.".format(
-                    predict_params
-                )
-            )
+        for key, value in predict_params.items():
+            logger.warning("{}={} will be ignored.".format(key, value))
 
         results = [
             b.predict(X, num_iteration=num_iteration) for b in self.boosters
@@ -533,8 +522,8 @@ class LGBMModel(lgb.LGBMModel):
 
         seed = self._get_random_state()
 
-        if fit_params:
-            logger.warning("{} are ignored.".format(fit_params))
+        for key, value in fit_params.items():
+            logger.warning("{}={} will be ignored.".format(key, value))
 
         params = self.get_params()
 
@@ -701,40 +690,6 @@ class LGBMModel(lgb.LGBMModel):
             self.refit_time_ = elapsed_time
 
         return self
-
-    def predict(
-        self,
-        X: TwoDimArrayLikeType,
-        num_iteration: Optional[int] = None,
-        **predict_params: Any
-    ) -> np.ndarray:
-        """Predict using the fitted model.
-
-        Parameters
-        ----------
-        X
-            Data.
-
-        num_iteration
-            Limit number of iterations in the prediction. If None, if the best
-            iteration exists, it is used; otherwise, all trees are used. If
-            <=0, all trees are used (no limits).
-
-        **predict_params
-            Ignored if refit is set to False.
-
-        Returns
-        -------
-        y_pred
-            Predicted values.
-        """
-        X = check_X(
-            X, accept_sparse=True, estimator=self, force_all_finite=False
-        )
-
-        return self.booster_.predict(
-            X, num_iteration=num_iteration, **predict_params
-        )
 
 
 class LGBMClassifier(LGBMModel, ClassifierMixin):
