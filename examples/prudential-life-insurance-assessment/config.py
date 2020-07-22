@@ -21,7 +21,7 @@ random_state = 0
 
 
 def inverse_func(X: np.ndarray) -> np.ndarray:
-    """Function to apply to the prediction of the regressor."""
+    """Apply to the prediction of the regressor."""
     X = np.round(X)
     X = np.clip(X, 1.0, 8.0)
 
