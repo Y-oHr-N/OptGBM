@@ -366,7 +366,9 @@ class LGBMModel(lgb.LGBMModel):
         return random_state.randint(0, MAX_INT)
 
     def _get_train_dir(self) -> pathlib.Path:
-        return pathlib.Path(self.train_dir)
+        train_dir = str(self.train_dir)
+
+        return pathlib.Path(train_dir)
 
     def _make_booster(
         self,
