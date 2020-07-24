@@ -101,6 +101,7 @@ class _Objective(object):
         eval_name: str,
         is_higher_better: bool,
         n_samples: int,
+        train_dir: pathlib.Path,
         callbacks: Optional[List[Callable]] = None,
         cv: Optional[CVType] = None,
         early_stopping_rounds: Optional[int] = None,
@@ -112,7 +113,6 @@ class _Objective(object):
         param_distributions: Optional[
             Dict[str, distributions.BaseDistribution]
         ] = None,
-        train_dir: Union[pathlib.Path, str] = "optgbm_info",
     ) -> None:
         self.callbacks = callbacks
         self.cv = cv
@@ -152,23 +152,23 @@ class _Objective(object):
 
         trial.set_user_attr("best_iteration", best_iteration)
 
-        value = values[-1]  # type: float
-        is_best_trial = True  # type: bool
+        booster_path = self.train_dir / "trial_{}.pkl".format(
+            trial.number
+        )  # type: pathlib.Path
 
-        try:
-            is_best_trial = (
-                value < trial.study.best_value
-            ) ^ self.is_higher_better
-        except ValueError:
-            pass
+        boosters = callbacks[0].boosters_  # type: ignore
 
-        if is_best_trial:
-            boosters = callbacks[0].boosters_  # type: ignore
-            booster = _VotingBooster(boosters)  # type: _VotingBooster
+        for b in boosters:
+            b.best_iteration = best_iteration
 
-            booster.dump(self.train_dir)
+            b.free_dataset()
 
-        return value
+        booster = _VotingBooster(boosters)  # type: _VotingBooster
+
+        with booster_path.open("wb") as f:
+            pickle.dump(booster, f)
+
+        return values[-1]
 
     def _get_callbacks(self, trial: trial_module.Trial) -> List[Callable]:
         extraction_callback = (
@@ -263,33 +263,6 @@ class _VotingBooster(object):
         ]
 
         return np.average(results, axis=0, weights=self.weights)
-
-    def dump(self, train_dir: Union[pathlib.Path, str]) -> None:
-        train_dir = str(train_dir)
-        train_dir_path = pathlib.Path(train_dir)
-
-        train_dir_path.mkdir(exist_ok=True, parents=True)
-
-        for i, b in enumerate(self.boosters):
-            booster_path = train_dir_path / "fold_{}.pkl".format(i)
-
-            with booster_path.open("wb") as f:
-                pickle.dump(b, f)
-
-    @classmethod
-    def load(cls, train_dir: Union[pathlib.Path, str]) -> "_VotingBooster":
-        train_dir = str(train_dir)
-        train_dir_path = pathlib.Path(train_dir)
-        boosters = []
-
-        for booster_path in train_dir_path.iterdir():
-            if booster_path.match("fold_*.pkl"):
-                with booster_path.open("rb") as f:
-                    b = pickle.load(f)
-
-                boosters.append(b)
-
-        return cls(boosters)
 
 
 class LGBMModel(lgb.LGBMModel):
@@ -389,12 +362,16 @@ class LGBMModel(lgb.LGBMModel):
 
         return random_state.randint(0, MAX_INT)
 
+    def _get_train_dir(self) -> pathlib.Path:
+        return pathlib.Path(self.train_dir)
+
     def _make_booster(
         self,
         params: Dict[str, Any],
         dataset: lgb.Dataset,
         num_boost_round: int,
         folds: List[Tuple],
+        booster_path: pathlib.Path,
         fobj: Optional[Callable] = None,
         feature_name: Union[List[str], str] = "auto",
         categorical_feature: Union[List[int], List[str], str] = "auto",
@@ -417,18 +394,15 @@ class LGBMModel(lgb.LGBMModel):
 
             return booster
 
+        with booster_path.open("rb") as f:
+            booster = pickle.load(f)
+
         sample_weight = dataset.get_weight()
         weights = np.array(
             [np.sum(sample_weight[train]) for train, _ in folds]
         )
 
-        booster = _VotingBooster.load(self.train_dir)
         booster.weights = weights
-
-        boosters = booster.boosters
-
-        for b in boosters:
-            b.best_iteration = num_boost_round
 
         return booster
 
@@ -617,12 +591,17 @@ class LGBMModel(lgb.LGBMModel):
             categorical_feature=categorical_feature,
         )
 
+        train_dir = self._get_train_dir()
+
+        train_dir.mkdir(exist_ok=True, parents=True)
+
         objective = _Objective(
             params,
             dataset,
             eval_name,
             is_higher_better,
             n_samples,
+            train_dir,
             callbacks=callbacks,
             cv=cv,
             early_stopping_rounds=early_stopping_rounds,
@@ -632,7 +611,6 @@ class LGBMModel(lgb.LGBMModel):
             init_model=init_model,
             n_estimators=self.n_estimators,
             param_distributions=self.param_distributions,
-            train_dir=self.train_dir,
         )
 
         logger.info("Searching the best hyperparameters...")
@@ -661,6 +639,9 @@ class LGBMModel(lgb.LGBMModel):
             "The best_iteration is {}.".format(elapsed_time, best_iteration)
         )
 
+        booster_path = train_dir / "trial_{}.pkl".format(
+            self.study_.best_trial.number
+        )
         folds = cv.split(X, y, groups=groups)
 
         logger.info("Making booster(s)...")
@@ -672,6 +653,7 @@ class LGBMModel(lgb.LGBMModel):
             dataset,
             best_iteration,
             folds,
+            booster_path,
             fobj=fobj,
             feature_name=feature_name,
             categorical_feature=categorical_feature,
