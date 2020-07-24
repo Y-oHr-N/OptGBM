@@ -254,9 +254,23 @@ class _VotingBooster(object):
         self,
         X: TwoDimArrayLikeType,
         num_iteration: Optional[int] = None,
+        raw_score: bool = False,
+        pred_leaf: bool = False,
+        pred_contrib: bool = False,
         **predict_params: Any
     ) -> np.ndarray:
         logger = logging.getLogger(__name__)
+
+        if raw_score:
+            raise ValueError("_VotingBooster cannot return raw scores.")
+
+        if pred_leaf:
+            raise ValueError("_VotingBooster cannot return leaf indices.")
+
+        if pred_contrib:
+            raise ValueError(
+                "_VotingBooster cannot return feature contributions."
+            )
 
         for key, value in predict_params.items():
             logger.warning("{}={} will be ignored.".format(key, value))
@@ -912,14 +926,26 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
     def predict(
         self,
         X: TwoDimArrayLikeType,
+        raw_score: bool = False,
         num_iteration: Optional[int] = None,
+        pred_leaf: bool = False,
+        pred_contrib: bool = False,
         **predict_params: Any
     ) -> np.ndarray:
         """Docstring is inherited from the LGBMModel."""
-        probas = self.predict_proba(
-            X, num_iteration=num_iteration, **predict_params
+        result = self.predict_proba(
+            X,
+            raw_score=raw_score,
+            num_iteration=num_iteration,
+            pred_leaf=pred_leaf,
+            pred_contrib=pred_contrib,
+            **predict_params
         )
-        class_index = np.argmax(probas, axis=1)
+
+        if raw_score or pred_leaf or pred_contrib:
+            return result
+
+        class_index = np.argmax(result, axis=1)
 
         return self.encoder_.inverse_transform(class_index)
 
@@ -928,20 +954,32 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
     def predict_proba(
         self,
         X: TwoDimArrayLikeType,
+        raw_score: bool = False,
         num_iteration: Optional[int] = None,
+        pred_leaf: bool = False,
+        pred_contrib: bool = False,
         **predict_params: Any
     ) -> np.ndarray:
-        """Predict class probabilities for data.
+        """Predict class probabilities.
 
         Parameters
         ----------
         X
             Data.
 
+        raw_score
+            If True, return raw scores.
+
         num_iteration
             Limit number of iterations in the prediction. If None, if the best
             iteration exists, it is used; otherwise, all trees are used. If
             <=0, all trees are used (no limits).
+
+        pred_leaf
+            If True, return leaf indices.
+
+        pred_contrib
+            If True, return feature contributions.
 
         **predict_params
             Ignored if refit is set to False.
@@ -949,19 +987,24 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         Returns
         -------
         p
-            Class probabilities of data.
+            Class probabilities, raw scores, leaf indices or feature
+            contributions.
         """
-        preds = super().predict(
-            X, num_iteration=num_iteration, **predict_params
+        result = super().predict(
+            X,
+            raw_score=raw_score,
+            num_iteration=num_iteration,
+            pred_leaf=pred_leaf,
+            pred_contrib=pred_contrib,
+            **predict_params
         )
 
-        if self._n_classes > 2:
-            return preds
+        if self._n_classes > 2 or raw_score or pred_leaf or pred_contrib:
+            return result
 
-        else:
-            preds = preds.reshape(-1, 1)
+        preds = result.reshape(-1, 1)
 
-            return np.concatenate([1.0 - preds, preds], axis=1)
+        return np.concatenate([1.0 - preds, preds], axis=1)
 
 
 class LGBMRegressor(LGBMModel, RegressorMixin):
