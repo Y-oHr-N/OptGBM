@@ -11,7 +11,6 @@ from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import lightgbm as lgb
@@ -102,6 +101,7 @@ class _Objective(object):
         is_higher_better: bool,
         n_samples: int,
         train_dir: pathlib.Path,
+        weights: np.ndarray,
         callbacks: Optional[List[Callable]] = None,
         cv: Optional[CVType] = None,
         early_stopping_rounds: Optional[int] = None,
@@ -129,6 +129,7 @@ class _Objective(object):
         self.params = params
         self.param_distributions = param_distributions
         self.train_dir = train_dir
+        self.weights = weights
 
     def __call__(self, trial: trial_module.Trial) -> float:
         params = self._get_params(trial)  # type: Dict[str, Any]
@@ -163,7 +164,9 @@ class _Objective(object):
 
             b.free_dataset()
 
-        booster = _VotingBooster(boosters)  # type: _VotingBooster
+        booster = _VotingBooster(
+            boosters, weights=self.weights
+        )  # type: _VotingBooster
 
         with booster_path.open("wb") as f:
             pickle.dump(booster, f)
@@ -370,7 +373,6 @@ class LGBMModel(lgb.LGBMModel):
         params: Dict[str, Any],
         dataset: lgb.Dataset,
         num_boost_round: int,
-        folds: List[Tuple],
         booster_path: pathlib.Path,
         fobj: Optional[Callable] = None,
         feature_name: Union[List[str], str] = "auto",
@@ -396,13 +398,6 @@ class LGBMModel(lgb.LGBMModel):
 
         with booster_path.open("rb") as f:
             booster = pickle.load(f)
-
-        sample_weight = dataset.get_weight()
-        weights = np.array(
-            [np.sum(sample_weight[train]) for train, _ in folds]
-        )
-
-        booster.weights = weights
 
         return booster
 
@@ -592,6 +587,12 @@ class LGBMModel(lgb.LGBMModel):
         )
 
         train_dir = self._get_train_dir()
+        weights = np.array(
+            [
+                np.sum(sample_weight[train])
+                for train, _ in cv.split(X, y, groups=groups)
+            ]
+        )
 
         train_dir.mkdir(exist_ok=True, parents=True)
 
@@ -602,6 +603,7 @@ class LGBMModel(lgb.LGBMModel):
             is_higher_better,
             n_samples,
             train_dir,
+            weights,
             callbacks=callbacks,
             cv=cv,
             early_stopping_rounds=early_stopping_rounds,
@@ -642,7 +644,6 @@ class LGBMModel(lgb.LGBMModel):
         booster_path = train_dir / "trial_{}.pkl".format(
             self.study_.best_trial.number
         )
-        folds = cv.split(X, y, groups=groups)
 
         logger.info("Making booster(s)...")
 
@@ -652,7 +653,6 @@ class LGBMModel(lgb.LGBMModel):
             self.best_params_,
             dataset,
             best_iteration,
-            folds,
             booster_path,
             fobj=fobj,
             feature_name=feature_name,
