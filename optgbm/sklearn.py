@@ -447,7 +447,7 @@ class LGBMModel(lgb.LGBMModel):
         y: OneDimArrayLikeType,
         sample_weight: Optional[OneDimArrayLikeType] = None,
         group: Optional[OneDimArrayLikeType] = None,
-        eval_metric: Optional[Union[Callable, str]] = None,
+        eval_metric: Optional[Union[Callable, List[str], str]] = None,
         early_stopping_rounds: Optional[int] = 10,
         feature_name: Union[List[str], str] = "auto",
         categorical_feature: Union[List[int], List[str], str] = "auto",
@@ -562,6 +562,9 @@ class LGBMModel(lgb.LGBMModel):
             params["metric"] = "None"
             feval = _EvalFunctionWrapper(eval_metric)
             eval_name, _, is_higher_better = eval_metric(y, y)
+
+        elif isinstance(eval_metric, list):
+            raise ValueError("eval_metric is not allowed to be a list.")
 
         else:
             if eval_metric is None:
@@ -892,7 +895,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         y: OneDimArrayLikeType,
         sample_weight: Optional[OneDimArrayLikeType] = None,
         group: Optional[OneDimArrayLikeType] = None,
-        eval_metric: Optional[Union[Callable, str]] = None,
+        eval_metric: Optional[Union[Callable, List[str], str]] = None,
         early_stopping_rounds: Optional[int] = 10,
         feature_name: Union[List[str], str] = "auto",
         categorical_feature: Union[List[int], List[str], str] = "auto",
