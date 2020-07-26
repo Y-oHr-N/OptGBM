@@ -417,13 +417,37 @@ class LGBMModel(lgb.LGBMModel):
 
         return booster
 
+    def _make_study(self, is_higher_better: bool) -> study_module.Study:
+        direction = "maximize" if is_higher_better else "minimize"
+
+        if self.study is None:
+            seed = self._get_random_state()
+            sampler = samplers.TPESampler(seed=seed)
+
+            return study_module.create_study(
+                direction=direction, sampler=sampler
+            )
+
+        _direction = (
+            structs.StudyDirection.MAXIMIZE
+            if is_higher_better
+            else structs.StudyDirection.MINIMIZE
+        )
+
+        if self.study.direction != _direction:
+            raise ValueError(
+                "direction of study must be '{}'.".format(direction)
+            )
+
+        return self.study
+
     def fit(
         self,
         X: TwoDimArrayLikeType,
         y: OneDimArrayLikeType,
         sample_weight: Optional[OneDimArrayLikeType] = None,
         group: Optional[OneDimArrayLikeType] = None,
-        eval_metric: Optional[Union[Callable, str]] = None,
+        eval_metric: Optional[Union[Callable, List[str], str]] = None,
         early_stopping_rounds: Optional[int] = 10,
         feature_name: Union[List[str], str] = "auto",
         categorical_feature: Union[List[int], List[str], str] = "auto",
@@ -539,6 +563,9 @@ class LGBMModel(lgb.LGBMModel):
             feval = _EvalFunctionWrapper(eval_metric)
             eval_name, _, is_higher_better = eval_metric(y, y)
 
+        elif isinstance(eval_metric, list):
+            raise ValueError("eval_metric is not allowed to be a list.")
+
         else:
             if eval_metric is None:
                 params["metric"] = OBJECTIVE2METRIC[params["objective"]]
@@ -561,28 +588,7 @@ class LGBMModel(lgb.LGBMModel):
             else init_model
         )
 
-        direction = "maximize" if is_higher_better else "minimize"
-
-        if self.study is None:
-            sampler = samplers.TPESampler(seed=seed)
-
-            self.study_ = study_module.create_study(
-                direction=direction, sampler=sampler
-            )
-
-        else:
-            _direction = (
-                structs.StudyDirection.MAXIMIZE
-                if is_higher_better
-                else structs.StudyDirection.MINIMIZE
-            )
-
-            if self.study.direction != _direction:
-                raise ValueError(
-                    "direction of study must be '{}'.".format(direction)
-                )
-
-            self.study_ = self.study
+        self.study_ = self._make_study(is_higher_better)
 
         # See https://github.com/microsoft/LightGBM/issues/2319
         if group is None and groups is not None:
@@ -889,7 +895,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         y: OneDimArrayLikeType,
         sample_weight: Optional[OneDimArrayLikeType] = None,
         group: Optional[OneDimArrayLikeType] = None,
-        eval_metric: Optional[Union[Callable, str]] = None,
+        eval_metric: Optional[Union[Callable, List[str], str]] = None,
         early_stopping_rounds: Optional[int] = 10,
         feature_name: Union[List[str], str] = "auto",
         categorical_feature: Union[List[int], List[str], str] = "auto",
