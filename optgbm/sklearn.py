@@ -417,6 +417,30 @@ class LGBMModel(lgb.LGBMModel):
 
         return booster
 
+    def _make_study(self, is_higher_better: bool) -> study_module.Study:
+        direction = "maximize" if is_higher_better else "minimize"
+
+        if self.study is None:
+            seed = self._get_random_state()
+            sampler = samplers.TPESampler(seed=seed)
+
+            return study_module.create_study(
+                direction=direction, sampler=sampler
+            )
+
+        _direction = (
+            structs.StudyDirection.MAXIMIZE
+            if is_higher_better
+            else structs.StudyDirection.MINIMIZE
+        )
+
+        if self.study.direction != _direction:
+            raise ValueError(
+                "direction of study must be '{}'.".format(direction)
+            )
+
+        return self.study
+
     def fit(
         self,
         X: TwoDimArrayLikeType,
@@ -561,28 +585,7 @@ class LGBMModel(lgb.LGBMModel):
             else init_model
         )
 
-        direction = "maximize" if is_higher_better else "minimize"
-
-        if self.study is None:
-            sampler = samplers.TPESampler(seed=seed)
-
-            self.study_ = study_module.create_study(
-                direction=direction, sampler=sampler
-            )
-
-        else:
-            _direction = (
-                structs.StudyDirection.MAXIMIZE
-                if is_higher_better
-                else structs.StudyDirection.MINIMIZE
-            )
-
-            if self.study.direction != _direction:
-                raise ValueError(
-                    "direction of study must be '{}'.".format(direction)
-                )
-
-            self.study_ = self.study
+        self.study_ = self._make_study(is_higher_better)
 
         # See https://github.com/microsoft/LightGBM/issues/2319
         if group is None and groups is not None:
