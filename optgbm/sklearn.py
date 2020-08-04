@@ -2,28 +2,32 @@
 
 import copy
 import logging
+import pathlib
+import pickle
 import time
 from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import lightgbm as lgb
 import numpy as np
-import sklearn
 from optuna import distributions
 from optuna import integration
 from optuna import samplers
 from optuna import study as study_module
+from optuna import structs
 from optuna import trial as trial_module
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 
+from .compat import _EvalFunctionWrapper
+from .compat import _ObjectiveFunctionWrapper
+from .compat import _safe_indexing
 from .typing import CVType
 from .typing import LightGBMCallbackEnvType
 from .typing import OneDimArrayLikeType
@@ -31,21 +35,6 @@ from .typing import RandomStateType
 from .typing import TwoDimArrayLikeType
 from .utils import check_cv
 from .utils import check_fit_params
-from .utils import check_X
-
-if lgb.__version__ >= "2.3":
-    from lightgbm.sklearn import _EvalFunctionWrapper
-    from lightgbm.sklearn import _ObjectiveFunctionWrapper
-else:
-    from lightgbm.sklearn import _eval_function_wrapper as _EvalFunctionWrapper
-    from lightgbm.sklearn import (
-        _objective_function_wrapper as _ObjectiveFunctionWrapper,
-    )
-
-if sklearn.__version__ >= "0.22":
-    from sklearn.utils import _safe_indexing
-else:
-    from sklearn.utils import safe_indexing as _safe_indexing
 
 __all__ = [
     "LGBMModel",
@@ -93,13 +82,12 @@ def _is_higher_better(metric: str) -> bool:
 
 
 class _LightGBMExtractionCallback(object):
-    def __init__(self) -> None:
-        self._best_iteration = None  # type: Optional[int]
-        self._boosters = None  # type: Optional[List[lgb.Booster]]
+    @property
+    def boosters_(self) -> List[lgb.Booster]:
+        return self.env_.model.boosters
 
     def __call__(self, env: LightGBMCallbackEnvType) -> None:
-        self._best_iteration = env.iteration + 1
-        self._boosters = env.model.boosters
+        self.env_ = env
 
 
 class _Objective(object):
@@ -110,12 +98,12 @@ class _Objective(object):
         eval_name: str,
         is_higher_better: bool,
         n_samples: int,
+        train_dir: pathlib.Path,
+        weights: np.ndarray,
         callbacks: Optional[List[Callable]] = None,
-        categorical_feature: Union[List[int], List[str], str] = "auto",
         cv: Optional[CVType] = None,
         early_stopping_rounds: Optional[int] = None,
         enable_pruning: bool = False,
-        feature_name: Union[List[str], str] = "auto",
         feval: Optional[Callable] = None,
         fobj: Optional[Callable] = None,
         init_model: Optional[Union[lgb.Booster, lgb.LGBMModel, str]] = None,
@@ -125,13 +113,11 @@ class _Objective(object):
         ] = None,
     ) -> None:
         self.callbacks = callbacks
-        self.categorical_feature = categorical_feature
         self.cv = cv
         self.dataset = dataset
         self.early_stopping_rounds = early_stopping_rounds
         self.enable_pruning = enable_pruning
         self.eval_name = eval_name
-        self.feature_name = feature_name
         self.feval = feval
         self.fobj = fobj
         self.init_model = init_model
@@ -140,6 +126,8 @@ class _Objective(object):
         self.n_samples = n_samples
         self.params = params
         self.param_distributions = param_distributions
+        self.train_dir = train_dir
+        self.weights = weights
 
     def __call__(self, trial: trial_module.Trial) -> float:
         params = self._get_params(trial)  # type: Dict[str, Any]
@@ -149,40 +137,39 @@ class _Objective(object):
             params,
             dataset,
             callbacks=callbacks,
-            categorical_feature=self.categorical_feature,
             early_stopping_rounds=self.early_stopping_rounds,
-            feature_name=self.feature_name,
             feval=self.feval,
             fobj=self.fobj,
             folds=self.cv,
             init_model=self.init_model,
             num_boost_round=self.n_estimators,
         )  # Dict[str, List[float]]
-        best_iteration = callbacks[0]._best_iteration  # type: ignore
+        values = eval_hist[
+            "{}-mean".format(self.eval_name)
+        ]  # type: List[float]
+        best_iteration = len(values)  # type: int
 
         trial.set_user_attr("best_iteration", best_iteration)
 
-        value = eval_hist["{}-mean".format(self.eval_name)][-1]  # type: float
-        is_best_trial = True  # type: bool
+        booster_path = self.train_dir / "trial_{}.pkl".format(
+            trial.number
+        )  # type: pathlib.Path
 
-        try:
-            is_best_trial = (
-                value < trial.study.best_value
-            ) ^ self.is_higher_better
-        except ValueError:
-            pass
+        boosters = callbacks[0].boosters_  # type: ignore
 
-        if is_best_trial:
-            boosters = callbacks[0]._boosters  # type: ignore
-            representations = []  # type: List[str]
+        for b in boosters:
+            b.best_iteration = best_iteration
 
-            for b in boosters:
-                b.free_dataset()
-                representations.append(b.model_to_string())
+            b.free_dataset()
 
-            trial.study.set_user_attr("representations", representations)
+        booster = _VotingBooster(
+            boosters, weights=self.weights
+        )  # type: _VotingBooster
 
-        return value
+        with booster_path.open("wb") as f:
+            pickle.dump(booster, f)
+
+        return values[-1]
 
     def _get_callbacks(self, trial: trial_module.Trial) -> List[Callable]:
         extraction_callback = (
@@ -250,33 +237,45 @@ class _VotingBooster(object):
     def __init__(
         self, boosters: List[lgb.Booster], weights: Optional[np.ndarray] = None
     ) -> None:
+        if not boosters:
+            raise ValueError("boosters must be non-empty array.")
+
         self.boosters = boosters
         self.weights = weights
-
-    @classmethod
-    def from_representations(
-        cls, representations: List[str], weights: Optional[np.ndarray] = None
-    ) -> "_VotingBooster":
-        if lgb.__version__ >= "2.3":
-            boosters = [
-                lgb.Booster(model_str=model_str, silent=True)
-                for model_str in representations
-            ]
-        else:
-            boosters = [
-                lgb.Booster(params={"model_str": model_str})
-                for model_str in representations
-            ]
-
-        return cls(boosters, weights=weights)
 
     def feature_importance(self, **kwargs: Any) -> np.ndarray:
         results = [b.feature_importance(**kwargs) for b in self.boosters]
 
         return np.average(results, axis=0, weights=self.weights)
 
-    def predict(self, X: TwoDimArrayLikeType, **kwargs: Any) -> np.ndarray:
-        results = [b.predict(X, **kwargs) for b in self.boosters]
+    def predict(
+        self,
+        X: TwoDimArrayLikeType,
+        num_iteration: Optional[int] = None,
+        raw_score: bool = False,
+        pred_leaf: bool = False,
+        pred_contrib: bool = False,
+        **predict_params: Any
+    ) -> np.ndarray:
+        logger = logging.getLogger(__name__)
+
+        if raw_score:
+            raise ValueError("_VotingBooster cannot return raw scores.")
+
+        if pred_leaf:
+            raise ValueError("_VotingBooster cannot return leaf indices.")
+
+        if pred_contrib:
+            raise ValueError(
+                "_VotingBooster cannot return feature contributions."
+            )
+
+        for key, value in predict_params.items():
+            logger.warning("{}={} will be ignored.".format(key, value))
+
+        results = [
+            b.predict(X, num_iteration=num_iteration) for b in self.boosters
+        ]
 
         return np.average(results, axis=0, weights=self.weights)
 
@@ -297,7 +296,7 @@ class LGBMModel(lgb.LGBMModel):
         num_leaves: int = 31,
         max_depth: int = -1,
         learning_rate: float = 0.1,
-        n_estimators: int = 1000,
+        n_estimators: int = 100,
         subsample_for_bin: int = 200000,
         objective: Optional[Union[Callable, str]] = None,
         class_weight: Optional[Union[Dict[str, float], str]] = None,
@@ -307,20 +306,21 @@ class LGBMModel(lgb.LGBMModel):
         subsample: float = 1.0,
         subsample_freq: int = 0,
         colsample_bytree: float = 1.0,
-        refit: bool = False,
         reg_alpha: float = 0.0,
         reg_lambda: float = 0.0,
         random_state: Optional[RandomStateType] = None,
-        n_jobs: int = 1,
+        n_jobs: int = -1,
         importance_type: str = "split",
         cv: CVType = 5,
         enable_pruning: bool = False,
-        n_trials: int = 20,
+        n_trials: int = 40,
         param_distributions: Optional[
             Dict[str, distributions.BaseDistribution]
         ] = None,
+        refit: bool = True,
         study: Optional[study_module.Study] = None,
         timeout: Optional[float] = None,
+        train_dir: Union[pathlib.Path, str] = "optgbm_info",
         **kwargs: Any
     ) -> None:
         super().__init__(
@@ -353,6 +353,7 @@ class LGBMModel(lgb.LGBMModel):
         self.refit = refit
         self.study = study
         self.timeout = timeout
+        self.train_dir = train_dir
 
     def _check_is_fitted(self) -> None:
         getattr(self, "n_features_")
@@ -376,13 +377,17 @@ class LGBMModel(lgb.LGBMModel):
 
         return random_state.randint(0, MAX_INT)
 
+    def _get_train_dir(self) -> pathlib.Path:
+        train_dir = str(self.train_dir)
+
+        return pathlib.Path(train_dir)
+
     def _make_booster(
         self,
         params: Dict[str, Any],
         dataset: lgb.Dataset,
-        representations: List[str],
         num_boost_round: int,
-        folds: List[Tuple],
+        booster_path: pathlib.Path,
         fobj: Optional[Callable] = None,
         feature_name: Union[List[str], str] = "auto",
         categorical_feature: Union[List[int], List[str], str] = "auto",
@@ -405,16 +410,34 @@ class LGBMModel(lgb.LGBMModel):
 
             return booster
 
-        sample_weight = dataset.get_weight()
-        weights = np.array(
-            [np.sum(sample_weight[train]) for train, _ in folds]
-        )
-
-        booster = _VotingBooster.from_representations(
-            representations, weights=weights
-        )
+        with booster_path.open("rb") as f:
+            booster = pickle.load(f)
 
         return booster
+
+    def _make_study(self, is_higher_better: bool) -> study_module.Study:
+        direction = "maximize" if is_higher_better else "minimize"
+
+        if self.study is None:
+            seed = self._get_random_state()
+            sampler = samplers.TPESampler(seed=seed)
+
+            return study_module.create_study(
+                direction=direction, sampler=sampler
+            )
+
+        _direction = (
+            structs.StudyDirection.MAXIMIZE
+            if is_higher_better
+            else structs.StudyDirection.MINIMIZE
+        )
+
+        if self.study.direction != _direction:
+            raise ValueError(
+                "direction of study must be '{}'.".format(direction)
+            )
+
+        return self.study
 
     def fit(
         self,
@@ -422,7 +445,7 @@ class LGBMModel(lgb.LGBMModel):
         y: OneDimArrayLikeType,
         sample_weight: Optional[OneDimArrayLikeType] = None,
         group: Optional[OneDimArrayLikeType] = None,
-        eval_metric: Optional[Union[Callable, str]] = None,
+        eval_metric: Optional[Union[Callable, List[str], str]] = None,
         early_stopping_rounds: Optional[int] = 10,
         feature_name: Union[List[str], str] = "auto",
         categorical_feature: Union[List[int], List[str], str] = "auto",
@@ -487,6 +510,8 @@ class LGBMModel(lgb.LGBMModel):
         self
             Return self.
         """
+        logger = logging.getLogger(__name__)
+
         X, y, sample_weight = check_fit_params(
             X,
             y,
@@ -504,6 +529,9 @@ class LGBMModel(lgb.LGBMModel):
 
         seed = self._get_random_state()
 
+        for key, value in fit_params.items():
+            logger.warning("{}={} will be ignored.".format(key, value))
+
         params = self.get_params()
 
         for attr in (
@@ -517,6 +545,7 @@ class LGBMModel(lgb.LGBMModel):
             "refit",
             "study",
             "timeout",
+            "train_dir",
         ):
             params.pop(attr, None)
 
@@ -532,6 +561,9 @@ class LGBMModel(lgb.LGBMModel):
             feval = _EvalFunctionWrapper(eval_metric)
             eval_name, _, is_higher_better = eval_metric(y, y)
 
+        elif isinstance(eval_metric, list):
+            raise ValueError("eval_metric is not allowed to be a list.")
+
         else:
             if eval_metric is None:
                 params["metric"] = OBJECTIVE2METRIC[params["objective"]]
@@ -542,24 +574,19 @@ class LGBMModel(lgb.LGBMModel):
             eval_name = params["metric"]
             is_higher_better = _is_higher_better(params["metric"])
 
-        if callable(self.objective):
-            fobj = _ObjectiveFunctionWrapper(self.objective)
-        else:
-            fobj = None
+        fobj = (
+            _ObjectiveFunctionWrapper(self.objective)
+            if callable(self.objective)
+            else None
+        )
 
-        if isinstance(init_model, lgb.LGBMModel):
-            init_model = init_model.booster_
+        init_model = (
+            init_model.booster_
+            if isinstance(init_model, lgb.LGBMModel)
+            else init_model
+        )
 
-        if self.study is None:
-            sampler = samplers.TPESampler(seed=seed)
-
-            self.study_ = study_module.create_study(
-                direction="maximize" if is_higher_better else "minimize",
-                sampler=sampler,
-            )
-
-        else:
-            self.study_ = self.study
+        self.study_ = self._make_study(is_higher_better)
 
         # See https://github.com/microsoft/LightGBM/issues/2319
         if group is None and groups is not None:
@@ -570,7 +597,24 @@ class LGBMModel(lgb.LGBMModel):
             groups = _safe_indexing(groups, indices)
             _, group = np.unique(groups, return_counts=True)
 
-        dataset = lgb.Dataset(X, label=y, group=group, weight=sample_weight)
+        dataset = lgb.Dataset(
+            X,
+            label=y,
+            group=group,
+            weight=sample_weight,
+            feature_name=feature_name,
+            categorical_feature=categorical_feature,
+        )
+
+        train_dir = self._get_train_dir()
+        weights = np.array(
+            [
+                np.sum(sample_weight[train])
+                for train, _ in cv.split(X, y, groups=groups)
+            ]
+        )
+
+        train_dir.mkdir(exist_ok=True, parents=True)
 
         objective = _Objective(
             params,
@@ -578,20 +622,18 @@ class LGBMModel(lgb.LGBMModel):
             eval_name,
             is_higher_better,
             n_samples,
+            train_dir,
+            weights,
             callbacks=callbacks,
-            categorical_feature=categorical_feature,
             cv=cv,
             early_stopping_rounds=early_stopping_rounds,
             enable_pruning=self.enable_pruning,
-            feature_name=feature_name,
             feval=feval,
             fobj=fobj,
             init_model=init_model,
             n_estimators=self.n_estimators,
             param_distributions=self.param_distributions,
         )
-
-        logger = logging.getLogger(__name__)
 
         logger.info("Searching the best hyperparameters...")
 
@@ -603,9 +645,11 @@ class LGBMModel(lgb.LGBMModel):
 
         elapsed_time = time.perf_counter() - start_time
 
-        self._best_iteration = self.study_.best_trial.user_attrs[
-            "best_iteration"
-        ]
+        best_iteration = self.study_.best_trial.user_attrs["best_iteration"]
+
+        self._best_iteration = (
+            None if early_stopping_rounds is None else best_iteration
+        )
         self._best_score = self.study_.best_value
         self._objective = params["objective"]
         self.best_params_ = {**params, **self.study_.best_params}
@@ -614,13 +658,12 @@ class LGBMModel(lgb.LGBMModel):
         logger.info(
             "Finished hyperparemeter search! "
             "(elapsed time: {:.3f} sec.) "
-            "The best_iteration is {}.".format(
-                elapsed_time, self._best_iteration
-            )
+            "The best_iteration is {}.".format(elapsed_time, best_iteration)
         )
 
-        folds = cv.split(X, y, groups=groups)
-        representations = self.study_.user_attrs["representations"]
+        booster_path = train_dir / "trial_{}.pkl".format(
+            self.study_.best_trial.number
+        )
 
         logger.info("Making booster(s)...")
 
@@ -629,9 +672,8 @@ class LGBMModel(lgb.LGBMModel):
         self._Booster = self._make_booster(
             self.best_params_,
             dataset,
-            representations,
-            self._best_iteration,
-            folds,
+            best_iteration,
+            booster_path,
             fobj=fobj,
             feature_name=feature_name,
             categorical_feature=categorical_feature,
@@ -777,6 +819,9 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         termination signal such as Ctrl+C or SIGTERM. This trades off runtime
         vs quality of the solution.
 
+    train_dir
+        Directory for storing the files generated during training.
+
     **kwargs
         Other parameters for the model. See
         http://lightgbm.readthedocs.io/en/latest/Parameters.html for more
@@ -820,7 +865,8 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
     --------
     >>> import optgbm as lgb
     >>> from sklearn.datasets import load_iris
-    >>> clf = lgb.LGBMClassifier(random_state=0)
+    >>> tmp_path = getfixture("tmp_path")  # noqa
+    >>> clf = lgb.LGBMClassifier(random_state=0, train_dir=tmp_path)
     >>> X, y = load_iris(return_X_y=True)
     >>> clf.fit(X, y)
     LGBMClassifier(...)
@@ -847,7 +893,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         y: OneDimArrayLikeType,
         sample_weight: Optional[OneDimArrayLikeType] = None,
         group: Optional[OneDimArrayLikeType] = None,
-        eval_metric: Optional[Union[Callable, str]] = None,
+        eval_metric: Optional[Union[Callable, List[str], str]] = None,
         early_stopping_rounds: Optional[int] = 10,
         feature_name: Union[List[str], str] = "auto",
         categorical_feature: Union[List[int], List[str], str] = "auto",
@@ -856,62 +902,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         groups: Optional[OneDimArrayLikeType] = None,
         **fit_params: Any
     ) -> "LGBMClassifier":
-        """Fit the model according to the given training data.
-
-        Parameters
-        ----------
-        X
-            Training data.
-
-        y
-            Target.
-
-        sample_weight
-            Weights of training data.
-
-        group
-            Group data of training data.
-
-        eval_metric
-            Evaluation metric. See
-            https://lightgbm.readthedocs.io/en/latest/Parameters.html#metric.
-
-        early_stopping_rounds
-            Used to activate early stopping. The model will train until the
-            validation score stops improving.
-
-        feature_name
-            Feature names. If 'auto' and data is pandas DataFrame, data columns
-            names are used.
-
-        categorical_feature
-            Categorical features. If list of int, interpreted as indices. If
-            list of strings, interpreted as feature names. If 'auto' and data
-            is pandas DataFrame, pandas categorical columns are used. All
-            values in categorical features should be less than int32 max value
-            (2147483647). Large values could be memory consuming. Consider
-            using consecutive integers starting from zero. All negative values
-            in categorical features will be treated as missing values.
-
-        callbacks
-            List of callback functions that are applied at each iteration.
-
-        init_model
-            Filename of LightGBM model, Booster instance or LGBMModel instance
-            used for continue training.
-
-        groups
-            Group labels for the samples used while splitting the dataset into
-            train/test set. If `group` is not None, this parameter is ignored.
-
-        **fit_params
-            Always ignored. This parameter exists for compatibility.
-
-        Returns
-        -------
-        self
-            Return self.
-        """
+        """Docstring is inherited from the LGBMModel."""
         self.encoder_ = LabelEncoder()
 
         y = self.encoder_.fit_transform(y)
@@ -934,77 +925,90 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
             **fit_params
         )
 
+    fit.__doc__ = LGBMModel.fit.__doc__
+
     def predict(
         self,
         X: TwoDimArrayLikeType,
+        raw_score: bool = False,
         num_iteration: Optional[int] = None,
+        pred_leaf: bool = False,
+        pred_contrib: bool = False,
         **predict_params: Any
     ) -> np.ndarray:
-        """Predict using the fitted model.
-
-        Parameters
-        ----------
-        X
-            Data.
-
-        num_iteration
-            Limit number of iterations in the prediction. If None, if the best
-            iteration exists, it is used; otherwise, all trees are used. If
-            <=0, all trees are used (no limits).
-
-        **predict_params
-            Always ignored. This parameter exists for compatibility.
-
-        Returns
-        -------
-        y_pred
-            Predicted values.
-        """
-        probas = self.predict_proba(
-            X, num_iteration=num_iteration, **predict_params
+        """Docstring is inherited from the LGBMModel."""
+        result = self.predict_proba(
+            X,
+            raw_score=raw_score,
+            num_iteration=num_iteration,
+            pred_leaf=pred_leaf,
+            pred_contrib=pred_contrib,
+            **predict_params
         )
-        class_index = np.argmax(probas, axis=1)
+
+        if raw_score or pred_leaf or pred_contrib:
+            return result
+
+        class_index = np.argmax(result, axis=1)
 
         return self.encoder_.inverse_transform(class_index)
+
+    predict.__doc__ = LGBMModel.predict.__doc__
 
     def predict_proba(
         self,
         X: TwoDimArrayLikeType,
+        raw_score: bool = False,
         num_iteration: Optional[int] = None,
+        pred_leaf: bool = False,
+        pred_contrib: bool = False,
         **predict_params: Any
     ) -> np.ndarray:
-        """Predict class probabilities for data.
+        """Predict class probabilities.
 
         Parameters
         ----------
         X
             Data.
 
+        raw_score
+            If True, return raw scores.
+
         num_iteration
             Limit number of iterations in the prediction. If None, if the best
             iteration exists, it is used; otherwise, all trees are used. If
             <=0, all trees are used (no limits).
 
+        pred_leaf
+            If True, return leaf indices.
+
+        pred_contrib
+            If True, return feature contributions.
+
         **predict_params
-            Always ignored. This parameter exists for compatibility.
+            Ignored if refit is set to False.
 
         Returns
         -------
         p
-            Class probabilities of data.
+            Class probabilities, raw scores, leaf indices or feature
+            contributions.
         """
-        X = check_X(
-            X, accept_sparse=True, estimator=self, force_all_finite=False
+        result = super().predict(
+            X,
+            raw_score=raw_score,
+            num_iteration=num_iteration,
+            pred_leaf=pred_leaf,
+            pred_contrib=pred_contrib,
+            **predict_params
         )
-        preds = self.booster_.predict(X, num_iteration=num_iteration)
 
-        if self._n_classes > 2:
-            return preds
+        if self._n_classes > 2 or raw_score or pred_leaf or pred_contrib:
+            return result
 
-        else:
-            preds = preds.reshape(-1, 1)
+        preds = result.reshape(-1, 1)
 
-            return np.concatenate([1.0 - preds, preds], axis=1)
+        return np.concatenate([1.0 - preds, preds], axis=1)
 
 
 class LGBMRegressor(LGBMModel, RegressorMixin):
@@ -1132,6 +1136,9 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
         termination signal such as Ctrl+C or SIGTERM. This trades off runtime
         vs quality of the solution.
 
+    train_dir
+        Directory for storing the files generated during training.
+
     **kwargs
         Other parameters for the model. See
         http://lightgbm.readthedocs.io/en/latest/Parameters.html for more
@@ -1172,44 +1179,13 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
     --------
     >>> import optgbm as lgb
     >>> from sklearn.datasets import load_boston
-    >>> reg = lgb.LGBMRegressor(random_state=0)
+    >>> tmp_path = getfixture("tmp_path")  # noqa
+    >>> reg = lgb.LGBMRegressor(random_state=0, train_dir=tmp_path)
     >>> X, y = load_boston(return_X_y=True)
     >>> reg.fit(X, y)
     LGBMRegressor(...)
     >>> y_pred = reg.predict(X)
     """
-
-    def predict(
-        self,
-        X: TwoDimArrayLikeType,
-        num_iteration: Optional[int] = None,
-        **predict_params: Any
-    ) -> np.ndarray:
-        """Predict using the fitted model.
-
-        Parameters
-        ----------
-        X
-            Data.
-
-        num_iteration
-            Limit number of iterations in the prediction. If None, if the best
-            iteration exists, it is used; otherwise, all trees are used. If
-            <=0, all trees are used (no limits).
-
-        **predict_params
-            Always ignored. This parameter exists for compatibility.
-
-        Returns
-        -------
-        y_pred
-            Predicted values.
-        """
-        X = check_X(
-            X, accept_sparse=True, estimator=self, force_all_finite=False
-        )
-
-        return self.booster_.predict(X, num_iteration=num_iteration)
 
 
 # alias classes

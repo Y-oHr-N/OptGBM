@@ -6,6 +6,7 @@ from lightgbm import *  # noqa
 from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
 
+from . import compat  # noqa
 from . import sklearn  # noqa
 from . import typing  # noqa
 from . import utils  # noqa

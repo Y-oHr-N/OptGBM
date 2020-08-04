@@ -1,6 +1,7 @@
 # OptGBM
 
 [![Python package](https://github.com/Y-oHr-N/OptGBM/workflows/Python%20package/badge.svg?branch=master)](https://github.com/Y-oHr-N/OptGBM/actions?query=workflow%3A%22Python+package%22)
+[![codecov](https://codecov.io/gh/Y-oHr-N/OptGBM/branch/master/graph/badge.svg)](https://codecov.io/gh/Y-oHr-N/OptGBM)
 [![PyPI](https://img.shields.io/pypi/v/OptGBM)](https://pypi.org/project/OptGBM/)
 [![PyPI - License](https://img.shields.io/pypi/l/OptGBM)](https://pypi.org/project/OptGBM/)
 [![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/Y-oHr-N/OptGBM/master)
@@ -30,5 +31,5 @@ pip install optgbm
 ## Testing
 
 ```
-python setup.py test
+tox
 ```
