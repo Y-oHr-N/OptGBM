@@ -19,8 +19,19 @@ X, y = load_boston(return_X_y=True)
 
 reg.fit(X, y)
 
-score = reg.score(X, y)
+y_pred = reg.predict(X, y)
 ```
+
+By default, the following hyperparameters will be searched.
+
+- `bagging_fraction`
+- `bagging_freq`
+- `feature_fractrion`
+- `lambda_l1`
+- `lambda_l2`
+- `max_depth`
+- `min_data_in_leaf`
+- `num_leaves`
 
 ## Installation
 
