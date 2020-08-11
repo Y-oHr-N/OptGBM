@@ -6,7 +6,7 @@
 [![PyPI - License](https://img.shields.io/pypi/l/OptGBM)](https://pypi.org/project/OptGBM/)
 [![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/Y-oHr-N/OptGBM/master)
 
-OptGBM (= Optuna + LightGBM) provides a scikit-learn compatible estimator that tunes hyperparameters in LightGBM with Optuna.
+OptGBM (= [Optuna](https://optuna.org/) + [LightGBM](http://github.com/microsoft/LightGBM)) provides a scikit-learn compatible estimator that tunes hyperparameters in LightGBM with Optuna.
 
 ## Examples
 
