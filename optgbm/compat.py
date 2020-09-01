@@ -3,7 +3,7 @@
 import lightgbm as lgb
 import sklearn
 
-if lgb.__version__ >= "2.2.2":
+if lgb.__version__ >= "2.2.2" and lgb.__version__ < "3.0.0":
     from lightgbm.engine import _CVBooster  # noqa
 else:
     from lightgbm.engine import CVBooster as _CVBooster  # noqa
