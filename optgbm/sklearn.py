@@ -526,6 +526,8 @@ class LGBMModel(lgb.LGBMModel):
 
         n_samples, self._n_features = X.shape
 
+        self._n_features_in = self._n_features
+
         is_classifier = self._estimator_type == "classifier"
         cv = check_cv(self.cv, y, is_classifier)
 
