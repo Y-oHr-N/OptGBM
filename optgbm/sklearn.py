@@ -18,6 +18,7 @@ import numpy as np
 
 from optuna import distributions
 from optuna import integration
+from optuna.integration._lightgbm_tuner import alias
 from optuna import samplers
 from optuna import study as study_module
 from optuna import structs
@@ -526,6 +527,8 @@ class LGBMModel(lgb.LGBMModel):
 
         n_samples, self._n_features = X.shape
 
+        self._n_features_in = self._n_features
+
         is_classifier = self._estimator_type == "classifier"
         cv = check_cv(self.cv, y, is_classifier)
 
@@ -535,6 +538,8 @@ class LGBMModel(lgb.LGBMModel):
             logger.warning("{}={} will be ignored.".format(key, value))
 
         params = self.get_params()
+
+        alias._handling_alias_parameters(params)
 
         for attr in (
             "class_weight",
