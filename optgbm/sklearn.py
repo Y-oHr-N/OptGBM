@@ -18,6 +18,7 @@ import numpy as np
 
 from optuna import distributions
 from optuna import integration
+from optuna.integration._lightgbm_tuner import alias
 from optuna import samplers
 from optuna import study as study_module
 from optuna import structs
@@ -537,6 +538,8 @@ class LGBMModel(lgb.LGBMModel):
             logger.warning("{}={} will be ignored.".format(key, value))
 
         params = self.get_params()
+
+        alias._handling_alias_parameters(params)
 
         for attr in (
             "class_weight",
