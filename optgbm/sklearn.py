@@ -313,6 +313,7 @@ class LGBMModel(lgb.LGBMModel):
         reg_lambda: float = 0.0,
         random_state: Optional[RandomStateType] = None,
         n_jobs: int = -1,
+        silent: bool = True,
         importance_type: str = "split",
         cv: CVType = 5,
         enable_pruning: bool = False,
@@ -343,6 +344,7 @@ class LGBMModel(lgb.LGBMModel):
             random_state=random_state,
             reg_alpha=reg_alpha,
             reg_lambda=reg_lambda,
+            silent=silent,
             subsample=subsample,
             subsample_for_bin=subsample_for_bin,
             subsample_freq=subsample_freq,
@@ -541,6 +543,15 @@ class LGBMModel(lgb.LGBMModel):
 
         alias._handling_alias_parameters(params)
 
+        if (
+            not any(
+                verbose_alias in params
+                for verbose_alias in ("verbose", "verbosity")
+            )
+            and self.silent
+        ):
+            params["verbose"] = -1
+
         for attr in (
             "class_weight",
             "cv",
@@ -550,6 +561,7 @@ class LGBMModel(lgb.LGBMModel):
             "n_trials",
             "param_distributions",
             "refit",
+            "silent",
             "study",
             "timeout",
             "train_dir",
@@ -558,7 +570,6 @@ class LGBMModel(lgb.LGBMModel):
 
         params["objective"] = self._get_objective()
         params["random_state"] = seed
-        params["verbose"] = -1
 
         if self._n_classes is not None and self._n_classes > 2:
             params["num_classes"] = self._n_classes
@@ -781,6 +792,9 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
 
     n_jobs
         Number of parallel jobs. -1 means using all processors.
+
+    silent
+        If true, print messages while running boosting.
 
     importance_type
         Type of feature importances. If 'split', result contains numbers of
@@ -1098,6 +1112,9 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
 
     n_jobs
         Number of parallel jobs. -1 means using all processors.
+
+    silent
+        If true, print messages while running boosting.
 
     importance_type
         Type of feature importances. If 'split', result contains numbers of
