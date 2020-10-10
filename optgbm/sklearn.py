@@ -101,7 +101,7 @@ class _Objective(object):
         eval_name: str,
         is_higher_better: bool,
         n_samples: int,
-        train_dir: pathlib.Path,
+        model_dir: pathlib.Path,
         weights: np.ndarray,
         callbacks: Optional[List[Callable]] = None,
         cv: Optional[CVType] = None,
@@ -129,7 +129,7 @@ class _Objective(object):
         self.n_samples = n_samples
         self.params = params
         self.param_distributions = param_distributions
-        self.train_dir = train_dir
+        self.model_dir = model_dir
         self.weights = weights
 
     def __call__(self, trial: trial_module.Trial) -> float:
@@ -154,7 +154,7 @@ class _Objective(object):
 
         trial.set_user_attr("best_iteration", best_iteration)
 
-        booster_path = self.train_dir / "trial_{}.pkl".format(
+        booster_path = self.model_dir / "trial_{}.pkl".format(
             trial.number
         )  # type: pathlib.Path
 
@@ -324,7 +324,7 @@ class LGBMModel(lgb.LGBMModel):
         refit: bool = True,
         study: Optional[study_module.Study] = None,
         timeout: Optional[float] = None,
-        train_dir: Union[pathlib.Path, str] = "optgbm_info",
+        model_dir: Union[pathlib.Path, str] = "optgbm_info",
         **kwargs: Any
     ) -> None:
         super().__init__(
@@ -358,7 +358,7 @@ class LGBMModel(lgb.LGBMModel):
         self.refit = refit
         self.study = study
         self.timeout = timeout
-        self.train_dir = train_dir
+        self.model_dir = model_dir
 
     def _check_is_fitted(self) -> None:
         getattr(self, "n_features_")
@@ -382,10 +382,10 @@ class LGBMModel(lgb.LGBMModel):
 
         return random_state.randint(0, MAX_INT)
 
-    def _get_train_dir(self) -> pathlib.Path:
-        train_dir = str(self.train_dir)
+    def _get_model_dir(self) -> pathlib.Path:
+        model_dir = str(self.model_dir)
 
-        return pathlib.Path(train_dir)
+        return pathlib.Path(model_dir)
 
     def _make_booster(
         self,
@@ -564,7 +564,7 @@ class LGBMModel(lgb.LGBMModel):
             "silent",
             "study",
             "timeout",
-            "train_dir",
+            "model_dir",
         ):
             params.pop(attr, None)
 
@@ -624,7 +624,7 @@ class LGBMModel(lgb.LGBMModel):
             categorical_feature=categorical_feature,
         )
 
-        train_dir = self._get_train_dir()
+        model_dir = self._get_model_dir()
         weights = np.array(
             [
                 np.sum(sample_weight[train])
@@ -632,7 +632,7 @@ class LGBMModel(lgb.LGBMModel):
             ]
         )
 
-        train_dir.mkdir(exist_ok=True, parents=True)
+        model_dir.mkdir(exist_ok=True, parents=True)
 
         objective = _Objective(
             params,
@@ -640,7 +640,7 @@ class LGBMModel(lgb.LGBMModel):
             eval_name,
             is_higher_better,
             n_samples,
-            train_dir,
+            model_dir,
             weights,
             callbacks=callbacks,
             cv=cv,
@@ -679,7 +679,7 @@ class LGBMModel(lgb.LGBMModel):
             "The best_iteration is {}.".format(elapsed_time, best_iteration)
         )
 
-        booster_path = train_dir / "trial_{}.pkl".format(
+        booster_path = model_dir / "trial_{}.pkl".format(
             self.study_.best_trial.number
         )
 
@@ -840,7 +840,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         termination signal such as Ctrl+C or SIGTERM. This trades off runtime
         vs quality of the solution.
 
-    train_dir
+    model_dir
         Directory for storing the files generated during training.
 
     **kwargs
@@ -887,7 +887,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
     >>> import optgbm as lgb
     >>> from sklearn.datasets import load_iris
     >>> tmp_path = getfixture("tmp_path")  # noqa
-    >>> clf = lgb.LGBMClassifier(random_state=0, train_dir=tmp_path)
+    >>> clf = lgb.LGBMClassifier(random_state=0, model_dir=tmp_path)
     >>> X, y = load_iris(return_X_y=True)
     >>> clf.fit(X, y)
     LGBMClassifier(...)
@@ -1160,7 +1160,7 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
         termination signal such as Ctrl+C or SIGTERM. This trades off runtime
         vs quality of the solution.
 
-    train_dir
+    model_dir
         Directory for storing the files generated during training.
 
     **kwargs
@@ -1204,7 +1204,7 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
     >>> import optgbm as lgb
     >>> from sklearn.datasets import load_boston
     >>> tmp_path = getfixture("tmp_path")  # noqa
-    >>> reg = lgb.LGBMRegressor(random_state=0, train_dir=tmp_path)
+    >>> reg = lgb.LGBMRegressor(random_state=0, model_dir=tmp_path)
     >>> X, y = load_boston(return_X_y=True)
     >>> reg.fit(X, y)
     LGBMRegressor(...)
