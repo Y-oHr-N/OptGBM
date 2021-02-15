@@ -40,7 +40,7 @@ def log_likelihood(
 
 def zero_one_loss(
     y_true: np.ndarray, y_pred: np.ndarray
-) -> Tuple[str, float, bool]:
+) -> Tuple[str, np.number, bool]:
     return "zero_one_loss", np.mean(y_true != y_pred), False
 
 
