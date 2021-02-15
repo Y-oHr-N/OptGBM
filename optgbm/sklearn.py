@@ -11,6 +11,7 @@ from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 import lightgbm as lgb
@@ -527,7 +528,7 @@ class LGBMModel(lgb.LGBMModel):
             force_all_finite=False,
         )
 
-        n_samples, self._n_features = X.shape
+        n_samples, self._n_features = X.shape  # type: Tuple[int, int]
 
         self._n_features_in = self._n_features
 

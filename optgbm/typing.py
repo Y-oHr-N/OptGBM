@@ -18,7 +18,7 @@ from .compat import _CVBooster
 CVType = Union[BaseCrossValidator, int, List[Tuple]]
 
 LightGBMCallbackEnvType = NamedTuple(
-    "LightGBMCallbackEnv",
+    "LightGBMCallbackEnvType",
     [
         ("model", _CVBooster),
         ("params", Dict[str, Any]),
