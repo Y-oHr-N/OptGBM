@@ -16,6 +16,7 @@ from typing import Union
 
 import lightgbm as lgb
 import numpy as np
+import pandas as pd
 
 from optuna import distributions
 from optuna import integration
@@ -609,6 +610,7 @@ class LGBMModel(lgb.LGBMModel):
 
         # See https://github.com/microsoft/LightGBM/issues/2319
         if group is None and groups is not None:
+            groups, _ = pd.factorize(groups)
             indices = np.argsort(groups)
             X = _safe_indexing(X, indices)
             y = _safe_indexing(y, indices)
