@@ -795,7 +795,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         Number of parallel jobs. -1 means using all processors.
 
     silent
-        If true, print messages while running boosting.
+        If False, print messages while running boosting.
 
     importance_type
         Type of feature importances. If 'split', result contains numbers of
@@ -847,7 +847,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
     **kwargs
         Other parameters for the model. See
         http://lightgbm.readthedocs.io/en/latest/Parameters.html for more
-        parameters. Note, that **kwargs is not supported in sklearn, so it
+        parameters. Note, that `**kwargs` is not supported in sklearn, so it
         may cause unexpected issues.
 
     Attributes
@@ -1115,7 +1115,7 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
         Number of parallel jobs. -1 means using all processors.
 
     silent
-        If true, print messages while running boosting.
+        If False, print messages while running boosting.
 
     importance_type
         Type of feature importances. If 'split', result contains numbers of
@@ -1167,7 +1167,7 @@ class LGBMRegressor(LGBMModel, RegressorMixin):
     **kwargs
         Other parameters for the model. See
         http://lightgbm.readthedocs.io/en/latest/Parameters.html for more
-        parameters. Note, that **kwargs is not supported in sklearn, so it
+        parameters. Note, that `**kwargs` is not supported in sklearn, so it
         may cause unexpected issues.
 
     Attributes
