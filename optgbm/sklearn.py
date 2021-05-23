@@ -5,6 +5,7 @@ import logging
 import pathlib
 import pickle
 import time
+from inspect import signature
 
 from typing import Any
 from typing import Callable
@@ -529,6 +530,16 @@ class LGBMModel(lgb.LGBMModel):
             force_all_finite=False,
         )
 
+        # See https://github.com/microsoft/LightGBM/issues/2319
+        if group is None and groups is not None:
+            groups, _ = pd.factorize(groups)
+            indices = np.argsort(groups)
+            X = _safe_indexing(X, indices)
+            y = _safe_indexing(y, indices)
+            sample_weight = _safe_indexing(sample_weight, indices)
+            groups = _safe_indexing(groups, indices)
+            _, group = np.unique(groups, return_counts=True)
+
         n_samples, self._n_features = X.shape  # type: Tuple[int, int]
 
         self._n_features_in = self._n_features
@@ -579,7 +590,19 @@ class LGBMModel(lgb.LGBMModel):
         if callable(eval_metric):
             params["metric"] = "None"
             feval = _EvalFunctionWrapper(eval_metric)
-            eval_name, _, is_higher_better = eval_metric(y, y)
+
+            args = [p.name for p in signature(eval_metric).parameters.values()]
+
+            if len(args) > 3:
+                eval_name, _, is_higher_better = eval_metric(
+                    y, y, sample_weight, group
+                )
+            elif len(args) > 2:
+                eval_name, _, is_higher_better = eval_metric(
+                    y, y, sample_weight
+                )
+            else:
+                eval_name, _, is_higher_better = eval_metric(y, y)
 
         elif isinstance(eval_metric, list):
             raise ValueError("eval_metric is not allowed to be a list.")
@@ -607,16 +630,6 @@ class LGBMModel(lgb.LGBMModel):
         )
 
         self.study_ = self._make_study(is_higher_better)
-
-        # See https://github.com/microsoft/LightGBM/issues/2319
-        if group is None and groups is not None:
-            groups, _ = pd.factorize(groups)
-            indices = np.argsort(groups)
-            X = _safe_indexing(X, indices)
-            y = _safe_indexing(y, indices)
-            sample_weight = _safe_indexing(sample_weight, indices)
-            groups = _safe_indexing(groups, indices)
-            _, group = np.unique(groups, return_counts=True)
 
         dataset = lgb.Dataset(
             X,

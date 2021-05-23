@@ -44,6 +44,21 @@ def zero_one_loss(
     return "zero_one_loss", np.mean(y_true != y_pred), False
 
 
+def zero_one_loss_with_sample_weight(
+    y_true: np.ndarray, y_pred: np.ndarray, sample_weight: np.ndarray
+) -> Tuple[str, np.number, bool]:
+    return "zero_one_loss", np.mean(y_true != y_pred), False
+
+
+def zero_one_loss_with_sample_weight_and_group(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    sample_weight: np.ndarray,
+    group: np.ndarray,
+) -> Tuple[str, np.number, bool]:
+    return "zero_one_loss", np.mean(y_true != y_pred), False
+
+
 def test_ogbm_classifier(tmp_path: pathlib.Path) -> None:
     pytest.importorskip("sklearn", minversion="0.20.0")
 
@@ -210,7 +225,16 @@ def test_fit_with_pruning(tmp_path: pathlib.Path) -> None:
 
 
 @pytest.mark.parametrize("callbacks", [None, [callback]])
-@pytest.mark.parametrize("eval_metric", [None, "auc", zero_one_loss])
+@pytest.mark.parametrize(
+    "eval_metric",
+    [
+        None,
+        "auc",
+        zero_one_loss,
+        zero_one_loss_with_sample_weight,
+        zero_one_loss_with_sample_weight_and_group,
+    ],
+)
 def test_fit_with_fit_params(
     tmp_path: pathlib.Path,
     callbacks: Optional[List[Callable]],
