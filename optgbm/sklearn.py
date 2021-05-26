@@ -460,6 +460,7 @@ class LGBMModel(lgb.LGBMModel):
         callbacks: Optional[List[Callable]] = None,
         init_model: Optional[Union[lgb.Booster, lgb.LGBMModel, str]] = None,
         groups: Optional[OneDimArrayLikeType] = None,
+        optuna_callbacks: Optional[List[Callable]] = None,
         **fit_params: Any
     ) -> "LGBMModel":
         """Fit the model according to the given training data.
@@ -509,6 +510,10 @@ class LGBMModel(lgb.LGBMModel):
         groups
             Group labels for the samples used while splitting the dataset into
             train/test set. If `group` is not None, this parameter is ignored.
+
+        optuna_callbacks
+            List of Optuna callback functions that are invoked at the end of
+            each trial.
 
         **fit_params
             Always ignored. This parameter exists for compatibility.
@@ -674,7 +679,11 @@ class LGBMModel(lgb.LGBMModel):
         start_time = time.perf_counter()
 
         self.study_.optimize(
-            objective, catch=(), n_trials=self.n_trials, timeout=self.timeout
+            objective,
+            callbacks=optuna_callbacks,
+            catch=(),
+            n_trials=self.n_trials,
+            timeout=self.timeout,
         )
 
         elapsed_time = time.perf_counter() - start_time
@@ -937,6 +946,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         callbacks: Optional[List[Callable]] = None,
         init_model: Optional[Union[lgb.Booster, lgb.LGBMModel, str]] = None,
         groups: Optional[OneDimArrayLikeType] = None,
+        optuna_callbacks: Optional[List[Callable]] = None,
         **fit_params: Any
     ) -> "LGBMClassifier":
         """Docstring is inherited from the LGBMModel."""
@@ -959,6 +969,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
             callbacks=callbacks,
             init_model=init_model,
             groups=groups,
+            optuna_callbacks=optuna_callbacks,
             **fit_params
         )
 
