@@ -12,6 +12,7 @@ import pytest
 
 from optuna import structs
 from optuna import study as study_module
+from optuna import trial as trial_module
 from sklearn.datasets import load_breast_cancer
 from sklearn.model_selection import GroupKFold
 from sklearn.model_selection import train_test_split
@@ -36,6 +37,12 @@ def log_likelihood(
     y_pred = 1.0 / (1.0 + np.exp(-y_pred))
 
     return y_pred - y_true, y_pred * (1.0 - y_pred)
+
+
+def optuna_callback(
+    study: study_module.Study, trial: trial_module.Trial
+) -> None:
+    pass
 
 
 def zero_one_loss(
@@ -235,10 +242,12 @@ def test_fit_with_pruning(tmp_path: pathlib.Path) -> None:
         zero_one_loss_with_sample_weight_and_group,
     ],
 )
+@pytest.mark.parametrize("optuna_callbacks", [None, [optuna_callback]])
 def test_fit_with_fit_params(
     tmp_path: pathlib.Path,
     callbacks: Optional[List[Callable]],
     eval_metric: Union[Callable, str],
+    optuna_callbacks: Optional[List[Callable]],
 ) -> None:
     X, y = load_breast_cancer(return_X_y=True)
 
@@ -246,7 +255,13 @@ def test_fit_with_fit_params(
         n_estimators=n_estimators, n_trials=n_trials, model_dir=tmp_path
     )
 
-    clf.fit(X, y, callbacks=callbacks, eval_metric=eval_metric)
+    clf.fit(
+        X,
+        y,
+        callbacks=callbacks,
+        eval_metric=eval_metric,
+        optuna_callbacks=optuna_callbacks,
+    )
 
 
 def test_fit_with_unused_fit_params(tmp_path: pathlib.Path) -> None:
