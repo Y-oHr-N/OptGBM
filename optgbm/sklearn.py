@@ -31,6 +31,7 @@ from sklearn.base import RegressorMixin
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import check_random_state
 
+from .basic import _VotingBooster
 from .compat import _EvalFunctionWrapper
 from .compat import _ObjectiveFunctionWrapper
 from .compat import _safe_indexing
@@ -105,7 +106,6 @@ class _Objective(object):
         is_higher_better: bool,
         n_samples: int,
         model_dir: pathlib.Path,
-        weights: np.ndarray,
         callbacks: Optional[List[Callable]] = None,
         cv: Optional[CVType] = None,
         early_stopping_rounds: Optional[int] = None,
@@ -133,7 +133,6 @@ class _Objective(object):
         self.params = params
         self.param_distributions = param_distributions
         self.model_dir = model_dir
-        self.weights = weights
 
     def __call__(self, trial: trial_module.Trial) -> float:
         params = self._get_params(trial)  # type: Dict[str, Any]
@@ -157,23 +156,21 @@ class _Objective(object):
 
         trial.set_user_attr("best_iteration", best_iteration)
 
-        booster_path = self.model_dir / "trial_{}.pkl".format(
-            trial.number
-        )  # type: pathlib.Path
+        trial_path = self.model_dir / "trial_{}".format(trial.number)
+
+        trial_path.mkdir(exist_ok=True, parents=True)
 
         boosters = callbacks[0].boosters_  # type: ignore
 
-        for b in boosters:
+        for i, b in enumerate(boosters):
             b.best_iteration = best_iteration
 
             b.free_dataset()
 
-        booster = _VotingBooster(
-            boosters, weights=self.weights
-        )  # type: _VotingBooster
+            booster_path = trial_path / "fold_{}.pkl".format(i)
 
-        with booster_path.open("wb") as f:
-            pickle.dump(booster, f)
+            with booster_path.open("wb") as f:
+                pickle.dump(b, f)
 
         return values[-1]
 
@@ -233,57 +230,6 @@ class _Objective(object):
             params[name] = trial._suggest(name, distribution)
 
         return params
-
-
-class _VotingBooster(object):
-    @property
-    def feature_name(self) -> List[str]:
-        return self.boosters[0].feature_name
-
-    def __init__(
-        self, boosters: List[lgb.Booster], weights: Optional[np.ndarray] = None
-    ) -> None:
-        if not boosters:
-            raise ValueError("boosters must be non-empty array.")
-
-        self.boosters = boosters
-        self.weights = weights
-
-    def feature_importance(self, **kwargs: Any) -> np.ndarray:
-        results = [b.feature_importance(**kwargs) for b in self.boosters]
-
-        return np.average(results, axis=0, weights=self.weights)
-
-    def predict(
-        self,
-        X: TwoDimArrayLikeType,
-        num_iteration: Optional[int] = None,
-        raw_score: bool = False,
-        pred_leaf: bool = False,
-        pred_contrib: bool = False,
-        **predict_params: Any
-    ) -> np.ndarray:
-        logger = logging.getLogger(__name__)
-
-        if raw_score:
-            raise ValueError("_VotingBooster cannot return raw scores.")
-
-        if pred_leaf:
-            raise ValueError("_VotingBooster cannot return leaf indices.")
-
-        if pred_contrib:
-            raise ValueError(
-                "_VotingBooster cannot return feature contributions."
-            )
-
-        for key, value in predict_params.items():
-            logger.warning("{}={} will be ignored.".format(key, value))
-
-        results = [
-            b.predict(X, num_iteration=num_iteration) for b in self.boosters
-        ]
-
-        return np.average(results, axis=0, weights=self.weights)
 
 
 class LGBMModel(lgb.LGBMModel):
@@ -395,7 +341,8 @@ class LGBMModel(lgb.LGBMModel):
         params: Dict[str, Any],
         dataset: lgb.Dataset,
         num_boost_round: int,
-        booster_path: pathlib.Path,
+        best_index: int,
+        weights: np.ndarray,
         fobj: Optional[Callable] = None,
         feature_name: Union[List[str], str] = "auto",
         categorical_feature: Union[List[int], List[str], str] = "auto",
@@ -418,10 +365,9 @@ class LGBMModel(lgb.LGBMModel):
 
             return booster
 
-        with booster_path.open("rb") as f:
-            booster = pickle.load(f)
+        model_dir = self._get_model_dir() / "trial_{}".format(best_index)
 
-        return booster
+        return _VotingBooster(model_dir, weights=weights)
 
     def _make_study(self, is_higher_better: bool) -> study_module.Study:
         direction = "maximize" if is_higher_better else "minimize"
@@ -653,8 +599,6 @@ class LGBMModel(lgb.LGBMModel):
             ]
         )
 
-        model_dir.mkdir(exist_ok=True, parents=True)
-
         objective = _Objective(
             params,
             dataset,
@@ -662,7 +606,6 @@ class LGBMModel(lgb.LGBMModel):
             is_higher_better,
             n_samples,
             model_dir,
-            weights,
             callbacks=callbacks,
             cv=cv,
             early_stopping_rounds=early_stopping_rounds,
@@ -704,10 +647,6 @@ class LGBMModel(lgb.LGBMModel):
             "The best_iteration is {}.".format(elapsed_time, best_iteration)
         )
 
-        booster_path = model_dir / "trial_{}.pkl".format(
-            self.study_.best_trial.number
-        )
-
         logger.info("Making booster(s)...")
 
         start_time = time.perf_counter()
@@ -716,7 +655,8 @@ class LGBMModel(lgb.LGBMModel):
             self.best_params_,
             dataset,
             best_iteration,
-            booster_path,
+            self.best_index_,
+            weights,
             fobj=fobj,
             feature_name=feature_name,
             categorical_feature=categorical_feature,
