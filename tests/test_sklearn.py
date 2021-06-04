@@ -146,7 +146,7 @@ def test_hasattr(
     else:
         assert not hasattr(clf, "refit_time_")
 
-        boosters = clf.booster_.boosters
+        boosters = clf.booster_._boosters
 
         for b in boosters:
             if early_stopping_rounds is None:

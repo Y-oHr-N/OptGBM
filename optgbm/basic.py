@@ -1,11 +1,12 @@
 """Proxies."""
 
 import logging
+import pathlib
+import pickle
 from typing import Any
 from typing import List
 from typing import Optional
 
-import lightgbm as lgb
 import numpy as np
 
 from .typing import TwoDimArrayLikeType
@@ -14,19 +15,24 @@ from .typing import TwoDimArrayLikeType
 class _VotingBooster(object):
     @property
     def feature_name(self) -> List[str]:
-        return self.boosters[0].feature_name
+        return self._boosters[0].feature_name
 
     def __init__(
-        self, boosters: List[lgb.Booster], weights: Optional[np.ndarray] = None
+        self, model_dir: pathlib.Path, weights: Optional[np.ndarray] = None
     ) -> None:
-        if not boosters:
-            raise ValueError("boosters must be non-empty array.")
-
-        self.boosters = boosters
+        self.model_dir = model_dir
         self.weights = weights
 
+        self._boosters = []
+
+        for booster_path in model_dir.glob("**/fold_*.pkl"):
+            with booster_path.open("rb") as f:
+                b = pickle.load(f)
+
+            self._boosters.append(b)
+
     def feature_importance(self, **kwargs: Any) -> np.ndarray:
-        results = [b.feature_importance(**kwargs) for b in self.boosters]
+        results = [b.feature_importance(**kwargs) for b in self._boosters]
 
         return np.average(results, axis=0, weights=self.weights)
 
@@ -56,7 +62,7 @@ class _VotingBooster(object):
             logger.warning("{}={} will be ignored.".format(key, value))
 
         results = [
-            b.predict(X, num_iteration=num_iteration) for b in self.boosters
+            b.predict(X, num_iteration=num_iteration) for b in self._boosters
         ]
 
         return np.average(results, axis=0, weights=self.weights)
