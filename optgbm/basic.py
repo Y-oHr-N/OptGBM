@@ -8,8 +8,13 @@ from typing import List
 from typing import Optional
 
 import numpy as np
+from natsort import natsorted
 
 from .typing import TwoDimArrayLikeType
+
+
+def _natsorted(x: List) -> List:
+    return natsorted(x, key=lambda elm: str(elm))
 
 
 class _VotingBooster(object):
@@ -25,7 +30,11 @@ class _VotingBooster(object):
 
         self._boosters = []
 
-        for booster_path in model_dir.glob("**/fold_*.pkl"):
+        booster_paths = _natsorted(
+            [booster_path for booster_path in model_dir.glob("**/fold_*.pkl")]
+        )
+
+        for booster_path in booster_paths:
             with booster_path.open("rb") as f:
                 b = pickle.load(f)
 
