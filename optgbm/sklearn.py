@@ -218,12 +218,21 @@ class _Objective(object):
             )
 
             if params["boosting_type"] != "goss":
-                params["bagging_fraction"] = trial.suggest_discrete_uniform(
-                    "bagging_fraction", 0.5, 0.95, 0.05
-                )
+                if params["boosting_type"] == "rf":
+                    bagging_freq_low = 1
+                else:
+                    bagging_freq_low = 0
+
                 params["bagging_freq"] = trial.suggest_int(
-                    "bagging_freq", 1, 10
+                    "bagging_freq", bagging_freq_low, 9
                 )
+
+                if params["bagging_freq"] > 0:
+                    params[
+                        "bagging_fraction"
+                    ] = trial.suggest_discrete_uniform(
+                        "bagging_fraction", 0.5, 0.95, 0.05
+                    )
 
             return params
 

@@ -11,6 +11,7 @@ repos:
     rev: ''  # Use the sha / tag you want to point at
     hooks:
     -   id: mypy
+        additional_dependencies: [types-pkg-resources]
 -   repo: https://github.com/pycqa/pydocstyle
     rev: 4.0.0  # pick a git hash / tag to point to
     hooks:
