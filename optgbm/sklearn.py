@@ -35,6 +35,7 @@ from .basic import _VotingBooster
 from .compat import _EvalFunctionWrapper
 from .compat import _ObjectiveFunctionWrapper
 from .compat import _safe_indexing
+from .compat import FEATURE_FRACTION_HIGH
 from .typing import CVType
 from .typing import LightGBMCallbackEnvType
 from .typing import OneDimArrayLikeType
@@ -197,7 +198,7 @@ class _Objective(object):
 
         if self.param_distributions is None:
             params["feature_fraction"] = trial.suggest_discrete_uniform(
-                "feature_fraction", 0.1, 1.0, 0.05
+                "feature_fraction", 0.1, FEATURE_FRACTION_HIGH, 0.05
             )
             params["max_depth"] = trial.suggest_int("max_depth", 1, 7)
             params["num_leaves"] = trial.suggest_int(
