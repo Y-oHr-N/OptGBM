@@ -12,7 +12,6 @@ from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import lightgbm as lgb
@@ -501,7 +500,7 @@ class LGBMModel(lgb.LGBMModel):
             groups = _safe_indexing(groups, indices)
             _, group = np.unique(groups, return_counts=True)
 
-        n_samples, self._n_features = X.shape  # type: Tuple[int, int]
+        _, self._n_features = X.shape
 
         self._n_features_in = self._n_features
 
@@ -590,6 +589,7 @@ class LGBMModel(lgb.LGBMModel):
             else init_model
         )
 
+        self.n_splits_ = cv.get_n_splits(X, y, groups=groups)
         self.study_ = self._make_study(is_higher_better)
 
         dataset = lgb.Dataset(
@@ -602,12 +602,13 @@ class LGBMModel(lgb.LGBMModel):
         )
 
         model_dir = self._get_model_dir()
-        weights = np.array(
-            [
-                np.sum(sample_weight[train])
-                for train, _ in cv.split(X, y, groups=groups)
-            ]
-        )
+
+        n_samples = 0
+        weights = np.empty(self.n_splits_)
+
+        for i, (train, _) in enumerate(cv.split(X, y, groups=groups)):
+            n_samples = max(n_samples, len(train))
+            weights[i] = np.sum(_safe_indexing(sample_weight, train))
 
         objective = _Objective(
             params,
@@ -649,7 +650,6 @@ class LGBMModel(lgb.LGBMModel):
         self._best_score = self.study_.best_value
         self._objective = params["objective"]
         self.best_params_ = {**params, **self.study_.best_params}
-        self.n_splits_ = cv.get_n_splits(X, y, groups=groups)
 
         logger.info(
             "Finished hyperparemeter search! "
