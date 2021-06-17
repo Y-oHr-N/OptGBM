@@ -22,7 +22,7 @@ else:
 if lgb.__version__ >= "2.2.3":
     FEATURE_FRACTION_HIGH = 1.0
 else:
-    FEATURE_FRACTION_HIGH = 0.95
+    FEATURE_FRACTION_HIGH = 0.999
 
 if sklearn.__version__ >= "0.22":
     from sklearn.utils import _safe_indexing  # noqa
