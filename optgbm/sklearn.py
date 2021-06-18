@@ -510,7 +510,7 @@ class LGBMModel(lgb.LGBMModel):
         self._n_features_in = self._n_features
 
         is_classifier = self._estimator_type == "classifier"
-        cv = check_cv(self.cv, y, is_classifier)
+        cv = check_cv(self.cv, y, classifier=is_classifier)
 
         seed = self._get_random_state()
 
