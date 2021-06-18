@@ -223,7 +223,7 @@ class _Objective(object):
                     bagging_freq_low = 0
 
                 params["bagging_freq"] = trial.suggest_int(
-                    "bagging_freq", bagging_freq_low, 9
+                    "bagging_freq", bagging_freq_low, 7
                 )
 
                 if params["bagging_freq"] > 0:
