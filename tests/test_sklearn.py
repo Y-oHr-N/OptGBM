@@ -10,7 +10,6 @@ import lightgbm as lgb
 import numpy as np
 import pytest
 
-from optuna import structs
 from optuna import study as study_module
 from optuna import trial as trial_module
 from sklearn.datasets import load_breast_cancer
@@ -226,7 +225,9 @@ def test_fit_with_pruning(tmp_path: pathlib.Path) -> None:
     else:
         trials = clf.study_.trials
 
-    pruned_trials = [t for t in trials if t.state == structs.TrialState.PRUNED]
+    pruned_trials = [
+        t for t in trials if t.state == trial_module.TrialState.PRUNED
+    ]
 
     assert len(pruned_trials) > 0
 
