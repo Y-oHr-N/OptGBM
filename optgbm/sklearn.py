@@ -105,7 +105,6 @@ class _Objective(object):
         eval_name: str,
         is_higher_better: bool,
         n_samples: int,
-        n_features: int,
         model_dir: pathlib.Path,
         callbacks: Optional[List[Callable]] = None,
         cv: Optional[CVType] = None,
@@ -130,7 +129,6 @@ class _Objective(object):
         self.init_model = init_model
         self.is_higher_better = is_higher_better
         self.n_estimators = n_estimators
-        self.n_features = n_features
         self.n_samples = n_samples
         self.params = params
         self.param_distributions = param_distributions
@@ -199,10 +197,7 @@ class _Objective(object):
 
         if self.param_distributions is None:
             params["feature_fraction"] = trial.suggest_discrete_uniform(
-                "feature_fraction",
-                0.1,
-                FEATURE_FRACTION_HIGH,
-                1.0 / self.n_features,
+                "feature_fraction", 0.1, FEATURE_FRACTION_HIGH, 0.05
             )
             params["max_depth"] = trial.suggest_int("max_depth", 1, 7)
             params["num_leaves"] = trial.suggest_int(
@@ -235,7 +230,7 @@ class _Objective(object):
                     params[
                         "bagging_fraction"
                     ] = trial.suggest_discrete_uniform(
-                        "bagging_fraction", 0.5, 0.999, 1.0 / self.n_samples
+                        "bagging_fraction", 0.5, 0.95, 0.05
                     )
 
             return params
@@ -619,7 +614,6 @@ class LGBMModel(lgb.LGBMModel):
             eval_name,
             is_higher_better,
             n_samples,
-            self._n_features,
             model_dir,
             callbacks=callbacks,
             cv=cv,
