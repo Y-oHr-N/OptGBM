@@ -51,7 +51,7 @@ def check_cv(
         _, counts = np.unique(y, return_counts=True)
         cv = max(2, min(cv, *counts))
 
-    return sklearn_check_cv(cv = cv, y = y, classifier=classifier)
+    return sklearn_check_cv(cv=cv, y=y, classifier=classifier)
 
 
 def check_X(
