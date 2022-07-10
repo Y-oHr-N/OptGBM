@@ -110,7 +110,7 @@ class _Objective(object):
         cv: Optional[CVType] = None,
         early_stopping_rounds: Optional[int] = None,
         enable_pruning: bool = False,
-        feval: Optional[Callable] = None,
+        feval: Optional[Union[Callable, List[Callable]]] = None,
         fobj: Optional[Callable] = None,
         init_model: Optional[Union[lgb.Booster, lgb.LGBMModel, str]] = None,
         n_estimators: int = 100,
@@ -411,6 +411,7 @@ class LGBMModel(lgb.LGBMModel):
         eval_metric: Optional[Union[Callable, List[str], str]] = None,
         early_stopping_rounds: Optional[int] = 10,
         feature_name: Union[List[str], str] = "auto",
+        feval: Optional[Union[Callable, List[Callable]]] = None,
         categorical_feature: Union[List[int], List[str], str] = "auto",
         callbacks: Optional[List[Callable]] = None,
         init_model: Optional[Union[lgb.Booster, lgb.LGBMModel, str]] = None,
@@ -445,6 +446,10 @@ class LGBMModel(lgb.LGBMModel):
         feature_name
             Feature names. If 'auto' and data is pandas DataFrame, data columns
             names are used.
+
+        feval
+            Customized objective function. Should accept two parameters: preds,
+            train_data, and return (grad, hess).
 
         categorical_feature
             Categorical features. If list of int, interpreted as indices. If
@@ -500,6 +505,15 @@ class LGBMModel(lgb.LGBMModel):
             groups = _safe_indexing(groups, indices)
             _, group = np.unique(groups, return_counts=True)
 
+        dataset = lgb.Dataset(
+            X,
+            label=y,
+            group=group,
+            weight=sample_weight,
+            feature_name=feature_name,
+            categorical_feature=categorical_feature,
+        )
+
         n_samples, self._n_features = X.shape  # type: Tuple[int, int]
 
         self._n_features_in = self._n_features
@@ -547,7 +561,15 @@ class LGBMModel(lgb.LGBMModel):
         if self._n_classes is not None and self._n_classes > 2:
             params["num_classes"] = self._n_classes
 
-        if callable(eval_metric):
+        if callable(feval):
+            params["metric"] = "None"
+
+            eval_name, _, is_higher_better = feval(y, dataset)
+
+        elif isinstance(feval, list):
+            raise ValueError("feval is not allowed to be a list.")
+
+        elif callable(eval_metric):
             params["metric"] = "None"
             feval = _EvalFunctionWrapper(eval_metric)
 
@@ -590,15 +612,6 @@ class LGBMModel(lgb.LGBMModel):
         )
 
         self.study_ = self._make_study(is_higher_better)
-
-        dataset = lgb.Dataset(
-            X,
-            label=y,
-            group=group,
-            weight=sample_weight,
-            feature_name=feature_name,
-            categorical_feature=categorical_feature,
-        )
 
         model_dir = self._get_model_dir()
         weights = np.array(
@@ -892,6 +905,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
         eval_metric: Optional[Union[Callable, List[str], str]] = None,
         early_stopping_rounds: Optional[int] = 10,
         feature_name: Union[List[str], str] = "auto",
+        feval: Optional[Union[Callable, List[Callable]]] = None,
         categorical_feature: Union[List[int], List[str], str] = "auto",
         callbacks: Optional[List[Callable]] = None,
         init_model: Optional[Union[lgb.Booster, lgb.LGBMModel, str]] = None,
@@ -915,6 +929,7 @@ class LGBMClassifier(LGBMModel, ClassifierMixin):
             eval_metric=eval_metric,
             early_stopping_rounds=early_stopping_rounds,
             feature_name=feature_name,
+            feval=feval,
             categorical_feature=categorical_feature,
             callbacks=callbacks,
             init_model=init_model,
