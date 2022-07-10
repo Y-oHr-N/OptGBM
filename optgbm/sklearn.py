@@ -319,7 +319,7 @@ class LGBMModel(lgb.LGBMModel):
         self.model_dir = model_dir
 
     def _check_is_fitted(self) -> None:
-        getattr(self, "n_features_")
+        getattr(self, "fitted_")
 
     def _get_objective(self) -> str:
         if isinstance(self.objective, str):
@@ -649,6 +649,7 @@ class LGBMModel(lgb.LGBMModel):
         self._objective = params["objective"]
         self.best_params_ = {**params, **self.study_.best_params}
         self.n_splits_ = cv.get_n_splits(X, y, groups=groups)
+        self.fitted_ = True
 
         logger.info(
             "Finished hyperparemeter search! "
